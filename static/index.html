@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ApuestaEdge · Recomendaciones deportivas con valor esperado positivo</title>
+<meta name="description" content="Selecciones de apuestas deportivas generadas con modelos estadísticos (Elo, Poisson, Kelly y valor esperado), con la explicación completa de por qué confiar en cada una.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="logo" href="/">⚡ Apuesta<span>Edge</span></a>
+    <nav class="links">
+      <a href="#picks">Picks de hoy</a>
+      <a href="#rendimiento">Rendimiento</a>
+      <a href="#metodologia">Metodología</a>
+      <a href="#precios">Precios</a>
+    </nav>
+    <div class="plan-switch" role="tablist" aria-label="Plan">
+      <button id="btn-free" class="plan-btn active" data-plan="free">Free</button>
+      <button id="btn-premium" class="plan-btn" data-plan="premium">Premium</button>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Estadística, no promesas imposibles</p>
+    <h1>Te decimos <em>qué</em>, <em>quién</em>, <em>cuándo</em> y <em>cuánto</em> apostar —<br>con el porqué calculado, no supuesto.</h1>
+    <p class="lead">
+      Nuestros modelos (Elo + Poisson, Kelly fraccional, valor esperado) solo señalan apuestas
+      con <strong>ventaja matemática sobre la casa</strong>. Cada pick incluye la explicación
+      completa y su rendimiento auditable. Sin “seguro”, sin “sin fallos”: con evidencia.
+    </p>
+    <div class="hero-cta">
+      <a class="btn primary" href="#picks">Ver picks de hoy</a>
+      <a class="btn ghost" href="#metodologia">¿Cómo funciona el modelo?</a>
+    </div>
+    <div class="stat-strip" id="hero-stats">
+      <div class="stat"><span class="num" id="hs-roi">—</span><label>ROI histórico</label></div>
+      <div class="stat"><span class="num" id="hs-hit">—</span><label>Acierto</label></div>
+      <div class="stat"><span class="num" id="hs-clv">—</span><label>CLV medio</label></div>
+      <div class="stat"><span class="num" id="hs-p">—</span><label>p (test binomial)</label></div>
+      <div class="stat"><span class="num" id="hs-bets">—</span><label>Picks auditados</label></div>
+    </div>
+    <p class="source-note" id="source-note">Cargando datos…</p>
+  </div>
+</section>
+
+<main>
+<section id="picks" class="wrap section">
+  <div class="section-head">
+    <div>
+      <h2>Recomendaciones de hoy</h2>
+      <p class="sub" id="picks-sub">Filtradas por valor esperado positivo y confianza estadística.</p>
+    </div>
+    <div class="controls">
+      <div class="chips" id="sport-chips">
+        <button class="chip active" data-sport="">Todos</button>
+        <button class="chip" data-sport="soccer">⚽ Fútbol</button>
+        <button class="chip" data-sport="basketball">🏀 Básquet</button>
+        <button class="chip" data-sport="tennis">🎾 Tenis</button>
+      </div>
+      <label class="bankroll">Bankroll $
+        <input type="number" id="bankroll" value="1000" min="50" step="50">
+      </label>
+    </div>
+  </div>
+  <div id="picks-list" class="picks"><p class="muted">Cargando picks…</p></div>
+</section>
+
+<section id="rendimiento" class="section band">
+  <div class="wrap">
+    <h2>Rendimiento auditable</h2>
+    <p class="sub">Historial completo de picks (ganados y perdidos). Publicamos lo bueno y lo malo: sin track record verificable no hay confianza posible.</p>
+    <div class="metrics" id="metrics"><p class="muted">Cargando métricas…</p></div>
+    <div class="grid-2">
+      <div class="panel">
+        <h3>Curva de equity (unidades acumuladas)</h3>
+        <div id="equity" class="chart"></div>
+      </div>
+      <div class="panel">
+        <h3>Por deporte</h3>
+        <table class="table" id="sport-table">
+          <thead><tr><th>Deporte</th><th>Picks</th><th>Acierto</th><th>ROI</th><th>CLV</th><th>p</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="footnote">p &lt; 0.05 → la ventaja es estadísticamente significativa al 95%.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="metodologia" class="wrap section">
+  <h2>Cómo se decide cada recomendación</h2>
+  <p class="sub">El mismo pipeline para cada partido, sin excepciones:</p>
+  <ol class="pipeline" id="pipeline"></ol>
+  <div class="grid-2 mt">
+    <div class="panel ok">
+      <h3>Por qué el método funciona</h3>
+      <ul id="why-list"></ul>
+    </div>
+    <div class="panel warn">
+      <h3>Límites honestos (léelos)</h3>
+      <ul id="limits-list"></ul>
+    </div>
+  </div>
+</section>
+
+<section id="precios" class="section band">
+  <div class="wrap">
+    <h2>Planes</h2>
+    <p class="sub">Empieza gratis. Premium desbloquea todos los valores, el stake exacto y el análisis completo.</p>
+    <div class="plans" id="plans"></div>
+    <form id="subscribe-form" class="subscribe">
+      <input type="email" id="email" placeholder="tu@correo.com" required>
+      <select id="plan-select">
+        <option value="premium">Premium</option>
+        <option value="free">Free</option>
+      </select>
+      <button class="btn primary" type="submit">Crear cuenta</button>
+      <span id="sub-msg" class="sub-msg"></span>
+    </form>
+
+    <div class="panel tg-panel" id="sub-panel" hidden>
+      <h3>💳 Tu suscripción</h3>
+      <div id="sub-state" class="muted">Comprobando estado…</div>
+      <button class="btn ghost" id="btn-portal" hidden>Gestionar suscripción</button>
+    </div>
+
+    <div class="panel tg-panel">
+      <h3>📣 Alertas por Telegram</h3>
+      <div id="tg-body" class="muted">Comprobando estado…</div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p><strong>+18 · Juego responsable.</strong> Apostar conlleva riesgo de perder dinero. Este sitio ofrece
+      análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados.
+      Ningún modelo acierta siempre: jugamos para tener ventaja a largo plazo, no certezas por partido.</p>
+    <p class="muted">ApuestaEdge © 2026 · Datos: The Odds API (o dataset de demostración) ·
+      Hecho con Elo, Poisson, Kelly y valor esperado.</p>
+  </div>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>

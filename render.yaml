@@ -1,0 +1,28 @@
+# Servicio web permanente en Render.
+# Conecta el repo en render.com → New → Web Service → usa este archivo.
+services:
+  - type: web
+    name: apuestaedge
+    runtime: python
+    # Render instala requirements.txt y arranca con esto:
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: APUESTAEDGE_DATA_DIR
+        value: /data
+      # Añade aquí tus claves reales (no las subas al repo):
+      # - key: STRIPE_SECRET_KEY
+      #   sync: false
+      # - key: STRIPE_WEBHOOK_SECRET
+      #   sync: false
+      # - key: TELEGRAM_BOT_TOKEN
+      #   sync: false
+      # - key: TELEGRAM_BOT_USERNAME
+      #   value: tu_bot
+      # - key: ODDS_API_KEY
+      #   sync: false
+    disk:
+      name: apuestaedge-data
+      mountPath: /data
+      sizeGB: 1

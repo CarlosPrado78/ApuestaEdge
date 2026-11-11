@@ -1,0 +1,146 @@
+{
+  "note": "Dataset de demostración. Sustituido automáticamente por cuotas en vivo si ODDS_API_KEY está definida (The Odds API).",
+  "updated": "2026-11-10T09:00:00Z",
+  "matches": [
+    {
+      "id": "demo-001",
+      "sport_key": "soccer_spain_la_liga",
+      "sport_group": "soccer",
+      "league": "LaLiga · España",
+      "commence_time": "2026-11-14T20:00:00Z",
+      "home_team": "Real Madrid",
+      "away_team": "Barcelona",
+      "bookmakers": [
+        {"key": "bet365", "title": "Bet365", "odds": {"home": 2.03, "draw": 3.65, "away": 3.55}},
+        {"key": "williamhill", "title": "William Hill", "odds": {"home": 2.00, "draw": 3.70, "away": 3.60}},
+        {"key": "888sport", "title": "888sport", "odds": {"home": 2.05, "draw": 3.60, "away": 3.50}}
+      ]
+    },
+    {
+      "id": "demo-002",
+      "sport_key": "soccer_epl",
+      "sport_group": "soccer",
+      "league": "Premier League · Inglaterra",
+      "commence_time": "2026-11-15T16:30:00Z",
+      "home_team": "Manchester City",
+      "away_team": "Liverpool",
+      "bookmakers": [
+        {"key": "bet365", "title": "Bet365", "odds": {"home": 2.55, "draw": 3.55, "away": 2.70}},
+        {"key": "williamhill", "title": "William Hill", "odds": {"home": 2.50, "draw": 3.60, "away": 2.75}},
+        {"key": "888sport", "title": "888sport", "odds": {"home": 2.60, "draw": 3.50, "away": 2.65}}
+      ]
+    },
+    {
+      "id": "demo-003",
+      "sport_key": "soccer_epl",
+      "sport_group": "soccer",
+      "league": "Premier League · Inglaterra",
+      "commence_time": "2026-11-15T18:45:00Z",
+      "home_team": "Arsenal",
+      "away_team": "Chelsea",
+      "bookmakers": [
+        {"key": "bet365", "title": "Bet365", "odds": {"home": 1.90, "draw": 3.70, "away": 3.95}},
+        {"key": "williamhill", "title": "William Hill", "odds": {"home": 1.87, "draw": 3.75, "away": 4.00}},
+        {"key": "888sport", "title": "888sport", "odds": {"home": 1.93, "draw": 3.65, "away": 3.90}}
+      ]
+    },
+    {
+      "id": "demo-004",
+      "sport_key": "soccer_mexico_ligamx",
+      "sport_group": "soccer",
+      "league": "Liga MX · México",
+      "commence_time": "2026-11-16T01:00:00Z",
+      "home_team": "Club América",
+      "away_team": "Guadalajara",
+      "bookmakers": [
+        {"key": "bet365", "title": "Bet365", "odds": {"home": 2.00, "draw": 3.55, "away": 3.80}},
+        {"key": "williamhill", "title": "William Hill", "odds": {"home": 1.97, "draw": 3.60, "away": 3.85}},
+        {"key": "888sport", "title": "888sport", "odds": {"home": 2.03, "draw": 3.50, "away": 3.75}}
+      ]
+    },
+    {
+      "id": "demo-005",
+      "sport_key": "soccer_mexico_ligamx",
+      "sport_group": "soccer",
+      "league": "Liga MX · México",
+      "commence_time": "2026-11-16T03:05:00Z",
+      "home_team": "Club Tigres",
+      "away_team": "Cruz Azul",
+      "bookmakers": [
+        {"key": "bet365", "title": "Bet365", "odds": {"home": 2.45, "draw": 3.10, "away": 3.15}},
+        {"key": "williamhill", "title": "William Hill", "odds": {"home": 2.40, "draw": 3.15, "away": 3.20}},
+        {"key": "888sport", "title": "888sport", "odds": {"home": 2.50, "draw": 3.05, "away": 3.10}}
+      ]
+    },
+    {
+      "id": "demo-006",
+      "sport_key": "basketball_nba",
+      "sport_group": "basketball",
+      "league": "NBA · EE.UU.",
+      "commence_time": "2026-11-13T02:30:00Z",
+      "home_team": "Los Angeles Lakers",
+      "away_team": "Boston Celtics",
+      "bookmakers": [
+        {"key": "bet365", "title": "Bet365", "odds": {"home": 1.75, "away": 2.05}},
+        {"key": "williamhill", "title": "William Hill", "odds": {"home": 1.72, "away": 2.10}},
+        {"key": "888sport", "title": "888sport", "odds": {"home": 1.78, "away": 2.00}}
+      ]
+    },
+    {
+      "id": "demo-007",
+      "sport_key": "basketball_nba",
+      "sport_group": "basketball",
+      "league": "NBA · EE.UU.",
+      "commence_time": "2026-11-13T04:00:00Z",
+      "home_team": "Denver Nuggets",
+      "away_team": "Golden State Warriors",
+      "bookmakers": [
+        {"key": "bet365", "title": "Bet365", "odds": {"home": 1.75, "away": 2.10}},
+        {"key": "williamhill", "title": "William Hill", "odds": {"home": 1.72, "away": 2.15}},
+        {"key": "888sport", "title": "888sport", "odds": {"home": 1.78, "away": 2.05}}
+      ]
+    },
+    {
+      "id": "demo-008",
+      "sport_key": "basketball_nba",
+      "sport_group": "basketball",
+      "league": "NBA · EE.UU.",
+      "commence_time": "2026-11-14T00:30:00Z",
+      "home_team": "Milwaukee Bucks",
+      "away_team": "Phoenix Suns",
+      "bookmakers": [
+        {"key": "bet365", "title": "Bet365", "odds": {"home": 1.80, "away": 2.03}},
+        {"key": "williamhill", "title": "William Hill", "odds": {"home": 1.78, "away": 2.06}},
+        {"key": "888sport", "title": "888sport", "odds": {"home": 1.83, "away": 2.00}}
+      ]
+    },
+    {
+      "id": "demo-009",
+      "sport_key": "tennis_atp",
+      "sport_group": "tennis",
+      "league": "ATP · Finals",
+      "commence_time": "2026-11-13T15:00:00Z",
+      "home_team": "Carlos Alcaraz",
+      "away_team": "Jannik Sinner",
+      "bookmakers": [
+        {"key": "bet365", "title": "Bet365", "odds": {"home": 2.05, "away": 1.80}},
+        {"key": "williamhill", "title": "William Hill", "odds": {"home": 2.00, "away": 1.85}},
+        {"key": "888sport", "title": "888sport", "odds": {"home": 2.08, "away": 1.78}}
+      ]
+    },
+    {
+      "id": "demo-010",
+      "sport_key": "tennis_wta",
+      "sport_group": "tennis",
+      "league": "WTA · Finals",
+      "commence_time": "2026-11-13T17:30:00Z",
+      "home_team": "Iga Swiatek",
+      "away_team": "Aryna Sabalenka",
+      "bookmakers": [
+        {"key": "bet365", "title": "Bet365", "odds": {"home": 1.76, "away": 2.05}},
+        {"key": "williamhill", "title": "William Hill", "odds": {"home": 1.74, "away": 2.08}},
+        {"key": "888sport", "title": "888sport", "odds": {"home": 1.79, "away": 2.02}}
+      ]
+    }
+  ]
+}
