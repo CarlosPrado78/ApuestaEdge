@@ -11,17 +11,10 @@ services:
     envVars:
       - key: APUESTAEDGE_DATA_DIR
         value: /data
-      # Añade aquí tus claves reales (no las subas al repo):
-      # - key: STRIPE_SECRET_KEY
-      #   sync: false
-      # - key: STRIPE_WEBHOOK_SECRET
-      #   sync: false
-      # - key: TELEGRAM_BOT_TOKEN
-      #   sync: false
-      # - key: TELEGRAM_BOT_USERNAME
-      #   value: tu_bot
-      # - key: ODDS_API_KEY
-      #   sync: false
+      # Stripe keys - configurar en el panel de Render (Variables de entorno):
+      #   Añade STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET con sync: false
+      #   STRIPE_WEBHOOK_SECRET: whsec_... (generado por Stripe en el dashboard)
+      #   STRIPE_SECRET_KEY: sk_test_... (clave secreta de Stripe test)
     disk:
       name: apuestaedge-data
       mountPath: /data
