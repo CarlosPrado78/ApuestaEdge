@@ -223,16 +223,17 @@ carga solo).
 
 ### Ruta A — Render (recomendada, sin instalar nada)
 
-1. **Sube el proyecto a GitHub**: crea un repo vacío en <https://github.com/new>
-   (privado o público) y desde `apuesta_edge/`:
+1. **Sube el proyecto a GitHub** — ✅ hecho: [github.com/CarlosPrado78/ApuestaEdge](https://github.com/CarlosPrado78/ApuestaEdge)
+   (público, rama `main`, 6 commits). Cada cambio futuro se despliega con:
 
    ```bash
-   git remote add origin https://github.com/TU-USUARIO/apuestaedge.git
-   git push -u origin master
+   git add -A && git commit -m "Descripción" && git push
+   # Render redespliega solo al detectar el push
    ```
 
-2. **Conecta Render**: en <https://render.com> → *New* → *Web Service* →
-   conecta tu cuenta de GitHub → selecciona el repo `apuestaedge`.
+2. **Conecta Render**: en <https://render.com> → *New* → *Blueprint* →
+   conecta tu cuenta de GitHub → instala la app de Render solo para el repo
+   `CarlosPrado78/ApuestaEdge` → *Connect*.
    Render detecta `render.yaml` solo (Blueprint) y configura build, disco de
    1 GB en `/data` y health check `/api/health`.
 
