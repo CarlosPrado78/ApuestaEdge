@@ -66,6 +66,10 @@ def _get_matches() -> tuple[list[dict], str]:
     now = time.time()
     if _CACHE["matches"] is None or now - _CACHE["ts"] > CACHE_TTL:
         matches, source = providers.get_matches()
+        # Deportes ocultos temporalmente (sin datos reales) fuera del radar.
+        if config.HIDDEN_SPORTS:
+            matches = [m for m in matches
+                       if m.get("sport_group") not in config.HIDDEN_SPORTS]
         _CACHE.update(ts=now, matches=matches, source=source)
     return _CACHE["matches"], _CACHE["source"]
 
@@ -131,9 +135,13 @@ def recommendations(
 
 @app.get("/api/performance")
 def performance(sport: str | None = Query(None)) -> dict:
+    if sport in config.HIDDEN_SPORTS:
+        return {"sample": 0, "message": "Deporte no disponible temporalmente."}
     conn = db.connect()
     try:
         history = db.fetch_history(conn, sport)
+        history = [h for h in history
+                   if h["sport"] not in config.HIDDEN_SPORTS]
         if not history:
             return {"sample": 0, "message": "Sin historial todavía."}
         return explain.performance_summary(history, sport)
@@ -146,6 +154,8 @@ def performance_by_sport() -> dict:
     conn = db.connect()
     try:
         history = db.fetch_history(conn)
+        history = [h for h in history
+                   if h["sport"] not in config.HIDDEN_SPORTS]
         sports = sorted({h["sport"] for h in history})
         return {"all": explain.performance_summary(history),
                 "by_sport": {s: explain.performance_summary(

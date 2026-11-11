@@ -49,6 +49,11 @@ OUTRIGHT_GROUPS = ("formula1", "motogp", "horseracing")
 
 # Deportes sin proveedor de datos en vivo (solo dataset de demostración).
 DEMO_ONLY_SPORTS = ("formula1", "motogp", "horseracing")
+
+# Ocultos del radar temporalmente: sin fuente de datos real no se muestran
+# (evita presentar eventos demo como si fueran cartelera real).
+# Quitar de esta tupla cuando se conecte un proveedor en vivo para ellos.
+HIDDEN_SPORTS = OUTRIGHT_GROUPS
 ODDS_API_REGION = os.environ.get("ODDS_API_REGION", "eu")
 ODDS_API_TIMEOUT = float(os.environ.get("ODDS_API_TIMEOUT", "12"))
 

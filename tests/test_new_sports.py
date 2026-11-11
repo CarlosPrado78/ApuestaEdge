@@ -150,10 +150,15 @@ def test_boxing_explanation_mentions_neutral_venue():
 def test_sport_filters_via_api_for_new_sports():
     from app.main import app
     with TestClient(app) as client:
-        for g in NUEVOS:
+        # Con cobertura real: boxeo y béisbol visibles.
+        for g in ("boxing", "baseball"):
             body = client.get(f"/api/matches?sport={g}").json()
             assert body["count"] >= 1, g
             assert all(m["sport"] == g for m in body["matches"])
+        # Ocultos temporalmente (sin datos reales): no aparecen en la API.
+        for g in OUTRIGHT:
+            body = client.get(f"/api/matches?sport={g}").json()
+            assert body["count"] == 0, g
 
 
 def test_overview_exposes_event_and_field_size():
