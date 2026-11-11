@@ -37,7 +37,7 @@ def test_free_plan_is_more_restrictive_than_premium(matches):
     free = service.build_recommendations(plan="free", matches=matches, source="sample")
     prem = service.build_recommendations(plan="premium", matches=matches, source="sample")
     assert free["count"] <= prem["count"]
-    assert free["count"] <= 3
+    assert free["count"] <= 10  # plan Free: 10 recomendaciones diarias
     assert free["min_edge"] >= prem["min_edge"]
     for p in free["picks"]:
         assert p["edge"] >= 0.06

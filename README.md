@@ -46,6 +46,10 @@ incluye aviso de juego responsable (+18) y explícitamente dice lo que el modelo
   cubre F1/MotoGP/caballos, así que esos tres deportes funcionan con el dataset
   de demostración hasta conectar otro proveedor.*
 - **Desvigado de las cuotas**: método de potencias (Shin) + consenso entre casas.
+- **Frontend orientado a conversión**: «Recomendaciones de hoy» (10 picks en Free,
+  todos los valores en Premium), rendimiento auditable, sección de beneficios y
+  planes. El detalle metodológico (pipeline, límites, por qué funciona) **no se
+  muestra en la página**: vive en este README y en `GET /api/methodology`.
 - **Filtro de valor**: `edge = P(modelo) − P(mercado)`, `EV = P(modelo)×cuota − 1`,
   solo entra `EV > 0` con edge ≥ umbral del plan (6% Free, 3% Premium).
 - **Confianza estadística**: `P(modelo > mercado)` con aproximación normal
@@ -112,7 +116,7 @@ El panel indica en el encabezado si está en modo **demo** o **en vivo**.
 | GET | `/api/recommendations?plan=&sport=&min_edge=&bankroll=` | Picks rankeados con explicación |
 | GET | `/api/performance?sport=` | ROI, CLV, drawdown, p-value |
 | GET | `/api/performance/by-sport` | Métricas por deporte |
-| GET | `/api/methodology` | Pipeline completo, límites honestos |
+| GET | `/api/methodology` | Pipeline y límites (API: la web no muestra ya esa sección) |
 | GET | `/api/plans` | Planes, features y modo de cobro |
 | POST | `/api/subscribe` | Registro `{email, plan}` → token de sesión |
 | POST | `/api/auth/login` | `{email}` → token (demo, sin contraseña) |

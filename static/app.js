@@ -202,16 +202,6 @@ function drawEquity(curve) {
       sobre stakes de 0.5–2.5% del bankroll.</p>`;
 }
 
-/* -------------------------------------------------------------- método */
-async function loadMethod() {
-  try {
-    const m = await api("/api/methodology");
-    $("#pipeline").innerHTML = m.pipeline.map((s) => `<li>${esc(s)}</li>`).join("");
-    $("#why-list").innerHTML = m.why_it_works.map((s) => `<li>${esc(s)}</li>`).join("");
-    $("#limits-list").innerHTML = m.honest_limits.map((s) => `<li>${esc(s)}</li>`).join("");
-  } catch { /* sección estática respaldada */ }
-}
-
 /* ---------------------------------------------------------------- planes */
 async function loadPlans() {
   try {
@@ -369,7 +359,6 @@ async function loadSubscription() {
 loadStats();
 loadPicks();
 loadPerformance();
-loadMethod();
 loadPlans();
 loadTelegram();
 loadSubscription();

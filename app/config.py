@@ -46,10 +46,10 @@ PLANS = {
         "name": "Free",
         "price_usd": 0,
         "min_edge": 0.06,      # exige al menos +6% de edge
-        "max_picks": 3,
+        "max_picks": 10,       # 10 recomendaciones diarias para enganchar
         "full_analysis": False,
         "features": [
-            "3 selecciones diarias con edge ≥ 6%",
+            "10 selecciones diarias con edge ≥ 6%",
             "Probabilidad modelo vs mercado",
             "ROI público histórico",
         ],
@@ -58,7 +58,7 @@ PLANS = {
         "name": "Premium",
         "price_usd": 29,
         "min_edge": 0.03,      # exige al menos +3% de edge
-        "max_picks": 12,
+        "max_picks": 20,       # todas las selecciones con valor
         "full_analysis": True,
         "features": [
             "Todas las selecciones con edge ≥ 3%",
