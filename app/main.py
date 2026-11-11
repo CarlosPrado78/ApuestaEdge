@@ -101,7 +101,7 @@ def health() -> dict:
 
 
 @app.get("/api/matches")
-def matches(sport: str | None = Query(None, description="soccer|basketball|tennis")) -> dict:
+def matches(sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball")) -> dict:
     all_matches, source = _get_matches()
     data = service.matches_overview(all_matches)
     if sport:
@@ -113,7 +113,7 @@ def matches(sport: str | None = Query(None, description="soccer|basketball|tenni
 def recommendations(
     request: Request,
     plan: str = Query("free", pattern="^(free|premium)$"),
-    sport: str | None = Query(None, description="soccer|basketball|tennis"),
+    sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball"),
     min_edge: float | None = Query(None, ge=0.0, le=0.5),
     bankroll: float = Query(config.DEFAULT_BANKROLL, gt=0),
 ) -> dict:
@@ -158,9 +158,9 @@ def performance_by_sport() -> dict:
 def methodology() -> dict:
     return {
         "pipeline": [
-            "Ratings Elo por deporte (ventaja de localía: 60 pts fútbol, 50 básquet, 20 tenis).",
+            "Ratings Elo por deporte (ventaja de localía: 60 pts fútbol, 50 básquet, 20 tenis, 40 fútbol americano).",
             "Fútbol: tasas de goles Poisson derivadas del Elo -> matriz de marcadores -> 1X2, líneas y ambos marcan.",
-            "Básquet y tenis: probabilidad logística de victoria del Elo (moneyline).",
+            "Básquet, tenis y fútbol americano: probabilidad logística de victoria del Elo (moneyline).",
             "Desvigado de cada casa con método de potencias (Shin) y consenso entre casas.",
             "Edge = P(modelo) − P(mercado). Se filtra por edge mínimo del plan.",
             "Valor esperado EV = P(modelo) × cuota − 1; solo EV > 0 entra al radar.",

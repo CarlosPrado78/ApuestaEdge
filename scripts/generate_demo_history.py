@@ -15,7 +15,7 @@ from pathlib import Path
 
 OUT = Path(__file__).resolve().parent.parent / "data" / "history.json"
 
-SPORTS = ["soccer", "basketball", "tennis"]
+SPORTS = ["soccer", "basketball", "tennis", "americanfootball"]
 MATCHES = {
     "soccer": ["Real Madrid vs Barcelona", "Arsenal vs Chelsea",
                "Manchester City vs Liverpool", "América vs Guadalajara",
@@ -24,10 +24,13 @@ MATCHES = {
                    "Bucks vs Suns", "Heat vs Knicks"],
     "tennis": ["Alcaraz vs Sinner", "Swiatek vs Sabalenka",
                "Djokovic vs Medvedev"],
+    "americanfootball": ["Chiefs vs Bills", "Eagles vs Cowboys",
+                         "49ers vs Packers", "Lions vs Dolphins"],
 }
 SELECTIONS = {"soccer": ["home", "draw", "away"],
               "basketball": ["home", "away"],
-              "tennis": ["home", "away"]}
+              "tennis": ["home", "away"],
+              "americanfootball": ["home", "away"]}
 
 
 def main() -> None:

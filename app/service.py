@@ -24,6 +24,8 @@ ELO_BY_SPORT = {
     "soccer": elo_mod.EloConfig(k=24.0, home_advantage=60.0),
     "basketball": elo_mod.EloConfig(k=32.0, home_advantage=50.0),
     "tennis": elo_mod.EloConfig(k=20.0, home_advantage=20.0),
+    # NFL/NCAA: la localía vale ~2.5-3 puntos reales -> ~40 pts Elo.
+    "americanfootball": elo_mod.EloConfig(k=24.0, home_advantage=40.0),
 }
 
 

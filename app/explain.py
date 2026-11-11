@@ -11,12 +11,14 @@ from typing import Any
 
 from .engine import backtest as bt
 
-SPORT_LABELS = {"soccer": "Fútbol", "basketball": "Básquet", "tennis": "Tenis"}
+SPORT_LABELS = {"soccer": "Fútbol", "basketball": "Básquet", "tennis": "Tenis",
+                "americanfootball": "Fútbol americano"}
 
 MODEL_LABELS = {
     "soccer": "Poisson de goles acoplado a ratings Elo",
     "basketball": "Elo con margen de localía (moneyline)",
     "tennis": "Elo de tenis (sin localía relevante)",
+    "americanfootball": "Elo de fútbol americano con localía (moneyline)",
 }
 
 

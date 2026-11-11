@@ -32,10 +32,12 @@ incluye aviso de juego responsable (+18) y explícitamente dice lo que el modelo
 
 ## Qué hace
 
-- **Radar de partidos**: fútbol, básquet y tenis (demo incluida; cuotas en vivo
-  con [The Odds API](https://the-odds-api.com)).
+- **Radar de partidos**: fútbol, básquet, tenis y **fútbol americano (NFL/NCAA)**
+  (demo incluida; cuotas en vivo con [The Odds API](https://the-odds-api.com)).
 - **Modelos**: Elo por deporte con ventaja de localía; en fútbol, tasas de goles
   Poisson **calibradas** al score esperado del Elo → matriz de marcadores → 1X2.
+  En básquet, tenis y fútbol americano: moneyline logístico del Elo
+  (localía: 60/50/20/40 pts según deporte).
 - **Desvigado de las cuotas**: método de potencias (Shin) + consenso entre casas.
 - **Filtro de valor**: `edge = P(modelo) − P(mercado)`, `EV = P(modelo)×cuota − 1`,
   solo entra `EV > 0` con edge ≥ umbral del plan (6% Free, 3% Premium).
@@ -297,7 +299,7 @@ apuesta_edge/
   static/            # panel web (index.html, styles.css, app.js)
   data/              # ratings, cuotas demo, historial, SQLite
   scripts/generate_demo_history.py
-  tests/             # 67 tests (motor, servicio, API, auth, cobros y alertas)
+  tests/             # 76 tests (motor, servicio, API, auth, cobros, alertas y NFL)
 ```
 
 ## Tests

@@ -21,6 +21,8 @@ ODDS_API_SPORTS = {
                "soccer_italy_serie_a"],
     "basketball": ["basketball_nba"],
     "tennis": ["tennis_atp"],
+    # Fútbol americano: NFL (temporada regular + playoffs) y NCAA FBS.
+    "americanfootball": ["americanfootball_nfl", "americanfootball_ncaa_fbs"],
 }
 ODDS_API_REGION = os.environ.get("ODDS_API_REGION", "eu")
 ODDS_API_TIMEOUT = float(os.environ.get("ODDS_API_TIMEOUT", "12"))

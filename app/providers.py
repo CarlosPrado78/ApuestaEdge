@@ -25,7 +25,8 @@ log = logging.getLogger("apuesta_edge.providers")
 
 SELECTIONS = {"soccer": ["home", "draw", "away"],
               "basketball": ["home", "away"],
-              "tennis": ["home", "away"]}
+              "tennis": ["home", "away"],
+              "americanfootball": ["home", "away"]}
 
 
 def _load_json(path) -> Any:
@@ -61,6 +62,8 @@ def _sport_group(sport_key: str) -> str:
         return "basketball"
     if sport_key.startswith("tennis"):
         return "tennis"
+    if sport_key.startswith("americanfootball"):
+        return "americanfootball"
     raise ValueError(f"deporte no soportado: {sport_key}")
 
 

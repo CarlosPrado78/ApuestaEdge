@@ -12,7 +12,8 @@ const spct = (x, d = 1) => `${x >= 0 ? "+" : ""}${Number(x).toFixed(d)}%`;
 const num = (x, d = 2) => (Number.isFinite(x) ? x.toFixed(d) : "—");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const icon = (s) => ({ soccer: "⚽", basketball: "🏀", tennis: "🎾" }[s] || "🏅");
+const icon = (s) => ({ soccer: "⚽", basketball: "🏀", tennis: "🎾",
+                       americanfootball: "🏈" }[s] || "🏅");
 const when = (iso) => {
   try {
     return new Date(iso).toLocaleString("es-MX",
