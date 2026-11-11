@@ -26,7 +26,11 @@ log = logging.getLogger("apuesta_edge.providers")
 SELECTIONS = {"soccer": ["home", "draw", "away"],
               "basketball": ["home", "away"],
               "tennis": ["home", "away"],
-              "americanfootball": ["home", "away"]}
+              "americanfootball": ["home", "away"],
+              "boxing": ["home", "away"],
+              "baseball": ["home", "away"]}
+# Los deportes outright (F1, MotoGP, caballos) no tienen selecciones
+# fijas: las ofrece cada evento en ``match["participants"]`.
 
 
 def _load_json(path) -> Any:
@@ -53,6 +57,11 @@ def load_sample_matches() -> list[dict[str, Any]]:
 def _attach_ratings(match: dict, ratings: dict[str, float]) -> None:
     match.setdefault("elo_home", ratings.get(match.get("home_team", ""), 1500.0))
     match.setdefault("elo_away", ratings.get(match.get("away_team", ""), 1500.0))
+    # Outright: rating Elo de cada participante de la carrera/combate.
+    parts = match.get("participants") or []
+    if parts:
+        match.setdefault("elo_participants",
+                         {p: float(ratings.get(p, 1500.0)) for p in parts})
 
 
 def _sport_group(sport_key: str) -> str:
@@ -64,6 +73,16 @@ def _sport_group(sport_key: str) -> str:
         return "tennis"
     if sport_key.startswith("americanfootball"):
         return "americanfootball"
+    if sport_key.startswith("boxing"):
+        return "boxing"
+    if sport_key.startswith("baseball"):
+        return "baseball"
+    if sport_key.startswith("formula1"):
+        return "formula1"
+    if sport_key.startswith("motogp"):
+        return "motogp"
+    if sport_key.startswith("horseracing"):
+        return "horseracing"
     raise ValueError(f"deporte no soportado: {sport_key}")
 
 
@@ -156,6 +175,12 @@ def fetch_live_matches() -> tuple[list[dict], str]:
         return load_sample_matches(), "sample"
     if not matches:
         return load_sample_matches(), "sample"
+    # Deportes sin cobertura en vivo (outright demo o fuera de temporada):
+    # se completan con el dataset de demostración para no perderlos del radar.
+    grupos_vivos = {m["sport_group"] for m in matches}
+    for m in load_sample_matches():
+        if m["sport_group"] not in grupos_vivos:
+            matches.append(m)
     return matches, "live"
 
 

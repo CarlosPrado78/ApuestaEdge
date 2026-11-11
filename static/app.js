@@ -13,7 +13,12 @@ const num = (x, d = 2) => (Number.isFinite(x) ? x.toFixed(d) : "—");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const icon = (s) => ({ soccer: "⚽", basketball: "🏀", tennis: "🎾",
-                       americanfootball: "🏈" }[s] || "🏅");
+                       americanfootball: "🏈", boxing: "🥊", baseball: "⚾",
+                       formula1: "🏎️", motogp: "🏍️", horseracing: "🐎" }[s] || "🏅");
+const SPORT_NAME = { soccer: "Fútbol", basketball: "Básquet", tennis: "Tenis",
+                     americanfootball: "Fútbol americano", boxing: "Boxeo",
+                     baseball: "Béisbol", formula1: "Fórmula 1",
+                     motogp: "Motociclismo", horseracing: "Carreras de caballos" };
 const when = (iso) => {
   try {
     return new Date(iso).toLocaleString("es-MX",
@@ -87,7 +92,7 @@ function card(p) {
     <div class="pick-top">
       <div class="match">
         <span class="league">${icon(p.sport)} ${esc(p.league || p.sport_key)}</span>
-        <span class="teams">${esc(p.home_team)} vs ${esc(p.away_team)}</span>
+        <span class="teams">${esc(p.event || `${p.home_team} vs ${p.away_team}`)}</span>
         <span class="time">🕐 ${esc(when(p.commence_time))} UTC · antes del pitido inicial</span>
       </div>
       <div class="sel">${esc(p.selection_label)}<small>cuota ${num(p.odds)} · ${esc(p.bookmaker)}</small></div>
@@ -168,7 +173,7 @@ async function loadPerformance() {
       drawEquity(all.equity_curve || []);
     }
     const rows = Object.entries(by.by_sport || {}).map(([sport, s]) => `
-      <tr><td>${icon(sport)} ${esc(sport)}</td><td>${s.bets}</td>
+      <tr><td>${icon(sport)} ${esc(SPORT_NAME[sport] || sport)}</td><td>${s.bets}</td>
       <td>${num(s.hit_rate_pct, 1)}%</td>
       <td class="${s.roi_pct >= 0 ? "pos" : ""}">${spct(s.roi_pct)}</td>
       <td>${spct(s.avg_clv_pct)}</td><td>${num(s.binomial_p_value, 3)}</td></tr>`).join("");

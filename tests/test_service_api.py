@@ -51,8 +51,9 @@ def test_one_pick_per_match_and_ranked(matches):
     prem = service.build_recommendations(plan="premium", matches=matches, source="sample")
     ids = [p["match_id"] for p in prem["picks"]]
     assert len(ids) == len(set(ids))
-    edges = [p["edge"] for p in prem["picks"]]
-    assert edges == sorted(edges, reverse=True)
+    # Ranking: puntuación = edge × (0.5 + 0.5·confianza), descendente.
+    scores = [p["score"] for p in prem["picks"]]
+    assert scores == sorted(scores, reverse=True)
 
 
 def test_explanation_is_complete(matches):

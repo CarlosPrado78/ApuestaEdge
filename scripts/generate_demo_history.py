@@ -15,7 +15,8 @@ from pathlib import Path
 
 OUT = Path(__file__).resolve().parent.parent / "data" / "history.json"
 
-SPORTS = ["soccer", "basketball", "tennis", "americanfootball"]
+SPORTS = ["soccer", "basketball", "tennis", "americanfootball",
+          "boxing", "baseball", "formula1", "motogp", "horseracing"]
 MATCHES = {
     "soccer": ["Real Madrid vs Barcelona", "Arsenal vs Chelsea",
                "Manchester City vs Liverpool", "América vs Guadalajara",
@@ -26,11 +27,24 @@ MATCHES = {
                "Djokovic vs Medvedev"],
     "americanfootball": ["Chiefs vs Bills", "Eagles vs Cowboys",
                          "49ers vs Packers", "Lions vs Dolphins"],
+    "boxing": ["Canelo vs Benavidez", "Usyk vs Fury"],
+    "baseball": ["Dodgers vs Yankees", "Braves vs Astros", "Mets vs Phillies"],
+    "formula1": ["GP de São Paulo"],
+    "motogp": ["GP de Valencia"],
+    "horseracing": ["Gran Premio de Otoño"],
 }
 SELECTIONS = {"soccer": ["home", "draw", "away"],
               "basketball": ["home", "away"],
               "tennis": ["home", "away"],
-              "americanfootball": ["home", "away"]}
+              "americanfootball": ["home", "away"],
+              "boxing": ["home", "away"],
+              "baseball": ["home", "away"],
+              # Outright: la selección es el nombre del participante.
+              "formula1": ["Verstappen", "Norris", "Piastri", "Leclerc",
+                           "Russell"],
+              "motogp": ["Bagnaia", "Martín", "Márquez", "Acosta"],
+              "horseracing": ["Estrella Veloz", "Rey del Pacífico",
+                              "Tornado Negro", "Duquesa Azul"]}
 
 
 def main() -> None:
@@ -38,7 +52,8 @@ def main() -> None:
     rows = []
     ts = 1_700_000_000.0
     for i in range(96):
-        sport = rng.choice(SPORTS)
+        # Distribución equilibrada entre los deportes (96 = 10-11 c/u).
+        sport = SPORTS[i % len(SPORTS)]
         odds = round(rng.uniform(1.55, 3.60), 2)
         edge = round(rng.uniform(0.03, 0.11), 4)
         p_win = min((1.0 / odds) * (1.0 + edge * 1.8), 0.90)

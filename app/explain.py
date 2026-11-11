@@ -12,18 +12,49 @@ from typing import Any
 from .engine import backtest as bt
 
 SPORT_LABELS = {"soccer": "Fútbol", "basketball": "Básquet", "tennis": "Tenis",
-                "americanfootball": "Fútbol americano"}
+                "americanfootball": "Fútbol americano",
+                "boxing": "Boxeo", "baseball": "Béisbol",
+                "formula1": "Fórmula 1", "motogp": "Motociclismo",
+                "horseracing": "Carreras de caballos"}
 
 MODEL_LABELS = {
     "soccer": "Poisson de goles acoplado a ratings Elo",
     "basketball": "Elo con margen de localía (moneyline)",
     "tennis": "Elo de tenis (sin localía relevante)",
     "americanfootball": "Elo de fútbol americano con localía (moneyline)",
+    "boxing": "Elo de boxeo en terreno neutral (sin localía)",
+    "baseball": "Elo de béisbol con localía (moneyline)",
+    "formula1": "Elo de pilotos → Bradley-Terry (ganador de la carrera)",
+    "motogp": "Elo de pilotos MotoGP → Bradley-Terry (ganador de la carrera)",
+    "horseracing": "Elo de caballos → Bradley-Terry (ganador de la carrera)",
 }
+
+# Deportes sin ventaja de localía (circuito/pista/terreno neutral).
+_SIN_LOCALIA = {"tennis", "boxing", "formula1", "motogp", "horseracing"}
 
 
 def _pct(x: float) -> str:
     return f"{x * 100:.1f}%"
+
+
+def _step_model(rec: dict[str, Any], p_model: float) -> str:
+    """Paso 1: h2h (2 competidores) y outright (N participantes)."""
+    sport = rec["sport"]
+    if rec.get("market_type") == "outright":
+        return (
+            f"Usamos {MODEL_LABELS[sport]}: Elo de los {rec.get('field_size', 0)} "
+            f"participantes convertido en probabilidades con Bradley-Terry. "
+            f"«{rec['selection_label']}» tiene rating {rec.get('elo_selection', 1500.0):.0f} "
+            f"(mejor del campo {rec['elo_home']:.0f}, media {rec['elo_away']:.0f}) y el "
+            f"modelo le estima {_pct(p_model)} de probabilidad real de ganar la carrera."
+        )
+    return (
+        f"Usamos {MODEL_LABELS[sport]}: los ratings Elo ({rec['elo_home']:.0f} vs "
+        f"{rec['elo_away']:.0f}{' + localía' if sport not in _SIN_LOCALIA else ''}) convierten la "
+        f"fuerza relativa en una probabilidad. Para «{rec['selection_label']}» el modelo "
+        f"estima {_pct(p_model)} de probabilidad real."
+        + (f" Goles esperados: {rec['model_detail']}" if rec.get("model_detail") else "")
+    )
 
 
 def build_explanation(rec: dict[str, Any], stats: dict[str, float],
@@ -42,13 +73,7 @@ def build_explanation(rec: dict[str, Any], stats: dict[str, float],
     steps = [
         {
             "title": "1. Nuestro modelo",
-            "detail": (
-                f"Usamos {MODEL_LABELS[sport]}: los ratings Elo ({rec['elo_home']:.0f} vs "
-                f"{rec['elo_away']:.0f}{' + localía' if sport != 'tennis' else ''}) convierten la "
-                f"fuerza relativa en una probabilidad. Para «{rec['selection_label']}» el modelo "
-                f"estima {_pct(p_model)} de probabilidad real."
-                + (f" Goles esperados: {rec['model_detail']}" if rec.get("model_detail") else "")
-            ),
+            "detail": _step_model(rec, p_model),
         },
         {
             "title": "2. Qué exige el mercado",
@@ -107,6 +132,9 @@ def build_explanation(rec: dict[str, Any], stats: dict[str, float],
         "Las probabilidades son estimaciones; lesales, bajas o cambios de alineación no siempre están reflejadas.",
         "Apuesta solo lo que puedas permitirte perder y respeta el stake sugerido (gestión de bankroll).",
     ]
+    if rec.get("market_type") == "outright":
+        risks.insert(0, "Carrera multi-participante: incluso el favorito suele quedar por debajo "
+                        "del 50%, así que la varianza es alta y las rachas largas son normales.")
     if edge < 0.05:
         risks.insert(0, "Edge estrecho (<5 puntos): margen pequeño frente al error del modelo.")
 

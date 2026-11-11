@@ -32,12 +32,19 @@ incluye aviso de juego responsable (+18) y explícitamente dice lo que el modelo
 
 ## Qué hace
 
-- **Radar de partidos**: fútbol, básquet, tenis y **fútbol americano (NFL/NCAA)**
-  (demo incluida; cuotas en vivo con [The Odds API](https://the-odds-api.com)).
+- **Radar de partidos**: fútbol, básquet, tenis, **fútbol americano (NFL/NCAA)**,
+  **boxeo**, **béisbol (MLB)**, **Fórmula 1**, **MotoGP** y **carreras de caballos**
+  (demo incluida; cuotas en vivo con [The Odds API](https://the-odds-api.com) para
+  los deportes que cubre — boxeo y béisbol incluidos).
 - **Modelos**: Elo por deporte con ventaja de localía; en fútbol, tasas de goles
   Poisson **calibradas** al score esperado del Elo → matriz de marcadores → 1X2.
-  En básquet, tenis y fútbol americano: moneyline logístico del Elo
-  (localía: 60/50/20/40 pts según deporte).
+  En básquet, tenis, fútbol americano y béisbol: moneyline logístico del Elo
+  (localía: 60/50/20/40/25 pts según deporte; 0 en boxeo, terreno neutral).
+  En F1, MotoGP y caballos (**mercados outright**, ganador de la carrera con
+  N participantes): Elo de participantes → **Bradley-Terry** (con N=2 coincide
+  exactamente con la logística Elo). *Honestidad de datos: The Odds API no
+  cubre F1/MotoGP/caballos, así que esos tres deportes funcionan con el dataset
+  de demostración hasta conectar otro proveedor.*
 - **Desvigado de las cuotas**: método de potencias (Shin) + consenso entre casas.
 - **Filtro de valor**: `edge = P(modelo) − P(mercado)`, `EV = P(modelo)×cuota − 1`,
   solo entra `EV > 0` con edge ≥ umbral del plan (6% Free, 3% Premium).
@@ -299,7 +306,7 @@ apuesta_edge/
   static/            # panel web (index.html, styles.css, app.js)
   data/              # ratings, cuotas demo, historial, SQLite
   scripts/generate_demo_history.py
-  tests/             # 76 tests (motor, servicio, API, auth, cobros, alertas y NFL)
+  tests/             # 92 tests (motor, servicio, API, auth, cobros, alertas y 9 deportes)
 ```
 
 ## Tests
@@ -317,7 +324,7 @@ API completa.
 - Dixon-Coles para ajustar marcadores 0-0/1-1 y Poisson bivariado.
 - Elo con regresión de temporada y ratings por superficie/deporte.
 - Mercados adicionales: líneas de goles, handicaps asiáticos, totales.
-- Cobertura de más ligas y deportes (NFL, MLB) con parámetros por liga.
+- Proveedor de datos en vivo para Fórmula 1, MotoGP y caballos (hoy demo).
 - Registro real + Stripe + alertas (email/Telegram) cuando aparece valor.
 - Backtest walk-forward sobre temporadas completas.
 

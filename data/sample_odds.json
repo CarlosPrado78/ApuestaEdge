@@ -506,6 +506,389 @@
      }
     }
    ]
+  },
+  {
+   "id": "demo-015",
+   "sport_key": "boxing_boxing",
+   "sport_group": "boxing",
+   "league": "Boxeo · Evento principal",
+   "commence_time": "2026-11-22T04:00:00Z",
+   "home_team": "Canelo Álvarez",
+   "away_team": "David Benavidez",
+   "bookmakers": [
+    {
+     "key": "bet365",
+     "title": "Bet365",
+     "odds": {
+      "home": 2.0,
+      "away": 1.85
+     }
+    },
+    {
+     "key": "williamhill",
+     "title": "William Hill",
+     "odds": {
+      "home": 1.98,
+      "away": 1.84
+     }
+    },
+    {
+     "key": "888sport",
+     "title": "888sport",
+     "odds": {
+      "home": 2.02,
+      "away": 1.87
+     }
+    }
+   ]
+  },
+  {
+   "id": "demo-016",
+   "sport_key": "boxing_boxing",
+   "sport_group": "boxing",
+   "league": "Boxeo · Campeonato peso pesado",
+   "commence_time": "2026-11-29T22:30:00Z",
+   "home_team": "Oleksandr Usyk",
+   "away_team": "Tyson Fury",
+   "bookmakers": [
+    {
+     "key": "bet365",
+     "title": "Bet365",
+     "odds": {
+      "home": 1.91,
+      "away": 1.93
+     }
+    },
+    {
+     "key": "williamhill",
+     "title": "William Hill",
+     "odds": {
+      "home": 1.9,
+      "away": 1.91
+     }
+    },
+    {
+     "key": "888sport",
+     "title": "888sport",
+     "odds": {
+      "home": 1.93,
+      "away": 1.95
+     }
+    }
+   ]
+  },
+  {
+   "id": "demo-017",
+   "sport_key": "baseball_mlb",
+   "sport_group": "baseball",
+   "league": "MLB · Estados Unidos",
+   "commence_time": "2026-11-18T23:10:00Z",
+   "home_team": "Los Angeles Dodgers",
+   "away_team": "New York Yankees",
+   "bookmakers": [
+    {
+     "key": "bet365",
+     "title": "Bet365",
+     "odds": {
+      "home": 1.9,
+      "away": 1.94
+     }
+    },
+    {
+     "key": "williamhill",
+     "title": "William Hill",
+     "odds": {
+      "home": 1.88,
+      "away": 1.93
+     }
+    },
+    {
+     "key": "888sport",
+     "title": "888sport",
+     "odds": {
+      "home": 1.92,
+      "away": 1.96
+     }
+    }
+   ]
+  },
+  {
+   "id": "demo-018",
+   "sport_key": "baseball_mlb",
+   "sport_group": "baseball",
+   "league": "MLB · Estados Unidos",
+   "commence_time": "2026-11-19T00:15:00Z",
+   "home_team": "Atlanta Braves",
+   "away_team": "Houston Astros",
+   "bookmakers": [
+    {
+     "key": "bet365",
+     "title": "Bet365",
+     "odds": {
+      "home": 1.68,
+      "away": 2.24
+     }
+    },
+    {
+     "key": "williamhill",
+     "title": "William Hill",
+     "odds": {
+      "home": 1.67,
+      "away": 2.22
+     }
+    },
+    {
+     "key": "888sport",
+     "title": "888sport",
+     "odds": {
+      "home": 1.7,
+      "away": 2.27
+     }
+    }
+   ]
+  },
+  {
+   "id": "demo-019",
+   "sport_key": "baseball_mlb",
+   "sport_group": "baseball",
+   "league": "MLB · Estados Unidos",
+   "commence_time": "2026-11-19T23:40:00Z",
+   "home_team": "New York Mets",
+   "away_team": "Philadelphia Phillies",
+   "bookmakers": [
+    {
+     "key": "bet365",
+     "title": "Bet365",
+     "odds": {
+      "home": 2.08,
+      "away": 1.79
+     }
+    },
+    {
+     "key": "williamhill",
+     "title": "William Hill",
+     "odds": {
+      "home": 2.06,
+      "away": 1.77
+     }
+    },
+    {
+     "key": "888sport",
+     "title": "888sport",
+     "odds": {
+      "home": 2.1,
+      "away": 1.8
+     }
+    }
+   ]
+  },
+  {
+   "id": "demo-020",
+   "sport_key": "formula1_gp",
+   "sport_group": "formula1",
+   "league": "Fórmula 1 · Gran Premio",
+   "commence_time": "2026-11-21T18:00:00Z",
+   "event": "GP de São Paulo · Fórmula 1",
+   "participants": [
+    "Max Verstappen",
+    "Lando Norris",
+    "Oscar Piastri",
+    "Charles Leclerc",
+    "George Russell",
+    "Lewis Hamilton",
+    "Carlos Sainz",
+    "Fernando Alonso",
+    "Pierre Gasly",
+    "Esteban Ocon"
+   ],
+   "home_team": "Max Verstappen",
+   "away_team": "Lando Norris",
+   "bookmakers": [
+    {
+     "key": "bet365",
+     "title": "Bet365",
+     "odds": {
+      "Max Verstappen": 5.7,
+      "Lando Norris": 7.85,
+      "Oscar Piastri": 8.52,
+      "Charles Leclerc": 9.23,
+      "George Russell": 9.49,
+      "Lewis Hamilton": 10.28,
+      "Carlos Sainz": 11.43,
+      "Fernando Alonso": 12.05,
+      "Pierre Gasly": 14.09,
+      "Esteban Ocon": 14.84
+     }
+    },
+    {
+     "key": "williamhill",
+     "title": "William Hill",
+     "odds": {
+      "Max Verstappen": 5.65,
+      "Lando Norris": 7.78,
+      "Oscar Piastri": 8.44,
+      "Charles Leclerc": 9.15,
+      "George Russell": 9.4,
+      "Lewis Hamilton": 10.18,
+      "Carlos Sainz": 11.32,
+      "Fernando Alonso": 11.93,
+      "Pierre Gasly": 13.96,
+      "Esteban Ocon": 14.69
+     }
+    },
+    {
+     "key": "888sport",
+     "title": "888sport",
+     "odds": {
+      "Max Verstappen": 5.76,
+      "Lando Norris": 7.93,
+      "Oscar Piastri": 8.6,
+      "Charles Leclerc": 9.32,
+      "George Russell": 9.58,
+      "Lewis Hamilton": 10.38,
+      "Carlos Sainz": 11.54,
+      "Fernando Alonso": 12.16,
+      "Pierre Gasly": 14.23,
+      "Esteban Ocon": 14.98
+     }
+    }
+   ]
+  },
+  {
+   "id": "demo-021",
+   "sport_key": "motogp_gp",
+   "sport_group": "motogp",
+   "league": "MotoGP · Gran Premio",
+   "commence_time": "2026-11-22T14:00:00Z",
+   "event": "GP de Valencia · MotoGP",
+   "participants": [
+    "Francesco Bagnaia",
+    "Jorge Martín",
+    "Marc Márquez",
+    "Pedro Acosta",
+    "Fabio Quartararo",
+    "Enea Bastianini",
+    "Brad Binder",
+    "Marco Bezzecchi"
+   ],
+   "home_team": "Francesco Bagnaia",
+   "away_team": "Jorge Martín",
+   "bookmakers": [
+    {
+     "key": "bet365",
+     "title": "Bet365",
+     "odds": {
+      "Francesco Bagnaia": 7.01,
+      "Jorge Martín": 6.08,
+      "Marc Márquez": 6.59,
+      "Pedro Acosta": 7.15,
+      "Fabio Quartararo": 8.39,
+      "Enea Bastianini": 8.85,
+      "Brad Binder": 9.33,
+      "Marco Bezzecchi": 9.83
+     }
+    },
+    {
+     "key": "williamhill",
+     "title": "William Hill",
+     "odds": {
+      "Francesco Bagnaia": 6.94,
+      "Jorge Martín": 6.02,
+      "Marc Márquez": 6.53,
+      "Pedro Acosta": 7.08,
+      "Fabio Quartararo": 8.31,
+      "Enea Bastianini": 8.76,
+      "Brad Binder": 9.24,
+      "Marco Bezzecchi": 9.74
+     }
+    },
+    {
+     "key": "888sport",
+     "title": "888sport",
+     "odds": {
+      "Francesco Bagnaia": 7.08,
+      "Jorge Martín": 6.14,
+      "Marc Márquez": 6.66,
+      "Pedro Acosta": 7.22,
+      "Fabio Quartararo": 8.47,
+      "Enea Bastianini": 8.93,
+      "Brad Binder": 9.42,
+      "Marco Bezzecchi": 9.92
+     }
+    }
+   ]
+  },
+  {
+   "id": "demo-022",
+   "sport_key": "horseracing_gp",
+   "sport_group": "horseracing",
+   "league": "Hípódromo · Carrera clásica",
+   "commence_time": "2026-11-23T20:30:00Z",
+   "event": "Gran Premio de Otoño · Carrera de caballos",
+   "participants": [
+    "Estrella Veloz",
+    "Rey del Pacífico",
+    "Tornado Negro",
+    "Duquesa Azul",
+    "Capitán Morgan",
+    "Lucero del Sur",
+    "Trueno Rojo",
+    "Marea Alta",
+    "Cometa Plateada",
+    "Viento del Norte"
+   ],
+   "home_team": "Estrella Veloz",
+   "away_team": "Rey del Pacífico",
+   "bookmakers": [
+    {
+     "key": "bet365",
+     "title": "Bet365",
+     "odds": {
+      "Estrella Veloz": 7.86,
+      "Rey del Pacífico": 7.3,
+      "Tornado Negro": 7.92,
+      "Duquesa Azul": 8.59,
+      "Capitán Morgan": 9.31,
+      "Lucero del Sur": 10.09,
+      "Trueno Rojo": 10.93,
+      "Marea Alta": 11.82,
+      "Cometa Plateada": 12.79,
+      "Viento del Norte": 13.83
+     }
+    },
+    {
+     "key": "williamhill",
+     "title": "William Hill",
+     "odds": {
+      "Estrella Veloz": 7.78,
+      "Rey del Pacífico": 7.23,
+      "Tornado Negro": 7.85,
+      "Duquesa Azul": 8.51,
+      "Capitán Morgan": 9.22,
+      "Lucero del Sur": 9.99,
+      "Trueno Rojo": 10.82,
+      "Marea Alta": 11.71,
+      "Cometa Plateada": 12.67,
+      "Viento del Norte": 13.69
+     }
+    },
+    {
+     "key": "888sport",
+     "title": "888sport",
+     "odds": {
+      "Estrella Veloz": 7.93,
+      "Rey del Pacífico": 7.37,
+      "Tornado Negro": 8.0,
+      "Duquesa Azul": 8.67,
+      "Capitán Morgan": 9.4,
+      "Lucero del Sur": 10.19,
+      "Trueno Rojo": 11.03,
+      "Marea Alta": 11.94,
+      "Cometa Plateada": 12.91,
+      "Viento del Norte": 13.96
+     }
+    }
+   ]
   }
  ]
 }

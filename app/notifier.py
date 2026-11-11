@@ -54,7 +54,8 @@ def format_pick(pick: dict[str, Any], plan: str = "premium",
     """Mensaje HTML de un pick (escapa todos los datos externos)."""
     e = html.escape
     sport_icon = {"soccer": "⚽", "basketball": "🏀", "tennis": "🎾",
-                  "americanfootball": "🏈"}.get(
+                  "americanfootball": "🏈", "boxing": "🥊", "baseball": "⚾",
+                  "formula1": "🏎️", "motogp": "🏍️", "horseracing": "🐎"}.get(
         pick.get("sport", ""), "🏅")
     kelly = pick.get("kelly") or {}
     when = e(str(pick.get("commence_time") or "horario por confirmar"))

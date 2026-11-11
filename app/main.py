@@ -101,7 +101,7 @@ def health() -> dict:
 
 
 @app.get("/api/matches")
-def matches(sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball")) -> dict:
+def matches(sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball|boxing|baseball|formula1|motogp|horseracing")) -> dict:
     all_matches, source = _get_matches()
     data = service.matches_overview(all_matches)
     if sport:
@@ -113,7 +113,7 @@ def matches(sport: str | None = Query(None, description="soccer|basketball|tenni
 def recommendations(
     request: Request,
     plan: str = Query("free", pattern="^(free|premium)$"),
-    sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball"),
+    sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball|boxing|baseball|formula1|motogp|horseracing"),
     min_edge: float | None = Query(None, ge=0.0, le=0.5),
     bankroll: float = Query(config.DEFAULT_BANKROLL, gt=0),
 ) -> dict:
@@ -158,9 +158,10 @@ def performance_by_sport() -> dict:
 def methodology() -> dict:
     return {
         "pipeline": [
-            "Ratings Elo por deporte (ventaja de localía: 60 pts fútbol, 50 básquet, 20 tenis, 40 fútbol americano).",
+            "Ratings Elo por deporte (ventaja de localía: 60 pts fútbol, 50 básquet, 40 fútbol americano, 25 béisbol; 0 en tenis, boxeo y carreras).",
             "Fútbol: tasas de goles Poisson derivadas del Elo -> matriz de marcadores -> 1X2, líneas y ambos marcan.",
-            "Básquet, tenis y fútbol americano: probabilidad logística de victoria del Elo (moneyline).",
+            "Básquet, tenis, fútbol americano y béisbol: probabilidad logística de victoria del Elo (moneyline).",
+            "Boxeo: Elo en terreno neutral (sin localía) ->2 boxeadores; F1, MotoGP y caballos: Elo de N participantes -> Bradley-Terry (ganador de la carrera).",
             "Desvigado de cada casa con método de potencias (Shin) y consenso entre casas.",
             "Edge = P(modelo) − P(mercado). Se filtra por edge mínimo del plan.",
             "Valor esperado EV = P(modelo) × cuota − 1; solo EV > 0 entra al radar.",
@@ -180,6 +181,8 @@ def methodology() -> dict:
             "Las probabilidades son estimaciones con incertidumbre; el bando del modelo no es un hecho.",
             "El mercado es muy eficiente: los edges grandes suelen ser información que el modelo no tiene (lesiones, motivación).",
             "Las rachas negativas son normales; el criterio es el ROI de cientos de apuestas, no el de una semana.",
+            "Fórmula 1, MotoGP y carreras de caballos funcionan con datos de demostración: The Odds API no cubre esos deportes, hasta que se conecte otro proveedor no hay cuotas en vivo.",
+            "Cuanto más pequeña la muestra de backtest de un deporte (combates, carreras), más preliminares son sus cifras.",
         ],
         "models": explain.MODEL_LABELS,
         "sports_labels": explain.SPORT_LABELS,

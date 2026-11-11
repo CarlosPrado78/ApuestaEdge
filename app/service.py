@@ -26,11 +26,22 @@ ELO_BY_SPORT = {
     "tennis": elo_mod.EloConfig(k=20.0, home_advantage=20.0),
     # NFL/NCAA: la localía vale ~2.5-3 puntos reales -> ~40 pts Elo.
     "americanfootball": elo_mod.EloConfig(k=24.0, home_advantage=40.0),
+    # Boxeo: terreno neutral, sin ventaja de localía.
+    "boxing": elo_mod.EloConfig(k=20.0, home_advantage=0.0),
+    # Béisbol MLB: el local gana ~53% de las veces -> ~25 pts Elo.
+    "baseball": elo_mod.EloConfig(k=24.0, home_advantage=25.0),
+    # Outright (F1, MotoGP, caballos): carrera en circuito/pista neutral.
+    "formula1": elo_mod.EloConfig(k=24.0, home_advantage=0.0),
+    "motogp": elo_mod.EloConfig(k=24.0, home_advantage=0.0),
+    "horseracing": elo_mod.EloConfig(k=20.0, home_advantage=0.0),
 }
 
 
 def _selection_label(match: dict, selection: str) -> str:
     """Etiqueta legible de la selección (siempre con el nombre del equipo)."""
+    # Outright: la selección ya es el nombre del participante.
+    if match.get("participants") and selection in match["participants"]:
+        return selection
     if match["sport_group"] == "soccer":
         if selection == "home":
             return f"Victoria de {match['home_team']}"
@@ -55,9 +66,31 @@ def predict(match: dict) -> tuple[dict[str, float], dict[str, Any]]:
     """Probabilidades del modelo para un partido + metadatos explicativos."""
     group = match["sport_group"]
     home, away = match["home_team"], match["away_team"]
-    elo_home, elo_away = float(match["elo_home"]), float(match["elo_away"])
+    elo_home = float(match.get("elo_home", 1500.0))
+    elo_away = float(match.get("elo_away", 1500.0))
     meta: dict[str, Any] = {"elo_home": elo_home, "elo_away": elo_away,
                             "model": explain.MODEL_LABELS[group]}
+
+    # Outright (F1, MotoGP, caballos): N participantes -> Bradley-Terry.
+    # Con N=2 coincide exactamente con la logística Elo de2 competidores.
+    parts = match.get("participants") or []
+    if parts:
+        ratings = match.get("elo_participants") or {p: 1500.0 for p in parts}
+        strengths = {p: 10.0 ** (float(ratings.get(p, 1500.0)) / 400.0)
+                     for p in parts}
+        total = sum(strengths.values())
+        probs = {p: s / total for p, s in strengths.items()}
+        best = max(probs, key=probs.get)
+        values = [float(v) for v in ratings.values()]
+        meta["elo_home"] = max(values)      # mejor rating del campo (display)
+        meta["elo_away"] = sum(values) / len(values)  # media del campo
+        meta["field_size"] = len(parts)
+        meta["elo_participants"] = {p: float(ratings.get(p, 1500.0))
+                                    for p in parts}
+        meta["model_detail"] = (
+            f"Bradley-Terry sobre Elo de {len(parts)} participantes; "
+            f"favorito {best} con {probs[best] * 100:.1f}%")
+        return probs, meta
 
     if group == "soccer":
         lam_h, lam_a = poisson.expected_lambdas(elo_home, elo_away)
@@ -99,7 +132,8 @@ def evaluate_match(match: dict, bankroll: float | None = None) -> list[dict]:
     """Todas las selecciones con valor de un partido (pueden ser 0)."""
     bankroll = bankroll or config.DEFAULT_BANKROLL
     group = match["sport_group"]
-    selections = providers.SELECTIONS[group]
+    # Outright: las selecciones son los participantes del evento.
+    selections = match.get("participants") or providers.SELECTIONS.get(group, [])
     model_probs, meta = predict(match)
     per_book, by_selection = _market_probs(match)
     if not per_book:
@@ -162,11 +196,18 @@ def evaluate_match(match: dict, bankroll: float | None = None) -> list[dict]:
             "market_spread": ev.market_sigma(market_list),
             "elo_home": meta["elo_home"],
             "elo_away": meta["elo_away"],
+            "market_type": "outright" if match.get("participants") else "h2h",
+            "event": match.get("event", ""),
             "model": meta["model"],
             "model_detail": meta.get("model_detail", ""),
             "market_lines": meta.get("market_lines", {}),
             "_per_book_market": {k_: round(v, 4) for k_, v in _m_per_book.items()},
         })
+        if match.get("participants"):
+            # Contexto outright: tamaño del campo y rating del participante.
+            rec = out[-1]
+            rec["field_size"] = len(match["participants"])
+            rec["elo_selection"] = meta["elo_participants"].get(sel, 1500.0)
     return out
 
 
@@ -283,6 +324,9 @@ def matches_overview(matches: list[dict] | None = None) -> list[dict]:
             "sport_key": m.get("sport_key"), "league": m.get("league"),
             "commence_time": m.get("commence_time"),
             "home_team": m["home_team"], "away_team": m["away_team"],
+            "event": m.get("event", ""),
+            "market_type": "outright" if m.get("participants") else "h2h",
+            "field_size": len(m.get("participants") or []),
             "elo_home": meta["elo_home"], "elo_away": meta["elo_away"],
             "model": meta["model"],
             "model_detail": meta.get("model_detail", ""),

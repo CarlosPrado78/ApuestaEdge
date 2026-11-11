@@ -23,7 +23,20 @@ ODDS_API_SPORTS = {
     "tennis": ["tennis_atp"],
     # Fútbol americano: NFL (temporada regular + playoffs) y NCAA FBS.
     "americanfootball": ["americanfootball_nfl", "americanfootball_ncaa_fbs"],
+    # Boxeo y béisbol: mercados h2h con cobertura en vivo.
+    "boxing": ["boxing_boxing"],
+    "baseball": ["baseball_mlb"],
+    # Outright (ganador de la carrera): The Odds API NO los cubre -> demo.
+    "formula1": [],
+    "motogp": [],
+    "horseracing": [],
 }
+
+# Deportes outright: N participantes por evento (cuotas por participante).
+OUTRIGHT_GROUPS = ("formula1", "motogp", "horseracing")
+
+# Deportes sin proveedor de datos en vivo (solo dataset de demostración).
+DEMO_ONLY_SPORTS = ("formula1", "motogp", "horseracing")
 ODDS_API_REGION = os.environ.get("ODDS_API_REGION", "eu")
 ODDS_API_TIMEOUT = float(os.environ.get("ODDS_API_TIMEOUT", "12"))
 
