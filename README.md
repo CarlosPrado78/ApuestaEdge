@@ -237,9 +237,9 @@ carga solo).
    Render detecta `render.yaml` solo (Blueprint) y configura build, disco de
    1 GB en `/data` y health check `/api/health`.
 
-3. **Pulsa *Deploy***. En ~2 minutos tienes una URL pública tipo
-   `https://apuestaedge-xxxx.onrender.com` visible desde cualquier
-   computadora o celular del mundo.
+3. **Pulsa *Deploy***. ✅ hecho — la app está en vivo en
+   **<https://apuestaedge.onrender.com>** (plan Free de Render, build ~40 s,
+   visible desde cualquier computadora o celular del mundo).
 
 4. **Variables de entorno** (dashboard → *Environment*), cuando quieras activar
    producción real:
