@@ -57,7 +57,6 @@ def load_sample_matches() -> list[dict[str, Any]]:
 def _attach_ratings(match: dict, ratings: dict[str, float]) -> None:
     match.setdefault("elo_home", ratings.get(match.get("home_team", ""), 1500.0))
     match.setdefault("elo_away", ratings.get(match.get("away_team", ""), 1500.0))
-    # Outright: rating Elo de cada participante de la carrera/combate.
     parts = match.get("participants") or []
     if parts:
         match.setdefault("elo_participants",
