@@ -201,6 +201,68 @@ Paso a paso para cobrar de verdad:
 7. Stake `= min(0.25 × Kelly, 3%)` del bankroll.
 8. El pick se guarda y se contrasta con el resultado real (ROI, CLV, p-value).
 
+## Despliegue permanente (online 24/7)
+
+El repositorio incluye todo lo necesario para publicarlo sin tocar código:
+`Dockerfile`, `render.yaml` (Blueprint de Render), `Procfile` y `.gitignore`
+(la BD local no se sube; cada despliegue crea la suya y el seed de demo se
+carga solo).
+
+### Ruta A — Render (recomendada, sin instalar nada)
+
+1. **Sube el proyecto a GitHub**: crea un repo vacío en <https://github.com/new>
+   (privado o público) y desde `apuesta_edge/`:
+
+   ```bash
+   git remote add origin https://github.com/TU-USUARIO/apuestaedge.git
+   git push -u origin master
+   ```
+
+2. **Conecta Render**: en <https://render.com> → *New* → *Web Service* →
+   conecta tu cuenta de GitHub → selecciona el repo `apuestaedge`.
+   Render detecta `render.yaml` solo (Blueprint) y configura build, disco de
+   1 GB en `/data` y health check `/api/health`.
+
+3. **Pulsa *Deploy***. En ~2 minutos tienes una URL pública tipo
+   `https://apuestaedge-xxxx.onrender.com` visible desde cualquier
+   computadora o celular del mundo.
+
+4. **Variables de entorno** (dashboard → *Environment*), cuando quieras activar
+   producción real:
+
+   | Variable | Para qué |
+   |---|---|
+   | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Cobros reales (bloqueo 402) |
+   | `ODDS_API_KEY` | Cuotas en vivo (The Odds API) |
+   | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_USERNAME` | Alertas al Telegram |
+
+5. **Webhook de Stripe**: apunta a
+   `https://TU-DOMINIO/api/billing/webhook` (eventos `checkout.session.completed`,
+   `customer.subscription.updated`, `customer.subscription.deleted`).
+
+> Plan gratis de Render: el servicio se duerme tras 15 min sin tráfico y
+> tarda ~30 s en despertar (basta con recargar). Para 24/7 sin dormir,
+> el plan Starter cuesta $7/mes. Alternativas: Fly.io, Railway, PythonAnywhere.
+
+### Ruta B — Docker en tu propio servidor (VPS)
+
+```bash
+docker build -t apuestaedge .
+docker run -d -p 80:8000 \
+  -v apuestaedge-data:/data \
+  -e STRIPE_SECRET_KEY=sk_live_... \
+  apuestaedge
+```
+
+### Ruta C — solo red local (ya funcionando en este equipo)
+
+```bash
+cd apuesta_edge
+../.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8123
+```
+
+Abre `http://<IP-de-esta-mac>:8123` desde cualquier equipo de la misma Wi-Fi.
+
 ## Monetización
 
 - **Suscripciones (base)**: `app/config.py → PLANS` define Free y Premium.
