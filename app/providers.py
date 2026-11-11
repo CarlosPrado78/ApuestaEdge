@@ -43,7 +43,7 @@ def _load_json(path) -> Any:
 
 def load_ratings() -> dict[str, float]:
     """Ratings Elo por equipo (fallback: 1500 = rating inicial)."""
-    return _load_json(config.DATA_DIR / "ratings.json") or {}
+    return _load_json(config.asset_path("ratings.json")) or {}
 
 
 def load_sample_matches() -> list[dict[str, Any]]:

@@ -7,7 +7,8 @@ venv/
 *.egg-info/
 
 # ------------------------------------------------------------- datos locales
-# La BD local y los JSON de demo no se suben (se generan/seedean al arrancar).
+# Solo la BD local no se sube: los JSON de demo (cuotas, ratings, historial)
+# SÍ van al repo, porque el despliegue en Render los necesita.
 data/*.db
 data/*.db-journal
 data/*.db-wal

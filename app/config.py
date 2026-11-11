@@ -6,10 +6,22 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+# Datos incluidos en el repo (solo lectura): cuotas demo, ratings e historial.
+ASSETS_DIR = BASE_DIR / "data"
+# Estado escribible (SQLite). En Render/Docker/Fly apunta al volumen /data.
 DATA_DIR = Path(os.environ.get("APUESTAEDGE_DATA_DIR", BASE_DIR / "data"))
 DB_PATH = Path(os.environ.get("APUESTAEDGE_DB", DATA_DIR / "apuesta_edge.db"))
-SAMPLE_ODDS_PATH = DATA_DIR / "sample_odds.json"
-HISTORY_PATH = DATA_DIR / "history.json"
+
+
+def asset_path(name: str) -> Path:
+    """Asset de datos: prioriza DATA_DIR si ya está ahí (imágenes Docker),
+    si no usa los archivos incluidos en el repo (Render python runtime)."""
+    custom = DATA_DIR / name
+    return custom if custom.exists() else ASSETS_DIR / name
+
+
+SAMPLE_ODDS_PATH = asset_path("sample_odds.json")
+HISTORY_PATH = asset_path("history.json")
 
 # Clave de https://the-odds-api.com (plan gratuito: 500 créditos/mes).
 # Sin clave la app funciona con el dataset de demostración incluido.

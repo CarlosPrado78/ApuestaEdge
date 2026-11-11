@@ -14,8 +14,9 @@ COPY static ./static
 COPY data ./data
 COPY tests ./tests
 
-# Los JSON de datos (cuotas demo, historial, ratings) viven en el mismo
-# volumen que la BD para que persistan entre reinicios.
+# La BD vive en el volumen /data (persistente en Render/Fly). Los JSON de la
+# imagen pueden quedar tapados por un volumen montado: config.asset_path()
+# hace fallback a /app/data incluido en el repo.
 ENV APUESTAEDGE_DATA_DIR=/data
 RUN mkdir -p /data && cp data/*.json /data/
 
