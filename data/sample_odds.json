@@ -889,6 +889,76 @@
      }
     }
    ]
+  },
+  {
+   "id": "demo-023",
+   "sport_key": "icehockey_nhl",
+   "sport_group": "hockey",
+   "league": "NHL · EE.UU.",
+   "commence_time": "2026-11-14T01:00:00Z",
+   "home_team": "Toronto Maple Leafs",
+   "away_team": "Montreal Canadiens",
+   "bookmakers": [
+    {
+     "key": "bet365",
+     "title": "Bet365",
+     "odds": {
+      "home": 1.65,
+      "away": 2.25
+     }
+    },
+    {
+     "key": "williamhill",
+     "title": "William Hill",
+     "odds": {
+      "home": 1.62,
+      "away": 2.3
+     }
+    },
+    {
+     "key": "888sport",
+     "title": "888sport",
+     "odds": {
+      "home": 1.68,
+      "away": 2.2
+     }
+    }
+   ]
+  },
+  {
+   "id": "demo-024",
+   "sport_key": "icehockey_nhl",
+   "sport_group": "hockey",
+   "league": "NHL · EE.UU.",
+   "commence_time": "2026-11-14T03:30:00Z",
+   "home_team": "Boston Bruins",
+   "away_team": "New York Rangers",
+   "bookmakers": [
+    {
+     "key": "bet365",
+     "title": "Bet365",
+     "odds": {
+      "home": 1.85,
+      "away": 1.95
+     }
+    },
+    {
+     "key": "williamhill",
+     "title": "William Hill",
+     "odds": {
+      "home": 1.82,
+      "away": 2.0
+     }
+    },
+    {
+     "key": "888sport",
+     "title": "888sport",
+     "odds": {
+      "home": 1.88,
+      "away": 1.92
+     }
+    }
+   ]
   }
  ]
 }

@@ -14,6 +14,7 @@ from .engine import backtest as bt
 SPORT_LABELS = {"soccer": "Fútbol", "basketball": "Básquet", "tennis": "Tenis",
                 "americanfootball": "Fútbol americano",
                 "boxing": "Boxeo", "baseball": "Béisbol",
+                "hockey": "Hockey (NHL)",
                 "formula1": "Fórmula 1", "motogp": "Motociclismo",
                 "horseracing": "Carreras de caballos"}
 
@@ -24,6 +25,7 @@ MODEL_LABELS = {
     "americanfootball": "Elo de fútbol americano con localía (moneyline)",
     "boxing": "Elo de boxeo en terreno neutral (sin localía)",
     "baseball": "Elo de béisbol con localía (moneyline)",
+    "hockey": "Elo de hockey con localía (moneyline)",
     "formula1": "Elo de pilotos → Bradley-Terry (ganador de la carrera)",
     "motogp": "Elo de pilotos MotoGP → Bradley-Terry (ganador de la carrera)",
     "horseracing": "Elo de caballos → Bradley-Terry (ganador de la carrera)",

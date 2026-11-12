@@ -12,23 +12,24 @@
   <div class="wrap nav-inner">
     <a class="logo" href="/">⚡ Apuesta<span>Edge</span></a>
     <nav class="links">
-      <a href="#picks">Picks de hoy</a>
-      <a href="#rendimiento">Rendimiento</a>
-      <a href="#beneficios">Por qué funciona</a>
-      <a href="#precios">Precios</a>
+      <a href="#picks" data-i18n="nav_picks">Picks de hoy</a>
+      <a href="#rendimiento" data-i18n="nav_perf">Rendimiento</a>
+      <a href="#beneficios" data-i18n="nav_why">Por qué funciona</a>
+      <a href="#precios" data-i18n="nav_pricing">Precios</a>
     </nav>
     <div class="account" id="account-box">
+      <button id="lang-toggle" class="btn small ghost" type="button" title="Cambiar idioma / Change language">EN</button>
       <span id="account-plan" class="plan-badge free">Free</span>
       <span id="account-email" class="account-email" hidden></span>
-      <button id="btn-login" class="btn small ghost" type="button">Iniciar sesión</button>
-      <button id="btn-logout" class="btn small ghost" type="button" hidden>Salir</button>
+      <button id="btn-login" class="btn small ghost" type="button" data-i18n="login">Iniciar sesión</button>
+      <button id="btn-logout" class="btn small ghost" type="button" hidden data-i18n="logout">Salir</button>
     </div>
   </div>
 </header>
 
 <dialog id="login-dialog" class="dialog">
   <form id="login-form" method="dialog">
-    <h3 id="login-title">Entrar en ApuestaEdge</h3>
+    <h3 id="login-title" data-i18n="login_title">Entrar en ApuestaEdge</h3>
     <p class="muted" id="login-help">Accede con tu email y contraseña.</p>
     <input type="email" id="login-email" placeholder="tu@correo.com" required autocomplete="email">
     <input type="password" id="login-password" placeholder="Contraseña (mín. 8 caracteres)"
@@ -48,7 +49,7 @@
 
 <section class="hero">
   <div class="wrap">
-    <p class="eyebrow">Estadística, no promesas imposibles</p>
+    <p class="eyebrow" data-i18n="hero_eyebrow">Estadística, no promesas imposibles</p>
     <h1>Te decimos <em>qué</em>, <em>quién</em>, <em>cuándo</em> y <em>cuánto</em> apostar —<br>con el porqué calculado, no supuesto.</h1>
     <p class="lead">
       Nuestros modelos (Elo + Poisson, Kelly fraccional, valor esperado) solo señalan apuestas
@@ -56,8 +57,8 @@
       completa y su rendimiento auditable. Sin “seguro”, sin “sin fallos”: con evidencia.
     </p>
     <div class="hero-cta">
-      <a class="btn primary" href="#picks">Ver picks de hoy</a>
-      <a class="btn ghost" href="#beneficios">¿Por qué ApuestaEdge?</a>
+      <a class="btn primary" href="#picks" data-i18n="hero_cta_picks">Ver picks de hoy</a>
+      <a class="btn ghost" href="#beneficios" data-i18n="hero_cta_why">¿Por qué ApuestaEdge?</a>
     </div>
     <div class="stat-strip" id="hero-stats">
       <div class="stat"><span class="num" id="hs-roi">—</span><label>ROI histórico</label></div>
@@ -74,20 +75,21 @@
 <section id="picks" class="wrap section">
   <div class="section-head">
     <div>
-      <h2>Recomendaciones de hoy</h2>
+      <h2 data-i18n="picks_title">Recomendaciones de hoy</h2>
       <p class="sub" id="picks-sub">Filtradas por valor esperado positivo y confianza estadística.</p>
     </div>
     <div class="controls">
       <div class="chips" id="sport-chips">
-        <button class="chip active" data-sport="">Todos</button>
+        <button class="chip active" data-sport="" data-i18n="chip_all">Todos</button>
         <button class="chip" data-sport="soccer">⚽ Fútbol</button>
         <button class="chip" data-sport="basketball">🏀 Básquet</button>
         <button class="chip" data-sport="tennis">🎾 Tenis</button>
         <button class="chip" data-sport="americanfootball">🏈 Fútbol americano</button>
         <button class="chip" data-sport="boxing">🥊 Boxeo</button>
         <button class="chip" data-sport="baseball">⚾ Béisbol</button>
+        <button class="chip" data-sport="hockey">🏒 Hockey</button>
       </div>
-      <label class="bankroll">Bankroll $
+      <label class="bankroll"><span data-i18n="bankroll">Bankroll</span> $
         <input type="number" id="bankroll" value="1000" min="50" step="50">
       </label>
     </div>

@@ -30,6 +30,8 @@ ELO_BY_SPORT = {
     "boxing": elo_mod.EloConfig(k=20.0, home_advantage=0.0),
     # Béisbol MLB: el local gana ~53% de las veces -> ~25 pts Elo.
     "baseball": elo_mod.EloConfig(k=24.0, home_advantage=25.0),
+    # Hockey NHL: localía ~55% -> ~30 pts Elo.
+    "hockey": elo_mod.EloConfig(k=24.0, home_advantage=30.0),
     # Outright (F1, MotoGP, caballos): carrera en circuito/pista neutral.
     "formula1": elo_mod.EloConfig(k=24.0, home_advantage=0.0),
     "motogp": elo_mod.EloConfig(k=24.0, home_advantage=0.0),

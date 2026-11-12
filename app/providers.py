@@ -28,7 +28,8 @@ SELECTIONS = {"soccer": ["home", "draw", "away"],
               "tennis": ["home", "away"],
               "americanfootball": ["home", "away"],
               "boxing": ["home", "away"],
-              "baseball": ["home", "away"]}
+              "baseball": ["home", "away"],
+              "hockey": ["home", "away"]}
 # Los deportes outright (F1, MotoGP, caballos) no tienen selecciones
 # fijas: las ofrece cada evento en ``match["participants"]`.
 
@@ -76,6 +77,8 @@ def _sport_group(sport_key: str) -> str:
         return "boxing"
     if sport_key.startswith("baseball"):
         return "baseball"
+    if sport_key.startswith("icehockey"):
+        return "hockey"
     if sport_key.startswith("formula1"):
         return "formula1"
     if sport_key.startswith("motogp"):

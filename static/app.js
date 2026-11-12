@@ -1,3 +1,118 @@
+/* ---------------------------------------------------------------- i18n */
+const I18N = {
+  es: {
+    login: "Iniciar sesión", logout: "Salir", nav_picks: "Picks de hoy",
+    nav_perf: "Rendimiento", nav_why: "Por qué funciona", nav_pricing: "Precios",
+    hero_eyebrow: "Estadística, no promesas imposibles",
+    hero_cta_picks: "Ver picks de hoy", hero_cta_why: "¿Por qué ApuestaEdge?",
+    picks_title: "Recomendaciones de hoy", chip_all: "Todos",
+    bankroll: "Bankroll", login_title: "Entrar en ApuestaEdge",
+    login_help: "Accede con tu email y contraseña.",
+    login_toggle: "¿No tienes cuenta? Crear una",
+    login_toggle_back: "¿Ya tienes cuenta? Entrar",
+    btn_login_submit: "Entrar", btn_register_submit: "Crear cuenta",
+    cancel: "Cancelar",
+    plan_free: "Free", plan_premium: "Premium",
+    free_banner: "Estás viendo el plan Free: 5 picks/día con edge ≥ 6% y análisis resumido. Premium desbloquea 20 picks, edge ≥ 3% y el análisis completo.",
+    free_banner_btn: "Entrar / crear cuenta",
+    premium_banner: "✓ Premium activo · 20 picks al día con edge ≥ 3%, stake Kelly, confianza y backtest completos.",
+    free_user_banner: "Plan Free · 5 picks/día con edge ≥ 6% y análisis resumido. Estás perdiendo los mejores valores (edge 3–6%) y el análisis completo.",
+    unlock_premium: "Desbloquear Premium",
+    view_subscription: "Ver mi suscripción",
+    upgrading: "Continuar a pago", creating: "Crear cuenta",
+    sending_link: "Enviando…",
+    wrong_creds: "Correo o contraseña incorrectos.",
+    short_pw: "La contraseña debe tener al menos 8 caracteres.",
+    already_exists: "Ya existe una cuenta con ese correo. Inicia sesión.",
+    account_created: "Cuenta creada.",
+    picks_loading: "Calculando valor esperado…",
+    no_picks: "Sin picks con valor ahora mismo. Esperar a que el mercado ofrezca ventaja es parte del método: no apostar también es una decisión estadística.",
+    delayed_badge: "⏱ Premium vio este pick hace 2 h",
+    locked_note: "Stake Kelly, cuándo entrar, confianza y backtest completos en el plan Premium.",
+    locked_odds: "🔒 cuota y casa en Premium",
+    locked_conf: "🔒",
+    premium_tag: "PREMIUM",
+  },
+  en: {
+    login: "Sign in", logout: "Sign out", nav_picks: "Today's picks",
+    nav_perf: "Performance", nav_why: "Why it works", nav_pricing: "Pricing",
+    hero_eyebrow: "Statistics, not impossible promises",
+    hero_cta_picks: "View today's picks", hero_cta_why: "Why ApuestaEdge?",
+    picks_title: "Today's recommendations", chip_all: "All",
+    bankroll: "Bankroll", login_title: "Sign in to ApuestaEdge",
+    login_help: "Sign in with your email and password.",
+    login_toggle: "No account? Create one",
+    login_toggle_back: "Already have an account? Sign in",
+    btn_login_submit: "Sign in", btn_register_submit: "Create account",
+    cancel: "Cancel",
+    plan_free: "Free", plan_premium: "Premium",
+    free_banner: "You're on the Free plan: 5 picks/day with edge ≥ 6% and summary analysis. Premium unlocks 20 picks, edge ≥ 3% and full analysis.",
+    free_banner_btn: "Sign in / create account",
+    premium_banner: "✓ Premium active · 20 picks/day with edge ≥ 3%, Kelly stake, confidence and full backtest.",
+    free_user_banner: "Free plan · 5 picks/day with edge ≥ 6% and summary analysis. You're missing the best values (edge 3–6%) and full analysis.",
+    unlock_premium: "Unlock Premium",
+    view_subscription: "View my subscription",
+    upgrading: "Continue to payment", creating: "Create account",
+    sending_link: "Sending…",
+    wrong_creds: "Wrong email or password.",
+    short_pw: "Password must be at least 8 characters.",
+    already_exists: "An account with this email already exists. Sign in.",
+    account_created: "Account created.",
+    picks_loading: "Calculating expected value…",
+    no_picks: "No value picks right now. Waiting for the market to offer an edge is part of the method: not betting is also a statistical decision.",
+    delayed_badge: "⏱ Premium saw this pick 2h ago",
+    locked_note: "Kelly stake, entry timing, confidence and full backtest are in the Premium plan.",
+    locked_odds: "🔒 odds and bookmaker in Premium",
+    locked_conf: "🔒",
+    premium_tag: "PREMIUM",
+  }
+};
+
+let currentLang = localStorage.getItem("ae_lang") || "es";
+
+function t(key) {
+  return (I18N[currentLang] && I18N[currentLang][key]) || (I18N.es[key] || key);
+}
+
+function applyLang(lang) {
+  currentLang = lang;
+  localStorage.setItem("ae_lang", lang);
+  document.documentElement.lang = lang;
+  // Update all data-i18n elements
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    const key = el.getAttribute("data-i18n");
+    const val = t(key);
+    if (val && val !== key) el.textContent = val;
+  });
+  // Update language toggle button
+  const btn = document.getElementById("lang-toggle");
+  if (btn) btn.textContent = lang === "es" ? "EN" : "ES";
+  // Update sport chips (they have emoji + text, handle separately)
+  // Re-render picks if loaded
+  if (typeof renderPlanBanner === "function") renderPlanBanner();
+  // Update login dialog text based on mode
+  updateLoginDialogText();
+}
+
+function updateLoginDialogText() {
+  const title = document.getElementById("login-title");
+  const help = document.getElementById("login-help");
+  const toggle = document.getElementById("login-toggle");
+  const submit = document.getElementById("login-submit");
+  if (!title) return;
+  if (loginMode === "register") {
+    title.textContent = t("login_title").replace("Entrar", "Crear cuenta").replace("Sign in", "Create account");
+    help.textContent = t("login_help");
+    if (submit) submit.textContent = t("btn_register_submit");
+    if (toggle) toggle.textContent = t("login_toggle_back");
+  } else {
+    title.textContent = t("login_title");
+    help.textContent = t("login_help");
+    if (submit) submit.textContent = t("btn_login_submit");
+    if (toggle) toggle.textContent = t("login_toggle");
+  }
+}
+
 /* ApuestaEdge — panel de recomendaciones (sin dependencias externas). */
 "use strict";
 
@@ -22,11 +137,19 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const icon = (s) => ({ soccer: "⚽", basketball: "🏀", tennis: "🎾",
                        americanfootball: "🏈", boxing: "🥊", baseball: "⚾",
+                       hockey: "🏒",
                        formula1: "🏎️", motogp: "🏍️", horseracing: "🐎" }[s] || "🏅");
-const SPORT_NAME = { soccer: "Fútbol", basketball: "Básquet", tennis: "Tenis",
+const SPORT_NAME_ES = { soccer: "Fútbol", basketball: "Básquet", tennis: "Tenis",
                      americanfootball: "Fútbol americano", boxing: "Boxeo",
-                     baseball: "Béisbol", formula1: "Fórmula 1",
+                     baseball: "Béisbol", hockey: "Hockey",
+                     formula1: "Fórmula 1",
                      motogp: "Motociclismo", horseracing: "Carreras de caballos" };
+const SPORT_NAME_EN = { soccer: "Soccer", basketball: "Basketball", tennis: "Tennis",
+                     americanfootball: "American Football", boxing: "Boxing",
+                     baseball: "Baseball", hockey: "Hockey",
+                     formula1: "Formula 1",
+                     motogp: "MotoGP", horseracing: "Horse Racing" };
+const SPORT_NAME = (s) => (currentLang === "en" ? SPORT_NAME_EN : SPORT_NAME_ES)[s] || s;
 const when = (iso) => {
   try {
     return new Date(iso).toLocaleString("es-MX",
@@ -108,25 +231,21 @@ function renderPlanBanner() {
   if (!state.authenticated) {
     box.className = "plan-banner free";
     box.innerHTML = `
-      <div>Estás viendo el <b>plan Free</b>: 5 picks/día con edge ≥ 6% y
-        análisis resumido. <b>Premium</b> desbloquea 20 picks, edge ≥ 3% y el
-        análisis completo.</div>
-      <button class="btn primary" type="button" data-go="login">Entrar / crear cuenta</button>`;
+      <div>${t("free_banner")}</div>
+      <button class="btn primary" type="button" data-go="login">${t("free_banner_btn")}</button>`;
     box.querySelector("[data-go=login]").addEventListener("click", openLogin);
     return;
   }
   if (state.plan === "premium") {
     box.className = "plan-banner premium";
     box.innerHTML = `
-      <div>✓ <b>Premium activo</b> · 20 picks al día con edge ≥ 3%, stake Kelly,
-        confianza y backtest completos.</div>
-      <button class="btn ghost" type="button" data-go="sub">Ver mi suscripción</button>`;
+      <div>✓ ${t("premium_banner")}</div>
+      <button class="btn ghost" type="button" data-go="sub">${t("view_subscription")}</button>`;
   } else {
     box.className = "plan-banner free";
     box.innerHTML = `
-      <div><b>Plan Free</b> · 5 picks/día con edge ≥ 6% y análisis resumido.
-        Estás perdiendo los mejores valores (edge 3–6%) y el análisis completo.</div>
-      <button class="btn primary" type="button" data-go="premium">Desbloquear Premium</button>`;
+      <div>${t("free_user_banner")}</div>
+      <button class="btn primary" type="button" data-go="premium">${t("unlock_premium")}</button>`;
   }
   box.querySelector("[data-go]").addEventListener("click", (e) => {
     if (e.currentTarget.dataset.go === "sub") {
@@ -357,7 +476,7 @@ async function loadPerformance() {
       drawEquity(all.equity_curve || []);
     }
     const rows = Object.entries(by.by_sport || {}).map(([sport, s]) => `
-      <tr><td>${icon(sport)} ${esc(SPORT_NAME[sport] || sport)}</td><td>${s.bets}</td>
+      <tr><td>${icon(sport)} ${esc(SPORT_NAME(sport) || sport)}</td><td>${s.bets}</td>
       <td>${num(s.hit_rate_pct, 1)}%</td>
       <td class="${s.roi_pct >= 0 ? "pos" : ""}">${spct(s.roi_pct)}</td>
       <td>${spct(s.avg_clv_pct)}</td><td>${num(s.binomial_p_value, 3)}</td></tr>`).join("");
@@ -435,6 +554,7 @@ function renderPlans() {
 }
 
 /* ---------------------------------------------------------------- events */
+$("#lang-toggle").addEventListener("click", () => applyLang(currentLang === "es" ? "en" : "es"));
 $("#btn-login").addEventListener("click", openLogin);
 $("#btn-logout").addEventListener("click", logout);
 $("#login-cancel").addEventListener("click", closeLogin);
@@ -670,6 +790,7 @@ async function handleStripeReturn() {
 
 /* --------------------------------------------------------------- boot */
 async function init() {
+  applyLang(currentLang);
   await loadPlans();
   await refreshAccount();
   if (localStorage.getItem(PENDING_KEY) &&

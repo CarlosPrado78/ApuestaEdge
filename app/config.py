@@ -38,6 +38,7 @@ ODDS_API_SPORTS = {
     # Boxeo y béisbol: mercados h2h con cobertura en vivo.
     "boxing": ["boxing_boxing"],
     "baseball": ["baseball_mlb"],
+    "hockey": ["icehockey_nhl"],
     # Outright (ganador de la carrera): The Odds API NO los cubre -> demo.
     "formula1": [],
     "motogp": [],
@@ -119,6 +120,7 @@ SPORT_DEMAND = {
     "americanfootball": "medium",
     "boxing": "low",
     "baseball": "low",
+    "hockey": "medium",
     "formula1": "low",
     "motogp": "low",
     "horseracing": "low",

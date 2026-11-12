@@ -124,7 +124,7 @@ def matches(sport: str | None = Query(None, description="soccer|basketball|tenni
 def recommendations(
     request: Request,
     plan: str | None = Query(None, pattern="^(free|premium)$"),
-    sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball|boxing|baseball|formula1|motogp|horseracing"),
+    sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball|boxing|baseball|hockey|formula1|motogp|horseracing"),
     min_edge: float | None = Query(None, ge=0.0, le=0.5),
     bankroll: float = Query(config.DEFAULT_BANKROLL, gt=0),
 ) -> dict:
