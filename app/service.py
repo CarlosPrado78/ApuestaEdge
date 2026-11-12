@@ -12,6 +12,7 @@ Pipeline para cada partido:
 
 from __future__ import annotations
 
+import copy
 import statistics
 import time
 from typing import Any
@@ -64,14 +65,14 @@ def _elo_expected(group: str, home: str, away: str,
     return ratings.expected(home, away)
 
 
-def predict(match: dict) -> tuple[dict[str, float], dict[str, Any]]:
+def predict(match: dict, lang: str = "es") -> tuple[dict[str, float], dict[str, Any]]:
     """Probabilidades del modelo para un partido + metadatos explicativos."""
     group = match["sport_group"]
     home, away = match["home_team"], match["away_team"]
     elo_home = float(match.get("elo_home", 1500.0))
     elo_away = float(match.get("elo_away", 1500.0))
     meta: dict[str, Any] = {"elo_home": elo_home, "elo_away": elo_away,
-                            "model": explain.MODEL_LABELS[group]}
+                            "model": _model_label(group, lang)}
 
     # Outright (F1, MotoGP, caballos): N participantes -> Bradley-Terry.
     # Con N=2 coincide exactamente con la logística Elo de2 competidores.
@@ -89,18 +90,28 @@ def predict(match: dict) -> tuple[dict[str, float], dict[str, Any]]:
         meta["field_size"] = len(parts)
         meta["elo_participants"] = {p: float(ratings.get(p, 1500.0))
                                     for p in parts}
-        meta["model_detail"] = (
-            f"Bradley-Terry sobre Elo de {len(parts)} participantes; "
-            f"favorito {best} con {probs[best] * 100:.1f}%")
+        if lang == "en":
+            meta["model_detail"] = (
+                f"Bradley-Terry over Elo of {len(parts)} entrants; "
+                f"favourite {best} at {probs[best] * 100:.1f}%")
+        else:
+            meta["model_detail"] = (
+                f"Bradley-Terry sobre Elo de {len(parts)} participantes; "
+                f"favorito {best} con {probs[best] * 100:.1f}%")
         return probs, meta
 
     if group == "soccer":
         lam_h, lam_a = poisson.expected_lambdas(elo_home, elo_away)
         probs = poisson.match_probabilities(lam_h, lam_a)
         score_i, score_j, score_p = poisson.most_likely_score(lam_h, lam_a)
-        meta["model_detail"] = (
-            f"λ_local={lam_h:.2f}, λ_visitante={lam_a:.2f}; "
-            f"marcador más probable {score_i}-{score_j} ({score_p * 100:.1f}%)")
+        if lang == "en":
+            meta["model_detail"] = (
+                f"λ_home={lam_h:.2f}, λ_away={lam_a:.2f}; "
+                f"most likely score {score_i}-{score_j} ({score_p * 100:.1f}%)")
+        else:
+            meta["model_detail"] = (
+                f"λ_local={lam_h:.2f}, λ_visitante={lam_a:.2f}; "
+                f"marcador más probable {score_i}-{score_j} ({score_p * 100:.1f}%)")
         meta["market_lines"] = {k: round(v, 4) for k, v in probs.items()
                                 if k.startswith(("btts", "over", "lambda"))}
         return {"home": probs["home"], "draw": probs["draw"],
@@ -109,6 +120,12 @@ def predict(match: dict) -> tuple[dict[str, float], dict[str, Any]]:
     p_home = _elo_expected(group, home, away, elo_home, elo_away)
     meta["model_detail"] = ""
     return {"home": p_home, "away": 1.0 - p_home}, meta
+
+
+def _model_label(group: str, lang: str) -> str:
+    if lang == "en":
+        return explain.MODEL_LABELS_EN[group]
+    return explain.MODEL_LABELS[group]
 
 
 def _market_probs(match: dict) -> tuple[dict[str, dict[str, float]], dict[str, list[float]]]:
@@ -130,13 +147,13 @@ def _market_probs(match: dict) -> tuple[dict[str, dict[str, float]], dict[str, l
     return per_book, by_selection
 
 
-def evaluate_match(match: dict, bankroll: float | None = None) -> list[dict]:
+def evaluate_match(match: dict, bankroll: float | None = None, lang: str = "es") -> list[dict]:
     """Todas las selecciones con valor de un partido (pueden ser 0)."""
     bankroll = bankroll or config.DEFAULT_BANKROLL
     group = match["sport_group"]
     # Outright: las selecciones son los participantes del evento.
     selections = match.get("participants") or providers.SELECTIONS.get(group, [])
-    model_probs, meta = predict(match)
+    model_probs, meta = predict(match, lang)
     per_book, by_selection = _market_probs(match)
     if not per_book:
         return []
@@ -178,7 +195,7 @@ def evaluate_match(match: dict, bankroll: float | None = None) -> list[dict]:
             "match_id": match["id"],
             "sport": group,
             "sport_key": match.get("sport_key", group),
-            "league": match.get("league", ""),
+            "league": explain.translate_league(match.get("league", ""), lang),
             "commence_time": match.get("commence_time", ""),
             "home_team": match["home_team"],
             "away_team": match["away_team"],
@@ -237,7 +254,7 @@ def _get_cached_free_picks(sport_key: str) -> tuple[list[dict] | None, bool]:
     # Dentro de las 2 h: devolver los mismos (marcados como delayed).
     # Después de 2 h: caché caducada, hay que regenerar.
     if age < _FREE_DELAY_SECONDS:
-        return picks, True
+        return copy.deepcopy(picks), True
     return None, False
 
 
@@ -246,7 +263,7 @@ def _clear_picks_cache() -> None:
 
 
 def _store_free_picks(sport_key: str, picks: list[dict]) -> None:
-    _FREE_PICKS_CACHE[sport_key] = (time.time(), [dict(p) for p in picks])
+    _FREE_PICKS_CACHE[sport_key] = (time.time(), copy.deepcopy(picks))
 
 
 def _rank(candidates: list[dict]) -> list[dict]:
@@ -334,8 +351,10 @@ def build_recommendations(plan: str = "free", sport: str | None = None,
                           bankroll: float | None = None,
                           matches: list[dict] | None = None,
                           source: str | None = None,
-                          conn=None) -> dict[str, Any]:
+                          conn=None, lang: str = "es") -> dict[str, Any]:
     """Pipeline completo -> recomendaciones rankeadas y explicadas."""
+    if lang not in explain.SUPPORTED_LANGS:
+        lang = "es"
     plan_cfg = config.PLANS.get(plan, config.PLANS["free"])
     threshold = plan_cfg["min_edge"] if min_edge is None else min_edge
     max_picks = plan_cfg["max_picks"]
@@ -351,7 +370,7 @@ def build_recommendations(plan: str = "free", sport: str | None = None,
     try:
         candidates: list[dict] = []
         for m in matches:
-            candidates.extend(evaluate_match(m, bankroll=bankroll))
+            candidates.extend(evaluate_match(m, bankroll=bankroll, lang=lang))
         candidates = [c for c in candidates
                       if c["edge"] >= threshold
                       and c["ev"] > 0
@@ -363,7 +382,7 @@ def build_recommendations(plan: str = "free", sport: str | None = None,
         picks: list[dict] = []
         is_delayed = False
 
-        cache_key = _cache_key(sport)
+        cache_key = f"{_cache_key(sport)}:{lang}"
         use_cache = (plan == "free")
 
         if use_cache:
@@ -405,7 +424,7 @@ def build_recommendations(plan: str = "free", sport: str | None = None,
             p["backtest"] = {k: round(v, 4) for k, v in stats.items()
                              if k not in ("equity_curve", "sport")}
             p["explanation"] = explain.build_explanation(
-                p, stats, stats.get("bets", 0))
+                p, stats, stats.get("bets", 0), lang=lang)
             p.pop("_per_book_market", None)
             p["tier"] = plan
             p["score"] = round(p["score"], 4)
@@ -413,6 +432,8 @@ def build_recommendations(plan: str = "free", sport: str | None = None,
                 # Free: modelo, mercado y valor; Kelly/backtest en Premium.
                 p["explanation"]["steps"] = p["explanation"]["steps"][:3]
                 p["explanation"]["locked_note"] = (
+                    "Kelly stake, entry timing, confidence and full backtest "
+                    "are in the Premium plan." if lang == "en" else
                     "Stake Kelly, cuándo entrar, confianza y backtest "
                     "completos en el plan Premium.")
                 p.pop("backtest", None)
@@ -445,13 +466,13 @@ def build_recommendations(plan: str = "free", sport: str | None = None,
             conn.close()
 
 
-def matches_overview(matches: list[dict] | None = None) -> list[dict]:
+def matches_overview(matches: list[dict] | None = None, lang: str = "es") -> list[dict]:
     """Partidos con probabilidades de modelo y de mercado (sin filtro de valor)."""
     if matches is None:
         matches, _src = providers.get_matches()
     out = []
     for m in matches:
-        model_probs, meta = predict(m)
+        model_probs, meta = predict(m, lang)
         per_book, by_selection = _market_probs(m)
         cons = {k: (sum(v) / len(v)) if v else None for k, v in by_selection.items()}
         best = {}
@@ -465,7 +486,8 @@ def matches_overview(matches: list[dict] | None = None) -> list[dict]:
                              if cons.get(sel) is not None else None}
         out.append({
             "id": m["id"], "sport": m["sport_group"],
-            "sport_key": m.get("sport_key"), "league": m.get("league"),
+            "sport_key": m.get("sport_key"),
+            "league": explain.translate_league(m.get("league") or "", lang),
             "commence_time": m.get("commence_time"),
             "home_team": m["home_team"], "away_team": m["away_team"],
             "event": m.get("event", ""),

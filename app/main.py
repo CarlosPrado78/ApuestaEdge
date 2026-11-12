@@ -112,9 +112,10 @@ def health() -> dict:
 
 
 @app.get("/api/matches")
-def matches(sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball|boxing|baseball|formula1|motogp|horseracing")) -> dict:
+def matches(sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball|boxing|baseball|hockey|formula1|motogp|horseracing"),
+            lang: str = Query("es", pattern="^(es|en)$")) -> dict:
     all_matches, source = _get_matches()
-    data = service.matches_overview(all_matches)
+    data = service.matches_overview(all_matches, lang=lang)
     if sport:
         data = [m for m in data if m["sport"] == sport]
     return {"source": source, "count": len(data), "matches": data}
@@ -127,6 +128,7 @@ def recommendations(
     sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball|boxing|baseball|hockey|formula1|motogp|horseracing"),
     min_edge: float | None = Query(None, ge=0.0, le=0.5),
     bankroll: float = Query(config.DEFAULT_BANKROLL, gt=0),
+    lang: str = Query("es", pattern="^(es|en)$"),
 ) -> dict:
     # Sin ?plan explícito se usa el plan real de la cuenta (o free si es anónimo).
     if plan is None:
@@ -136,7 +138,7 @@ def recommendations(
     try:
         result = service.build_recommendations(
             plan=plan, sport=sport, min_edge=min_edge,
-            bankroll=bankroll, matches=matches, source=source)
+            bankroll=bankroll, matches=matches, source=source, lang=lang)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     result["demo_mode"] = not billing.stripe_enabled()
@@ -210,8 +212,15 @@ def methodology() -> dict:
 
 
 @app.get("/api/plans")
-def plans() -> dict:
-    return {"plans": config.PLANS,
+def plans(lang: str = Query("es", pattern="^(es|en)$")) -> dict:
+    localized = {}
+    for key, plan in config.PLANS.items():
+        item = dict(plan)
+        if lang == "en":
+            item["name"] = plan.get("name_en", plan["name"])
+            item["features"] = plan.get("features_en", plan["features"])
+        localized[key] = item
+    return {"plans": localized,
             "billing": "stripe" if billing.stripe_enabled() else "demo",
             "premium_locked": billing.stripe_enabled()}
 

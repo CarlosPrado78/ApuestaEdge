@@ -71,6 +71,12 @@ PLANS = {
             "Probabilidad modelo vs mercado",
             "ROI público histórico",
         ],
+        "name_en": "Free",
+        "features_en": [
+            "5 daily selections with edge ≥ 6%",
+            "Model vs market probability",
+            "Public historical ROI",
+        ],
     },
     "premium": {
         "name": "Premium",
@@ -84,6 +90,14 @@ PLANS = {
             "Explicación completa del modelo en cada pick",
             "Métricas CLV, drawdown y test binomial por liga",
             "Alertas cuando aparece valor nuevo",
+        ],
+        "name_en": "Premium",
+        "features_en": [
+            "All selections with edge ≥ 3%",
+            "Fractional Kelly stake and statistical confidence",
+            "Full model explanation on every pick",
+            "CLV, drawdown and binomial test metrics per league",
+            "Alerts when new value appears",
         ],
     },
 }
