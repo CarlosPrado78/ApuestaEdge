@@ -63,10 +63,10 @@ PLANS = {
         "name": "Free",
         "price_usd": 0,
         "min_edge": 0.06,      # exige al menos +6% de edge
-        "max_picks": 10,       # 10 recomendaciones diarias para enganchar
+        "max_picks": 5,        # muestra curada: 2+2+1 por demanda
         "full_analysis": False,
         "features": [
-            "10 selecciones diarias con edge ≥ 6%",
+            "5 selecciones diarias con edge ≥ 6%",
             "Probabilidad modelo vs mercado",
             "ROI público histórico",
         ],
@@ -106,6 +106,28 @@ ALERT_INTERVAL_SECONDS = int(os.environ.get("ALERT_INTERVAL_SECONDS", "1800"))
 ALERT_MIN_EDGE = float(os.environ.get("ALERT_MIN_EDGE", "0.04"))
 ALERT_MAX_PICKS = {"free": 2, "premium": 6}
 ALERT_TIMEOUT = float(os.environ.get("ALERT_TIMEOUT", "15"))
+
+
+# Demanda por deporte (para la curaduría del plan Free).
+# High: el deporte estrella (más seguido y apostado).
+# Medium: deportes con audiencia media.
+# Low: deportes de nicho / outright.
+SPORT_DEMAND = {
+    "soccer": "high",
+    "basketball": "medium",
+    "tennis": "medium",
+    "americanfootball": "medium",
+    "boxing": "low",
+    "baseball": "low",
+    "formula1": "low",
+    "motogp": "low",
+    "horseracing": "low",
+}
+
+# Cupo por nivel de demanda en el plan Free (total = 5).
+# 2 del deporte estrella, 2 de deportes de media demanda (preferible
+# distintos), 1 de un deporte de nicho para descubrir valor.
+FREE_TIER_QUOTA = {"high": 2, "medium": 2, "low": 1}
 
 
 def telegram_enabled() -> bool:

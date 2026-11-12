@@ -46,7 +46,7 @@ incluye aviso de juego responsable (+18) y explícitamente dice lo que el modelo
   cubre F1/MotoGP/caballos, así que esos tres deportes funcionan con el dataset
   de demostración hasta conectar otro proveedor.*
 - **Desvigado de las cuotas**: método de potencias (Shin) + consenso entre casas.
-- **Frontend orientado a conversión**: «Recomendaciones de hoy» (10 picks en Free,
+- **Frontend orientado a conversión**: «Recomendaciones de hoy» (5 picks curados en Free,
   todos los valores en Premium), rendimiento auditable, sección de beneficios y
   planes. El detalle metodológico (pipeline, límites, por qué funciona) **no se
   muestra en la página**: vive en este README y en `GET /api/methodology`.

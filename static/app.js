@@ -108,7 +108,7 @@ function renderPlanBanner() {
   if (!state.authenticated) {
     box.className = "plan-banner free";
     box.innerHTML = `
-      <div>Estás viendo el <b>plan Free</b>: 10 picks/día con edge ≥ 6% y
+      <div>Estás viendo el <b>plan Free</b>: 5 picks/día con edge ≥ 6% y
         análisis resumido. <b>Premium</b> desbloquea 20 picks, edge ≥ 3% y el
         análisis completo.</div>
       <button class="btn primary" type="button" data-go="login">Entrar / crear cuenta</button>`;
@@ -124,7 +124,7 @@ function renderPlanBanner() {
   } else {
     box.className = "plan-banner free";
     box.innerHTML = `
-      <div><b>Plan Free</b> · 10 picks/día con edge ≥ 6% y análisis resumido.
+      <div><b>Plan Free</b> · 5 picks/día con edge ≥ 6% y análisis resumido.
         Estás perdiendo los mejores valores (edge 3–6%) y el análisis completo.</div>
       <button class="btn primary" type="button" data-go="premium">Desbloquear Premium</button>`;
   }

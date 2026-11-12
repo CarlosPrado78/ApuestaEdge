@@ -218,6 +218,69 @@ def _rank(candidates: list[dict]) -> list[dict]:
     return sorted(candidates, key=lambda c: c["score"], reverse=True)
 
 
+def _select_free_picks(ranked: list[dict], max_picks: int) -> list[dict]:
+    """Curaduría del plan Free: 2+2+1 por nivel de demanda.
+
+    Garantiza variedad: no más de 2 por deporte y cobertura de los tres
+    niveles de demanda (estrella, media, nicho). Si un nivel no tiene
+    candidatos, se rellena con los mejores disponibles.
+    """
+    quota = config.FREE_TIER_QUOTA
+    selected_ids: set[str] = set()
+    selected: list[dict] = []
+
+    for tier in ("high", "medium", "low"):
+        target = quota.get(tier, 0)
+        count = 0
+        sports_used: set[str] = set()
+        # Primera pasada: preferir deportes distintos dentro del nivel.
+        for c in ranked:
+            if len(selected) >= max_picks:
+                break
+            if c["match_id"] in selected_ids:
+                continue
+            if config.SPORT_DEMAND.get(c["sport"], "medium") != tier:
+                continue
+            if c["sport"] in sports_used:
+                continue
+            selected.append(c)
+            selected_ids.add(c["match_id"])
+            sports_used.add(c["sport"])
+            count += 1
+            if count >= target:
+                break
+        # Segunda pasada: completar cupo con el mismo deporte si hace falta.
+        if count < target:
+            for c in ranked:
+                if len(selected) >= max_picks:
+                    break
+                if c["match_id"] in selected_ids:
+                    continue
+                if config.SPORT_DEMAND.get(c["sport"], "medium") != tier:
+                    continue
+                selected.append(c)
+                selected_ids.add(c["match_id"])
+                count += 1
+                if count >= target:
+                    break
+
+    # Relleno final con los mejores disponibles si aún hay hueco.
+    for c in ranked:
+        if len(selected) >= max_picks:
+            break
+        if c["match_id"] in selected_ids:
+            continue
+        selected.append(c)
+        selected_ids.add(c["match_id"])
+
+    selected.sort(key=lambda c: c.get("score", 0), reverse=True)
+    return selected[:max_picks]
+    """Ordena por valor ponderado por confianza."""
+    for c in candidates:
+        c["score"] = round(c["edge"] * (0.5 + 0.5 * c["confidence"]), 5)
+    return sorted(candidates, key=lambda c: c["score"], reverse=True)
+
+
 def _attach_evidence(recs: list[dict], conn) -> dict[str, dict]:
     """Backtest por deporte para sustentar cada recomendación."""
     history = db.fetch_history(conn)
@@ -260,13 +323,24 @@ def build_recommendations(plan: str = "free", sport: str | None = None,
         # Un solo pick por partido (la mejor selección de cada uno).
         seen: set[str] = set()
         picks: list[dict] = []
-        for c in ranked:
-            if c["match_id"] in seen:
-                continue
-            seen.add(c["match_id"])
-            picks.append(c)
-            if len(picks) >= max_picks:
-                break
+        if plan == "free":
+            # Curaduría: 2 (estrella) + 2 (media) + 1 (nicho).
+            deduped: list[dict] = []
+            seen2: set[str] = set()
+            for c in ranked:
+                if c["match_id"] in seen2:
+                    continue
+                seen2.add(c["match_id"])
+                deduped.append(c)
+            picks = _select_free_picks(deduped, max_picks)
+        else:
+            for c in ranked:
+                if c["match_id"] in seen:
+                    continue
+                seen.add(c["match_id"])
+                picks.append(c)
+                if len(picks) >= max_picks:
+                    break
 
         evidence = _attach_evidence(picks, conn)
         for p in picks:
