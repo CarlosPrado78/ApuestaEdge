@@ -122,6 +122,7 @@ El panel indica en el encabezado si está en modo **demo** o **en vivo**.
 | POST | `/api/auth/login` | `{email}` → token (demo, sin contraseña) |
 | GET | `/api/auth/me` | Sesión y plan del token actual |
 | POST | `/api/billing/checkout` | Inicia el pago Premium (Stripe) |
+| POST | `/api/billing/confirm` | Verifica la sesión de Stripe al volver del pago y activa Premium |
 | POST | `/api/billing/webhook` | Ciclo de vida: activa, renueva y **da de baja** Premium |
 | GET | `/api/billing/subscription` | Estado de tu suscripción (fin de periodo, cancelación) |
 | POST | `/api/billing/portal` | Portal del cliente Stripe (cancelar, cambiar tarjeta) |
@@ -252,8 +253,17 @@ carga solo).
 
 5. **Webhook de Stripe**: apunta a
    `https://TU-DOMINIO/api/billing/webhook` (eventos `checkout.session.completed`,
-   `customer.subscription.updated`, `customer.subscription.deleted`).
+   `customer.subscription.created`, `customer.subscription.updated`,
+   `customer.subscription.deleted`). El pago también se confirma al volver del
+   checkout (`/api/billing/confirm`), así que un webhook lento no deja al
+   cliente en Free.
 
+> ⚠️ **Persistencia en Render**: el plan Free no garantiza disco persistente.
+> Si la base SQLite vive en `/data` pero el servicio se recrea en cada deploy,
+> las cuentas y los planes se pierden. Para producción con usuarios reales:
+> usa el plan Starter con disco persistente o migra a PostgreSQL
+> (`DATABASE_URL`). Sin ese paso, cada redeploy vuelve a dejar a todos en Free.
+>
 > Plan gratis de Render: el servicio se duerme tras 15 min sin tráfico y
 > tarda ~30 s en despertar (basta con recargar). Para 24/7 sin dormir,
 > el plan Starter cuesta $7/mes. Alternativas: Fly.io, Railway, PythonAnywhere.
