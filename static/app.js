@@ -4,6 +4,7 @@ const I18N = {
     login: "Iniciar sesión", logout: "Salir", nav_picks: "Picks de hoy",
     nav_perf: "Rendimiento", nav_why: "Por qué funciona", nav_pricing: "Precios",
     hero_eyebrow: "Estadística, no promesas imposibles",
+    hero_title: "Te decimos <em>qué</em>, <em>quién</em>, <em>cuándo</em> y <em>cuánto</em> —<br>con el porqué calculado, no supuesto.",
     hero_cta_picks: "Ver picks de hoy", hero_cta_why: "¿Por qué ApuestaEdge?",
     picks_title: "Recomendaciones de hoy", chip_all: "Todos",
     bankroll: "Bankroll", login_title: "Entrar en ApuestaEdge",
@@ -26,6 +27,32 @@ const I18N = {
     already_exists: "Ya existe una cuenta con ese correo. Inicia sesión.",
     account_created: "Cuenta creada.",
     picks_loading: "Calculando valor esperado…",
+    no_picks_short: "Sin picks con valor ahora mismo.",
+    no_picks_detail: "Esperar a que el mercado ofrezca ventaja es parte del método: no apostar también es una decisión estadística.",
+    delayed_note: "Desbloquea 20 picks con edge ≥ 3%, stake Kelly, confianza y backtest completos en Premium.",
+    locked_odds_full: "🔒 cuota y casa en Premium",
+    unlock_analysis: "Desbloquear análisis →",
+    kelly_full: "Kelly completo",
+    kelly_used: "usamos",
+    stake_suggested: "Stake sugerido",
+    best_odds_among: "Mejor cuota entre",
+    houses: "casas",
+    model_label: "Modelo",
+    backtest_label: "Backtest",
+    picks_word: "picks",
+    roi_label: "ROI",
+    hit_rate_label: "Acierto",
+    breakeven_label: "breakeven",
+    demo_mode: "Modo demostración: partidos y cuotas de ejemplo. Añade ODDS_API_KEY al entorno para datos en vivo.",
+    hit_rate_table: "Acierto",
+    breakeven_table: "breakeven",
+    clv_avg: "CLV medio",
+    entry_vs_close: "entrada vs cierre",
+    plan_free_label: "Plan Free",
+    start_free: "Empezar gratis",
+    create_account_title: "Crear cuenta en ApuestaEdge",
+    premium_active: "✅ Premium activo",
+    loading: "Cargando…",
     no_picks: "Sin picks con valor ahora mismo. Esperar a que el mercado ofrezca ventaja es parte del método: no apostar también es una decisión estadística.",
     delayed_badge: "⏱ Premium vio este pick hace 2 h",
     locked_note: "Stake Kelly, cuándo entrar, confianza y backtest completos en el plan Premium.",
@@ -37,6 +64,7 @@ const I18N = {
     login: "Sign in", logout: "Sign out", nav_picks: "Today's picks",
     nav_perf: "Performance", nav_why: "Why it works", nav_pricing: "Pricing",
     hero_eyebrow: "Statistics, not impossible promises",
+    hero_title: "We tell you <em>what</em>, <em>who</em>, <em>when</em> and <em>how much</em> —<br>with the why calculated, not assumed.",
     hero_cta_picks: "View today's picks", hero_cta_why: "Why ApuestaEdge?",
     picks_title: "Today's recommendations", chip_all: "All",
     bankroll: "Bankroll", login_title: "Sign in to ApuestaEdge",
@@ -59,6 +87,32 @@ const I18N = {
     already_exists: "An account with this email already exists. Sign in.",
     account_created: "Account created.",
     picks_loading: "Calculating expected value…",
+    no_picks_short: "No value picks right now.",
+    no_picks_detail: "Waiting for the market to offer an edge is part of the method: not betting is also a statistical decision.",
+    delayed_note: "Unlock 20 picks with edge ≥ 3%, Kelly stake, confidence and full backtest in Premium.",
+    locked_odds_full: "🔒 odds and bookmaker in Premium",
+    unlock_analysis: "Unlock analysis →",
+    kelly_full: "Full Kelly",
+    kelly_used: "we use",
+    stake_suggested: "Suggested stake",
+    best_odds_among: "Best odds among",
+    houses: "bookmakers",
+    model_label: "Model",
+    backtest_label: "Backtest",
+    picks_word: "picks",
+    roi_label: "ROI",
+    hit_rate_label: "Hit rate",
+    breakeven_label: "breakeven",
+    demo_mode: "Demo mode: sample matches and odds. Add ODDS_API_KEY to the environment for live data.",
+    hit_rate_table: "Hit rate",
+    breakeven_table: "breakeven",
+    clv_avg: "Avg CLV",
+    entry_vs_close: "entry vs close",
+    plan_free_label: "Free plan",
+    start_free: "Start free",
+    create_account_title: "Create account on ApuestaEdge",
+    premium_active: "✅ Premium active",
+    loading: "Loading…",
     no_picks: "No value picks right now. Waiting for the market to offer an edge is part of the method: not betting is also a statistical decision.",
     delayed_badge: "⏱ Premium saw this pick 2h ago",
     locked_note: "Kelly stake, entry timing, confidence and full backtest are in the Premium plan.",
@@ -84,6 +138,9 @@ function applyLang(lang) {
     const val = t(key);
     if (val && val !== key) el.textContent = val;
   });
+  // Update hero title (contains HTML)
+  const heroTitle = document.querySelector("h1");
+  if (heroTitle && t("hero_title") !== "hero_title") heroTitle.innerHTML = t("hero_title");
   // Update language toggle button
   const btn = document.getElementById("lang-toggle");
   if (btn) btn.textContent = lang === "es" ? "EN" : "ES";
@@ -334,7 +391,7 @@ async function logout() {
 async function loadPicks() {
   const box = $("#picks-list");
   const requestId = ++picksRequest;
-  box.innerHTML = '<p class="muted">Calculando valor esperado…</p>';
+  box.innerHTML = '<p class="muted">' + t('picks_loading') + '</p>';
   const q = new URLSearchParams({ plan: state.plan, bankroll: state.bankroll });
   if (state.sport) q.set("sport", state.sport);
   try {
@@ -345,9 +402,8 @@ async function loadPicks() {
       $("#picks-sub").innerHTML =
         `Plan <b>${label}</b> · edge mínimo ${pct(data.min_edge, 0)} · ` +
         `${data.models_scanned} partidos analizados · ${data.value_candidates} con valor`;
-      box.innerHTML = '<p class="muted">Sin picks con valor ahora mismo. ' +
-        'Esperar a que el mercado ofrezca ventaja es parte del método: ' +
-        'no apostar también es una decisión estadística.</p>';
+      box.innerHTML = '<p class="muted">' + t('no_picks_short') + ' ' +
+        t('no_picks_detail') + '</p>';
       return;
     }
     $("#picks-sub").innerHTML =
@@ -398,7 +454,7 @@ function card(p) {
         <span class="teams">${esc(p.event || `${p.home_team} vs ${p.away_team}`)}</span>
         <span class="time">🕐 ${esc(when(p.commence_time))} UTC · antes del pitido inicial</span>
       </div>
-      <div class="sel">${esc(p.selection_label)}<small>${p.odds ? `cuota ${num(p.odds)} · ${esc(p.bookmaker)}` : '🔒 cuota y casa en Premium'}</small></div>
+      <div class="sel">${esc(p.selection_label)}<small>${p.odds ? `cuota ${num(p.odds)} · ${esc(p.bookmaker)}` : t('locked_odds_full')}</small></div>
       <div class="val"><label>Edge</label><b class="pos">${signed(p.edge)}</b>
         <span class="badge edge">modelo ${pct(p.model_prob || 0)}</span></div>
       <div class="val"><label>Valor esperado</label><b class="pos">${signed(p.ev)}</b></div>
@@ -414,18 +470,18 @@ function card(p) {
           <li><b>${esc(s.title)}</b><p>${esc(s.detail)}</p></li>`).join("")}
       </ol>
       ${locked ? `
-      <div class="locked">🔒 ${esc(p.explanation.locked_note || "Stake Kelly, confianza y backtest completos están en Premium.")}
-        <a href="#precios">Desbloquear análisis →</a></div>` : `
+      <div class="locked">🔒 ${esc(p.explanation.locked_note || t("locked_note"))}
+        <a href="#precios">${t("unlock_analysis")}</a></div>` : `
       <div class="mini">
-        <span>Kelly completo: <b>${num(k.kelly_full_pct)}%</b> → usamos
+        <span>${t("kelly_full")}: <b>${num(k.kelly_full_pct)}%</b> → ${t("kelly_used")}
           <b>${num(k.kelly_fraction_used, 2)}×</b> con tope 3%</span>
-        <span>Stake sugerido: <b>${num(k.stake_pct)}%</b> = <b>${num(k.stake_units)} u.</b></span>
-        <span>Mejor cuota entre <b>${p.books_count}</b> casas</span>
-        ${p.model_detail ? `<span>Modelo: <b>${esc(p.model_detail)}</b></span>` : ""}
+        <span>${t("stake_suggested")}: <b>${num(k.stake_pct)}%</b> = <b>${num(k.stake_units)} u.</b></span>
+        <span>${t("best_odds_among")} <b>${p.books_count}</b> ${t("houses")}</span>
+        ${p.model_detail ? `<span>${t("model_label")}: <b>${esc(p.model_detail)}</b></span>` : ""}
       </div>
       ${p.backtest ? `<div class="mini">
-        <span>Backtest ${p.backtest.bets} picks: ROI <b>${spct(p.backtest.roi_pct)}</b></span>
-        <span>Acierto <b>${num(p.backtest.hit_rate_pct, 1)}%</b> vs breakeven
+        <span>${t("backtest_label")} ${p.backtest.bets} ${t("picks_word")}: ${t("roi_label")} <b>${spct(p.backtest.roi_pct)}</b></span>
+        <span>${t("hit_rate_label")} <b>${num(p.backtest.hit_rate_pct, 1)}%</b> vs ${t("breakeven_label")}
           <b>${num(p.backtest.breakeven_hit_pct, 1)}%</b></span>
         <span>CLV <b>${spct(p.backtest.avg_clv_pct)}</b></span>
         <span>Drawdown <b>${num(p.backtest.max_drawdown_units)} u.</b></span>
@@ -452,7 +508,7 @@ async function loadStats() {
     $("#source-note").textContent =
       (health.source === "live"
         ? "✅ Cuotas en vivo (The Odds API) actualizadas cada pocos minutos."
-        : "ℹ️ Modo demostración: partidos y cuotas de ejemplo. Añade ODDS_API_KEY al entorno para datos en vivo.") +
+        : t("demo_mode")) +
       ` · ${health.matches} partidos en el radar.`;
   } catch { /* silencioso: el hero sigue siendo legible */ }
 }
@@ -464,9 +520,9 @@ async function loadPerformance() {
     if (all.bets) {
       $("#metrics").innerHTML = [
         ["ROI / yield", spct(all.roi_pct), "beneficio por unidad apostada"],
-        ["Acierto", num(all.hit_rate_pct, 1) + "%", `breakeven ${num(all.breakeven_hit_pct, 1)}%`],
+        [t("hit_rate_table"), num(all.hit_rate_pct, 1) + "%", `${t("breakeven_table")} ${num(all.breakeven_hit_pct, 1)}%`],
         ["Profit factor", num(all.profit_factor), "ganancias ÷ pérdidas"],
-        ["CLV medio", spct(all.avg_clv_pct), "entrada vs cierre"],
+        [t("clv_avg"), spct(all.avg_clv_pct), t("entry_vs_close")],
         ["Drawdown máx.", num(all.max_drawdown_units) + " u.", "peor caída acumulada"],
         ["Test binomial", "p = " + num(all.binomial_p_value, 3),
           all.binomial_p_value < 0.05 ? "ventaja significativa (95%)" : "ventaja aún no significativa"],
@@ -525,7 +581,7 @@ function ctaFor(key) {
     return { label: state.authenticated ? "Hazte Premium" : "Empezar Premium",
              disabled: false };
   }
-  return { label: state.authenticated ? "Plan Free" : "Empezar gratis",
+  return { label: state.authenticated ? t("plan_free_label") : t("start_free"),
            disabled: false };
 }
 
@@ -587,12 +643,12 @@ $("#login-toggle").addEventListener("click", (e) => {
   const submit = $("#login-submit");
   const toggle = $("#login-toggle");
   if (loginMode === "register") {
-    title.textContent = "Crear cuenta en ApuestaEdge";
+    title.textContent = t("create_account_title");
     help.textContent = "Email y contraseña (mín. 8 caracteres).";
     submit.textContent = "Crear cuenta";
     toggle.textContent = "¿Ya tienes cuenta? Entrar";
   } else {
-    title.textContent = "Entrar en ApuestaEdge";
+    title.textContent = t("login_title");
     help.textContent = "Accede con tu email y contraseña.";
     submit.textContent = "Entrar";
     toggle.textContent = "¿No tienes cuenta? Crear una";
@@ -702,7 +758,7 @@ async function loadSubscription() {
       return;
     }
     if (s.plan === "premium") {
-      let txt = "✅ <b>Premium activo</b>";
+      let txt = "✅ <b>" + t("premium_active") + "</b>";
       if (s.current_period_end) {
         const fecha = new Date(s.current_period_end).toLocaleDateString("es-MX");
         txt += s.cancel_at_period_end
