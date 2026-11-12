@@ -106,6 +106,7 @@ def health() -> dict:
             "live_api_key": bool(config.ODDS_API_KEY),
             "billing": "stripe" if billing.stripe_enabled() else "demo",
             "premium_locked": billing.stripe_enabled(),
+            "database": "postgres" if db.using_postgres() else "sqlite",
             "commit": commit}
 
 

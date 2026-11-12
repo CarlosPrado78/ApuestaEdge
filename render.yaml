@@ -16,6 +16,9 @@ services:
       #   Añade STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET con sync: false
       #   STRIPE_WEBHOOK_SECRET: whsec_... (generado por Stripe en el dashboard)
       #   STRIPE_SECRET_KEY: sk_test_... (clave secreta de Stripe test)
+      # PostgreSQL (persistencia real): define DATABASE_URL en el dashboard
+      #   (Neon/Supabase/Render Postgres). Sin ella se usa SQLite en /data,
+      #   que en el plan Free se borra en cada despliegue.
     disk:
       name: apuestaedge-data
       mountPath: /data

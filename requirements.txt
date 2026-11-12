@@ -2,6 +2,8 @@ fastapi>=0.110
 uvicorn>=0.29
 httpx>=0.27
 pydantic>=2.6
+# PostgreSQL opcional (solo si se define DATABASE_URL).
+psycopg[binary,pool]>=3.1
 
 # Desarrollo
 pytest>=8.0

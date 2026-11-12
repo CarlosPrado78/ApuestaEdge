@@ -258,11 +258,21 @@ carga solo).
    checkout (`/api/billing/confirm`), así que un webhook lento no deja al
    cliente en Free.
 
-> ⚠️ **Persistencia en Render**: el plan Free no garantiza disco persistente.
-> Si la base SQLite vive en `/data` pero el servicio se recrea en cada deploy,
-> las cuentas y los planes se pierden. Para producción con usuarios reales:
-> usa el plan Starter con disco persistente o migra a PostgreSQL
-> (`DATABASE_URL`). Sin ese paso, cada redeploy vuelve a dejar a todos en Free.
+> ⚠️ **Persistencia en Render**: el plan Free no tiene disco persistente. Está
+> comprobado que, usando SQLite, **las cuentas y los planes se borran en cada
+> despliegue**. Para que los pagos sobrevivan hay que usar PostgreSQL: define
+> `DATABASE_URL` (Neon, Supabase o Render Postgres) y la app guarda todo ahí.
+>
+> **Neon (gratis, recomendado)**
+> 1. Crea una cuenta en <https://neon.tech> → *New Project* → copia la
+>    *Connection string* (`postgresql://...?sslmode=require`).
+> 2. Render → tu servicio → *Environment* → *Add Environment Variable*:
+>    `DATABASE_URL` = la cadena copiada (marca *sync: false*).
+> 3. Render redespliega solo. Comprueba `GET /api/health`: debe responder
+>    `"database": "postgres"`.
+>
+> La app crea las tablas y las migra sola la primera vez; no hay que ejecutar
+> SQL a mano. Sin `DATABASE_URL` sigue usando SQLite local (desarrollo/tests).
 >
 > Plan gratis de Render: el servicio se duerme tras 15 min sin tráfico y
 > tarda ~30 s en despertar (basta con recargar). Para 24/7 sin dormir,
@@ -310,7 +320,7 @@ apuesta_edge/
     providers.py     # The Odds API + dataset demo + ratings Elo
     service.py       # pipeline: modelo → mercado → edge → Kelly → pick
     explain.py       # explicación en español de cada recomendación
-    db.py            # SQLite: historial, usuarios/sesiones y suscriptores
+    db.py            # SQLite/PostgreSQL: historial, usuarios/sesiones y suscriptores
     engine/
       devig.py       # desvigado (potencias / proporcional) y CLV
       elo.py         # ratings Elo + ventaja de localía

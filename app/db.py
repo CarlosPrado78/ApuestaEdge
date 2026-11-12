@@ -1,15 +1,53 @@
-"""Persistencia ligera en SQLite: historial de picks + suscriptores."""
+"""Persistencia: PostgreSQL si hay ``DATABASE_URL``; si no, SQLite local.
+
+En producción (Render Free) el disco es efímero, así que las cuentas y los
+planes se pierden en cada despliegue si se usa SQLite. Definiendo
+``DATABASE_URL`` (Neon, Supabase, Render Postgres, etc.) la app guarda todo
+en PostgreSQL y los datos sobreviven a los redeploys.
+
+SQLite sigue siendo el modo por defecto para desarrollo y tests: no requiere
+instalar nada ni configurar variables.
+"""
 
 from __future__ import annotations
 
 import json
+import os
 import secrets
 import sqlite3
+import threading
 import time
 from pathlib import Path
 from typing import Any
 
 from . import config
+
+try:  # psycopg solo hace falta cuando se usa PostgreSQL.
+    import psycopg
+    from psycopg.rows import dict_row
+except ImportError:  # pragma: no cover - instalación mínima para SQLite
+    psycopg = None
+    dict_row = None
+
+try:  # El pool es opcional: sin él se abre una conexión por petición.
+    from psycopg_pool import ConnectionPool
+except ImportError:  # pragma: no cover
+    ConnectionPool = None
+
+
+def database_url() -> str:
+    """URL de PostgreSQL (vacía = usar SQLite local)."""
+    return os.environ.get("DATABASE_URL", "").strip()
+
+
+def using_postgres() -> bool:
+    return bool(database_url())
+
+
+# Errores de unicidad de ambos motores: SQLite y PostgreSQL.
+INTEGRITY_ERRORS: tuple[type[Exception], ...] = (sqlite3.IntegrityError,)
+if psycopg is not None:  # pragma: no branch - depende del entorno
+    INTEGRITY_ERRORS += (psycopg.IntegrityError,)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS history (
@@ -52,6 +90,51 @@ CREATE TABLE IF NOT EXISTS alerts (
 );
 """
 
+# Equivalente para PostgreSQL (mismas tablas y columnas).
+PG_SCHEMA = """
+CREATE TABLE IF NOT EXISTS history (
+    id BIGSERIAL PRIMARY KEY,
+    ts DOUBLE PRECISION NOT NULL,
+    sport TEXT NOT NULL,
+    match TEXT NOT NULL,
+    selection TEXT NOT NULL,
+    odds DOUBLE PRECISION NOT NULL,
+    edge DOUBLE PRECISION NOT NULL,
+    stake_pct DOUBLE PRECISION NOT NULL,
+    won INTEGER NOT NULL,
+    profit DOUBLE PRECISION NOT NULL,
+    clv_pct DOUBLE PRECISION NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS subscribers (
+    id BIGSERIAL PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    plan TEXT NOT NULL,
+    ts DOUBLE PRECISION NOT NULL
+);
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    plan TEXT NOT NULL DEFAULT 'free',
+    token TEXT UNIQUE NOT NULL,
+    stripe_customer_id TEXT,
+    created_at DOUBLE PRECISION NOT NULL,
+    telegram_chat_id TEXT,
+    link_code TEXT,
+    stripe_subscription_id TEXT,
+    sub_current_period_end DOUBLE PRECISION,
+    sub_cancel_at_period_end INTEGER DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS alerts (
+    id BIGSERIAL PRIMARY KEY,
+    chat_id TEXT NOT NULL,
+    match_id TEXT NOT NULL,
+    selection TEXT NOT NULL,
+    edge DOUBLE PRECISION NOT NULL,
+    sent_at DOUBLE PRECISION NOT NULL,
+    UNIQUE(chat_id, match_id, selection)
+);
+"""
+
 # Columnas añadidas con el tiempo (migración ligera para BD ya creadas).
 # Nota: SQLite no permite añadir columnas UNIQUE por ALTER; la unicidad del
 # código de vinculación se garantiza con un índice único creado abajo.
@@ -60,12 +143,60 @@ _USER_COLUMNS = ("telegram_chat_id TEXT", "link_code TEXT",
                  "sub_current_period_end REAL",
                  "sub_cancel_at_period_end INTEGER DEFAULT 0")
 
+_PG_USER_COLUMNS = ("telegram_chat_id TEXT", "link_code TEXT",
+                    "stripe_subscription_id TEXT",
+                    "sub_current_period_end DOUBLE PRECISION",
+                    "sub_cancel_at_period_end INTEGER DEFAULT 0")
+
 _SEED_SQL = """INSERT INTO history
     (ts, sport, match, selection, odds, edge, stake_pct, won, profit, clv_pct)
     VALUES (?,?,?,?,?,?,?,?,?,?)"""
 
 
-def connect(db_path: Path | None = None) -> sqlite3.Connection:
+class _PostgresConnection:
+    """Adapta psycopg al subconjunto de la API de sqlite3 que usa la app.
+
+    La app usa ``?`` como marcador de parámetros; PostgreSQL usa ``%s``.
+    """
+
+    def __init__(self, raw, pool=None) -> None:
+        self._raw = raw
+        self._pool = pool
+
+    @staticmethod
+    def _sql(sql: str) -> str:
+        return sql.replace("?", "%s")
+
+    def execute(self, sql: str, params: tuple | list = ()):
+        return self._raw.execute(self._sql(sql), tuple(params))
+
+    def executemany(self, sql: str, seq):
+        cur = self._raw.cursor()
+        cur.executemany(self._sql(sql), [tuple(p) for p in seq])
+        return cur
+
+    def commit(self) -> None:
+        self._raw.commit()
+
+    def rollback(self) -> None:
+        self._raw.rollback()
+
+    def close(self) -> None:
+        if self._pool is not None:
+            # Devuelve la conexión al pool en vez de cerrarla.
+            self._pool.putconn(self._raw)
+        else:
+            self._raw.close()
+
+
+def _pg_statements(script: str) -> list[str]:
+    return [part.strip() for part in script.split(";") if part.strip()]
+
+
+def connect(db_path: Path | None = None):
+    """Conexión a PostgreSQL (si ``DATABASE_URL``) o SQLite local."""
+    if db_path is None and using_postgres():
+        return _connect_postgres()
     path = Path(db_path or config.DB_PATH)
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
@@ -73,6 +204,64 @@ def connect(db_path: Path | None = None) -> sqlite3.Connection:
     conn.executescript(SCHEMA)
     _migrate(conn)
     return conn
+
+
+_pg_lock = threading.Lock()
+_pg_ready = False
+_pg_pool = None
+
+
+def _connect_postgres() -> _PostgresConnection:
+    """Conexión (del pool si está disponible) con el esquema garantizado."""
+    global _pg_pool, _pg_ready
+    if psycopg is None:  # pragma: no cover - solo si falta la dependencia
+        raise RuntimeError(
+            "DATABASE_URL está definida pero falta psycopg. "
+            "Ejecuta: pip install -r requirements.txt")
+
+    with _pg_lock:
+        if _pg_pool is None and ConnectionPool is not None:
+            _pg_pool = ConnectionPool(
+                database_url(), min_size=1, max_size=5,
+                kwargs={"row_factory": dict_row},
+                check=ConnectionPool.check_connection,
+                timeout=10, open=True)
+
+    if _pg_pool is not None:
+        raw = _pg_pool.getconn()
+        conn = _PostgresConnection(raw, pool=_pg_pool)
+    else:  # sin psycopg_pool instalado: conexión directa
+        conn = _PostgresConnection(
+            psycopg.connect(database_url(), row_factory=dict_row))
+
+    if not _pg_ready:
+        with _pg_lock:
+            if not _pg_ready:
+                try:
+                    _init_postgres(conn)
+                except psycopg.Error:
+                    # Otra instancia pudo crear el esquema en paralelo.
+                    conn.rollback()
+                    _init_postgres(conn)
+                _pg_ready = True
+    return conn
+
+
+def _init_postgres(conn: _PostgresConnection) -> None:
+    for statement in _pg_statements(PG_SCHEMA):
+        conn.execute(statement)
+    _migrate_postgres(conn)
+    conn.commit()
+
+
+def _migrate_postgres(conn: _PostgresConnection) -> None:
+    """Migración idempotente de PostgreSQL (ADD COLUMN IF NOT EXISTS)."""
+    for column in _PG_USER_COLUMNS:
+        conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {column}")
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_link_code "
+                 "ON users(link_code)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_users_tg_chat "
+                 "ON users(telegram_chat_id)")
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
@@ -119,13 +308,16 @@ def fetch_history(conn: sqlite3.Connection, sport: str | None = None) -> list[di
     return [dict(r) for r in cur.fetchall()]
 
 
-def add_subscriber(conn: sqlite3.Connection, email: str, plan: str) -> dict:
+def add_subscriber(conn, email: str, plan: str) -> dict:
     try:
         conn.execute("INSERT INTO subscribers (email, plan, ts) VALUES (?,?,?)",
                      (email.strip().lower(), plan, time.time()))
         conn.commit()
         return {"ok": True, "email": email.strip().lower(), "plan": plan}
-    except sqlite3.IntegrityError:
+    except INTEGRITY_ERRORS:
+        # PostgreSQL aborta la transacción tras un error: hay que deshacerla
+        # antes de seguir con el UPDATE.
+        conn.rollback()
         conn.execute("UPDATE subscribers SET plan=? WHERE email=?",
                      (plan, email.strip().lower()))
         conn.commit()
@@ -166,10 +358,14 @@ def create_user(conn: sqlite3.Connection, email: str,
     if plan not in ("free", "premium"):
         raise ValueError(f"plan inválido: {plan}")
     token = secrets.token_urlsafe(24)
-    conn.execute(
-        "INSERT INTO users (email, plan, token, created_at) VALUES (?,?,?,?)",
-        (email, plan, token, time.time()))
-    conn.commit()
+    try:
+        conn.execute(
+            "INSERT INTO users (email, plan, token, created_at) VALUES (?,?,?,?)",
+            (email, plan, token, time.time()))
+        conn.commit()
+    except INTEGRITY_ERRORS:
+        # Otra petición creó la cuenta al mismo tiempo: se devuelve la suya.
+        conn.rollback()
     return get_user_by_email(conn, email) or {}
 
 
@@ -246,7 +442,8 @@ def ensure_link_code(conn: sqlite3.Connection, email: str) -> str:
                          (code, _normalize_email(email)))
             conn.commit()
             return code
-        except sqlite3.IntegrityError:
+        except INTEGRITY_ERRORS:
+            conn.rollback()
             continue  # colisión: otro usuario tiene ese código
     raise RuntimeError("no se pudo generar un código de vinculación")
 
@@ -305,7 +502,8 @@ def alert_mark_sent(conn: sqlite3.Connection, chat_id: str, match_id: str,
             (str(chat_id), match_id, selection, edge, time.time()))
         conn.commit()
         return True
-    except sqlite3.IntegrityError:
+    except INTEGRITY_ERRORS:
+        conn.rollback()
         return False
 
 
