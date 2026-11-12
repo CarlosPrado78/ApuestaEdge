@@ -89,6 +89,7 @@ em{color:var(--brand);font-style:normal}
 .risks ul{margin-left:18px;color:var(--muted);font-size:.88rem;display:grid;gap:4px}
 .locked{margin-top:14px;background:rgba(255,180,84,.1);border:1px dashed rgba(255,180,84,.5);border-radius:10px;padding:12px 14px;font-size:.9rem;color:#ffd9a8}
 .locked a{color:var(--brand);font-weight:700;text-decoration:underline}
+.delayed-badge{display:inline-block;margin:6px 0;padding:4px 10px;background:rgba(120,120,120,.15);border:1px solid rgba(120,120,120,.4);color:#aaa;border-radius:6px;font-size:.78rem;font-weight:600}
 .mini{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:.83rem;color:var(--muted)}
 .mini b{color:var(--text)}
 

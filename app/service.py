@@ -211,6 +211,42 @@ def evaluate_match(match: dict, bankroll: float | None = None) -> list[dict]:
     return out
 
 
+# Caché en memoria de picks para el plan Free (retraso de 2 h).
+# Clave: filtro de deporte (o "all"). Valor: (timestamp, picks).
+_FREE_PICKS_CACHE: dict[str, tuple[float, list[dict]]] = {}
+_FREE_DELAY_SECONDS = 2 * 3600  # 2 horas
+
+
+def _cache_key(sport: str | None) -> str:
+    return sport or "all"
+
+
+def _get_cached_free_picks(sport_key: str) -> tuple[list[dict] | None, bool]:
+    """Devuelve (picks, is_delayed) si hay caché válido.
+
+    - is_delayed=True si los picks tienen más de 2 h (son "viejos").
+    - is_delayed=False si son recientes (primera generación).
+    """
+    entry = _FREE_PICKS_CACHE.get(sport_key)
+    if entry is None:
+        return None, False
+    ts, picks = entry
+    age = time.time() - ts
+    # Dentro de las 2 h: devolver los mismos (marcados como delayed).
+    # Después de 2 h: caché caducada, hay que regenerar.
+    if age < _FREE_DELAY_SECONDS:
+        return picks, True
+    return None, False
+
+
+def _clear_picks_cache() -> None:
+    _FREE_PICKS_CACHE.clear()
+
+
+def _store_free_picks(sport_key: str, picks: list[dict]) -> None:
+    _FREE_PICKS_CACHE[sport_key] = (time.time(), [dict(p) for p in picks])
+
+
 def _rank(candidates: list[dict]) -> list[dict]:
     """Ordena por valor ponderado por confianza."""
     for c in candidates:
@@ -323,10 +359,29 @@ def build_recommendations(plan: str = "free", sport: str | None = None,
         # Un solo pick por partido (la mejor selección de cada uno).
         seen: set[str] = set()
         picks: list[dict] = []
-        if plan == "free":
-            # Curaduría: 2 (estrella) + 2 (media) + 1 (nicho).
-            deduped: list[dict] = []
-            seen2: set[str] = set()
+        is_delayed = False
+
+        cache_key = _cache_key(sport)
+        use_cache = (plan == "free")
+
+        if use_cache:
+            cached, is_delayed = _get_cached_free_picks(cache_key)
+            if cached is not None:
+                picks = cached
+            else:
+                deduped: list[dict] = []
+                seen2: set[str] = set()
+                for c in ranked:
+                    if c["match_id"] in seen2:
+                        continue
+                    seen2.add(c["match_id"])
+                    deduped.append(c)
+                picks = _select_free_picks(deduped, max_picks)
+                _store_free_picks(cache_key, picks)
+                is_delayed = False
+        elif plan == "free":
+            deduped = []
+            seen2 = set()
             for c in ranked:
                 if c["match_id"] in seen2:
                     continue
@@ -359,6 +414,19 @@ def build_recommendations(plan: str = "free", sport: str | None = None,
                     "Stake Kelly, cuándo entrar, confianza y backtest "
                     "completos en el plan Premium.")
                 p.pop("backtest", None)
+                # Ocultar detalles premium (opción A+B).
+                p["delayed"] = is_delayed
+                p["locked_fields"] = ["kelly", "confidence", "odds",
+                                      "backtest", "model_prob", "market_prob"]
+                for field in ("kelly", "confidence", "odds", "model_prob",
+                              "market_prob", "implied_prob", "margin",
+                              "market_spread", "books_count", "elo_home",
+                              "elo_away", "market_lines", "market_type",
+                              "event"):
+                    p.pop(field, None)
+            else:
+                p["delayed"] = False
+                p["locked_fields"] = []
 
         return {
             "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),

@@ -279,13 +279,13 @@ function card(p) {
         <span class="teams">${esc(p.event || `${p.home_team} vs ${p.away_team}`)}</span>
         <span class="time">🕐 ${esc(when(p.commence_time))} UTC · antes del pitido inicial</span>
       </div>
-      <div class="sel">${esc(p.selection_label)}<small>cuota ${num(p.odds)} · ${esc(p.bookmaker)}</small></div>
+      <div class="sel">${esc(p.selection_label)}<small>${p.odds ? `cuota ${num(p.odds)} · ${esc(p.bookmaker)}` : '🔒 cuota y casa en Premium'}</small></div>
       <div class="val"><label>Edge</label><b class="pos">${signed(p.edge)}</b>
-        <span class="badge edge">modelo ${pct(p.model_prob)}</span></div>
-      <div class="val"><label>Valor esperado</label><b class="pos">${signed(p.ev)}</b>
-        <span class="badge ev">mercado ${pct(p.market_prob)}</span></div>
-      <div class="val"><label>Confianza</label><b>${pct(p.confidence, 0)}</b>
-        <span class="conf"><i style="width:${Math.round(p.confidence * 100)}%"></i></span></div>
+        <span class="badge edge">modelo ${pct(p.model_prob || 0)}</span></div>
+      <div class="val"><label>Valor esperado</label><b class="pos">${signed(p.ev)}</b></div>
+      <div class="val"><label>Confianza</label><b>${p.confidence ? pct(p.confidence, 0) : '🔒'}</b>
+        ${p.confidence ? `<span class="conf"><i style="width:${Math.round(p.confidence * 100)}%"></i></span>` : '<span class="muted small">Premium</span>'}</div>
+      ${p.delayed ? `<div class="delayed-badge">⏱ Premium vio este pick hace 2 h</div>` : ""}
       <button class="why-btn" type="button">¿Por qué confiar?</button>
     </div>
     <div class="pick-body">
