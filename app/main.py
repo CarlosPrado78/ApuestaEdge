@@ -15,6 +15,7 @@ import time
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -116,11 +117,14 @@ def matches(sport: str | None = Query(None, description="soccer|basketball|tenni
 @app.get("/api/recommendations")
 def recommendations(
     request: Request,
-    plan: str = Query("free", pattern="^(free|premium)$"),
+    plan: str | None = Query(None, pattern="^(free|premium)$"),
     sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball|boxing|baseball|formula1|motogp|horseracing"),
     min_edge: float | None = Query(None, ge=0.0, le=0.5),
     bankroll: float = Query(config.DEFAULT_BANKROLL, gt=0),
 ) -> dict:
+    # Sin ?plan explícito se usa el plan real de la cuenta (o free si es anónimo).
+    if plan is None:
+        plan = "premium" if auth.is_premium(request) else "free"
     plan = _resolve_plan(request, plan)   # 402 si premium sin suscripción
     matches, source = _get_matches()
     try:
@@ -248,7 +252,7 @@ async def subscribe(payload: SubscribeIn, request: Request) -> dict:
     conn = db.connect()
     try:
         result = db.add_subscriber(conn, payload.email, payload.plan)
-        user = db.create_user(conn, payload.email, plan="free")
+        user = db.create_user(conn, payload.email)
     finally:
         conn.close()
 
@@ -279,7 +283,7 @@ def login(payload: LoginIn) -> dict:
         raise HTTPException(status_code=400, detail="Correo inválido.")
     conn = db.connect()
     try:
-        user = db.create_user(conn, payload.email, plan="free")
+        user = db.create_user(conn, payload.email)
     finally:
         conn.close()
     return {"ok": True, "email": user.get("email"), "plan": user.get("plan"),
@@ -291,9 +295,20 @@ def me(request: Request) -> dict:
     user = auth.user_from_request(request)
     if not user:
         return {"authenticated": False, "plan": "free",
+                "billing": "stripe" if billing.stripe_enabled() else "demo",
                 "demo": not billing.stripe_enabled()}
     return {"authenticated": True, "email": user["email"], "plan": user["plan"],
+            "billing": "stripe" if billing.stripe_enabled() else "demo",
+            "has_stripe_customer": bool(user.get("stripe_customer_id")),
             "demo": not billing.stripe_enabled()}
+
+
+@app.post("/api/auth/logout")
+def logout() -> JSONResponse:
+    """Cierra sesión: el cliente borra el token y aquí se limpia la cookie."""
+    response = JSONResponse({"ok": True, "message": "Sesión cerrada."})
+    response.delete_cookie(auth.COOKIE_NAME, path="/")
+    return response
 
 
 @app.post("/api/billing/checkout")
@@ -310,12 +325,83 @@ async def checkout(request: Request) -> dict:
         raise HTTPException(status_code=400, detail="Correo inválido.")
     conn = db.connect()
     try:
-        db.create_user(conn, email, plan="free")
+        db.create_user(conn, email)
         db.add_subscriber(conn, email, "premium")
     finally:
         conn.close()
     url = await billing.create_checkout(email, auth.origin_of(request))
     return {"checkout_url": url, "mode": "stripe"}
+
+
+class ConfirmIn(BaseModel):
+    session_id: str = Field(min_length=5, max_length=200)
+
+
+@app.post("/api/billing/confirm")
+async def billing_confirm(payload: ConfirmIn, request: Request) -> dict:
+    """Confirma el pago al volver de Stripe (sin depender del webhook).
+
+    El ``session_id`` de Checkout es impredecible y solo lo conoce el
+    comprador, así que sirve como prueba para activar su cuenta. Devuelve un
+    token de sesión para que el navegador quede autenticado incluso si perdió
+    el token al cambiar de dispositivo.
+    """
+    if not billing.stripe_enabled():
+        raise HTTPException(status_code=400, detail={
+            "error": "stripe_not_configured",
+            "message": "Stripe no está configurado (modo demo)."})
+    try:
+        session = await billing.retrieve_checkout_session(payload.session_id)
+    except Exception as exc:  # noqa: BLE001 - error de red o ID inválido
+        raise HTTPException(
+            status_code=502,
+            detail=f"No se pudo verificar el pago con Stripe: {exc}") from exc
+
+    paid = (session.get("payment_status") in ("paid", "no_payment_required")
+            or session.get("status") == "complete")
+    if not paid:
+        return {"ok": False, "activated": False,
+                "status": session.get("status"),
+                "message": "Stripe aún no ha confirmado el pago."}
+
+    email = billing.email_from_session(session)
+    if not email:
+        raise HTTPException(status_code=400, detail={
+            "error": "no_email",
+            "message": "La sesión de pago no trae un correo válido."})
+
+    customer_id = str(session.get("customer") or "") or None
+    subscription_id = str(session.get("subscription") or "") or None
+    sub: dict | None = None
+    if subscription_id:
+        try:
+            sub = await billing.retrieve_subscription(subscription_id)
+        except Exception:  # noqa: BLE001 - la sesión ya prueba el pago
+            sub = None
+
+    status = str((sub or {}).get("status") or "active")
+    active = status in billing.ACTIVE_SUB_STATUSES
+    period_end = float((sub or {}).get("current_period_end") or 0) or None
+    cancel_at_end = bool((sub or {}).get("cancel_at_period_end"))
+
+    conn = db.connect()
+    try:
+        user = db.get_user_by_email(conn, email) or db.create_user(conn, email)
+        if customer_id or subscription_id:
+            db.save_stripe_ids(conn, email, customer_id=customer_id,
+                               subscription_id=subscription_id)
+        db.set_subscription_state(
+            conn, user["id"], plan="premium" if active else "free",
+            period_end=period_end, cancel_at_period_end=cancel_at_end)
+        user = db.get_user_by_email(conn, email) or user
+    finally:
+        conn.close()
+
+    return {"ok": True, "received": True, "activated": active,
+            "email": user.get("email", email),
+            "plan": user.get("plan", "free"),
+            "token": user.get("token", ""),
+            "status": status}
 
 
 @app.post("/api/billing/webhook")
@@ -341,6 +427,7 @@ async def stripe_webhook(request: Request) -> dict:
 
     etype = event.get("type", "")
     if etype not in ("checkout.session.completed",
+                     "customer.subscription.created",
                      "customer.subscription.updated",
                      "customer.subscription.deleted"):
         return {"received": True, "action": "ignored"}

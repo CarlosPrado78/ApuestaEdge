@@ -257,3 +257,106 @@ def test_subscription_endpoint_anonymous(client):
     body = client.get("/api/billing/subscription").json()
     assert body["authenticated"] is False
     assert body["billing"] == "demo"
+
+
+# ------------------------------------------------ regresiones de cuenta/plan
+def test_login_keeps_existing_premium_plan(client):
+    """Volver a iniciar sesión NUNCA degrada a Free a quien ya pagó."""
+    email = "premium-login@test.com"
+    first = client.post("/api/auth/login", json={"email": email}).json()
+    assert first["plan"] == "free"
+
+    conn = db.connect()
+    try:
+        db.set_user_plan(conn, email, "premium")
+    finally:
+        conn.close()
+
+    again = client.post("/api/auth/login", json={"email": email}).json()
+    assert again["plan"] == "premium"
+    me = client.get("/api/auth/me", headers=_auth(again["token"])).json()
+    assert me["authenticated"] is True and me["plan"] == "premium"
+
+
+def test_recommendations_use_account_plan_by_default(client, monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
+    email = "auto-plan@test.com"
+    token = client.post("/api/auth/login", json={"email": email}).json()["token"]
+
+    free = client.get("/api/recommendations", headers=_auth(token)).json()
+    assert free["plan"] == "free" and free["min_edge"] == 0.06
+
+    conn = db.connect()
+    try:
+        db.set_user_plan(conn, email, "premium")
+    finally:
+        conn.close()
+
+    premium = client.get("/api/recommendations", headers=_auth(token)).json()
+    assert premium["plan"] == "premium"
+    assert premium["min_edge"] == 0.03
+    assert premium["count"] > free["count"]
+
+
+def _fake_stripe_session(email: str, *, paid: bool = True):
+    async def fake_session(session_id: str) -> dict:
+        return {"id": session_id,
+                "status": "complete" if paid else "open",
+                "payment_status": "paid" if paid else "unpaid",
+                "customer": "cus_confirm",
+                "subscription": "sub_confirm",
+                "metadata": {"email": email}}
+
+    async def fake_subscription(subscription_id: str) -> dict:
+        return {"id": subscription_id, "status": "active",
+                "current_period_end": 1900000000,
+                "cancel_at_period_end": False}
+
+    return fake_session, fake_subscription
+
+
+def test_confirm_checkout_activates_without_webhook(client, monkeypatch):
+    """Al volver de Stripe se activa Premium verificando la sesión."""
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
+    email = "confirm@test.com"
+    fake_session, fake_sub = _fake_stripe_session(email)
+    monkeypatch.setattr(billing, "retrieve_checkout_session", fake_session)
+    monkeypatch.setattr(billing, "retrieve_subscription", fake_sub)
+
+    r = client.post("/api/billing/confirm",
+                    json={"session_id": "cs_test_123"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["activated"] is True and body["plan"] == "premium"
+    assert body["token"]
+
+    me = client.get("/api/auth/me", headers=_auth(body["token"])).json()
+    assert me["plan"] == "premium"
+    st = client.get("/api/billing/subscription",
+                    headers=_auth(body["token"])).json()
+    assert st["has_stripe_customer"] is True and st["can_manage"] is True
+
+
+def test_confirm_checkout_does_not_activate_unpaid(client, monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
+    fake_session, fake_sub = _fake_stripe_session("nopago@test.com", paid=False)
+    monkeypatch.setattr(billing, "retrieve_checkout_session", fake_session)
+    monkeypatch.setattr(billing, "retrieve_subscription", fake_sub)
+
+    r = client.post("/api/billing/confirm",
+                    json={"session_id": "cs_test_unpaid"})
+    assert r.status_code == 200
+    assert r.json()["activated"] is False
+    me = client.get("/api/auth/me", headers={
+        "Authorization": "Bearer inexistente"}).json()
+    assert me["authenticated"] is False
+
+
+def test_logout_clears_auth_cookie(client):
+    email = "logout@test.com"
+    token = client.post("/api/auth/login", json={"email": email}).json()["token"]
+    client.cookies.set("ae_token", token)
+    r = client.post("/api/auth/logout")
+    assert r.status_code == 200 and r.json()["ok"] is True
+    # La respuesta pide borrar la cookie de sesión.
+    assert "ae_token=" in r.headers.get("set-cookie", "")

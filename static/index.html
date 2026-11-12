@@ -17,12 +17,30 @@
       <a href="#beneficios">Por qué funciona</a>
       <a href="#precios">Precios</a>
     </nav>
-    <div class="plan-switch" role="tablist" aria-label="Plan">
-      <button id="btn-free" class="plan-btn active" data-plan="free">Free</button>
-      <button id="btn-premium" class="plan-btn" data-plan="premium">Premium</button>
+    <div class="account" id="account-box">
+      <span id="account-plan" class="plan-badge free">Free</span>
+      <span id="account-email" class="account-email" hidden></span>
+      <button id="btn-login" class="btn small ghost" type="button">Iniciar sesión</button>
+      <button id="btn-logout" class="btn small ghost" type="button" hidden>Salir</button>
     </div>
   </div>
 </header>
+
+<dialog id="login-dialog" class="dialog">
+  <form id="login-form" method="dialog">
+    <h3>Entrar en ApuestaEdge</h3>
+    <p class="muted">Acceso sin contraseña: escribe el correo con el que compraste
+      (o con el que quieres crear tu cuenta Free).</p>
+    <input type="email" id="login-email" placeholder="tu@correo.com" required autocomplete="email">
+    <div class="dialog-actions">
+      <button type="button" class="btn ghost" id="login-cancel">Cancelar</button>
+      <button type="submit" class="btn primary" id="login-submit">Entrar</button>
+    </div>
+    <p id="login-msg" class="sub-msg" role="status"></p>
+  </form>
+</dialog>
+
+<div id="activation" class="activation" hidden role="status"></div>
 
 <section class="hero">
   <div class="wrap">
@@ -70,6 +88,7 @@
       </label>
     </div>
   </div>
+  <div id="plan-banner" class="plan-banner" hidden></div>
   <div id="picks-list" class="picks"><p class="muted">Cargando picks…</p></div>
 </section>
 
@@ -145,19 +164,24 @@
     <p class="sub">Empieza gratis. Premium desbloquea todos los valores, el stake exacto y el análisis completo.</p>
     <div class="plans" id="plans"></div>
     <form id="subscribe-form" class="subscribe">
-      <input type="email" id="email" placeholder="tu@correo.com" required>
+      <input type="email" id="email" placeholder="tu@correo.com" required autocomplete="email">
       <select id="plan-select">
         <option value="premium">Premium</option>
         <option value="free">Free</option>
       </select>
-      <button class="btn primary" type="submit">Crear cuenta</button>
-      <span id="sub-msg" class="sub-msg"></span>
+      <button class="btn primary" type="submit" id="subscribe-btn">Crear cuenta</button>
+      <span id="sub-msg" class="sub-msg" role="status"></span>
     </form>
+    <p class="footnote" style="text-align:center">¿Ya tienes cuenta? Usa
+      <b>Iniciar sesión</b> arriba a la derecha.</p>
 
     <div class="panel tg-panel" id="sub-panel" hidden>
       <h3>💳 Tu suscripción</h3>
       <div id="sub-state" class="muted">Comprobando estado…</div>
-      <button class="btn ghost" id="btn-portal" hidden>Gestionar suscripción</button>
+      <div class="panel-actions">
+        <button class="btn ghost" id="btn-sync" type="button">Actualizar estado</button>
+        <button class="btn ghost" id="btn-portal" type="button" hidden>Gestionar suscripción</button>
+      </div>
     </div>
 
     <div class="panel tg-panel">

@@ -153,11 +153,18 @@ def get_user_by_token(conn: sqlite3.Connection, token: str) -> dict | None:
 
 def create_user(conn: sqlite3.Connection, email: str,
                 plan: str = "free") -> dict:
-    """Crea (o recupera) el usuario y garantiza que tenga token."""
+    """Crea (o recupera) el usuario y garantiza que tenga token.
+
+    Importante: si el usuario **ya existe** se devuelve tal cual está en la
+    BD (con su plan actual). El argumento ``plan`` solo se usa al crear una
+    cuenta nueva; nunca degrada a un usuario que ya pagó.
+    """
     email = _normalize_email(email)
     existing = get_user_by_email(conn, email)
     if existing:
         return existing
+    if plan not in ("free", "premium"):
+        raise ValueError(f"plan inválido: {plan}")
     token = secrets.token_urlsafe(24)
     conn.execute(
         "INSERT INTO users (email, plan, token, created_at) VALUES (?,?,?,?)",

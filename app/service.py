@@ -251,7 +251,6 @@ def build_recommendations(plan: str = "free", sport: str | None = None,
         candidates: list[dict] = []
         for m in matches:
             candidates.extend(evaluate_match(m, bankroll=bankroll))
-            candidates.extend(evaluate_match(m, bankroll=bankroll))
         candidates = [c for c in candidates
                       if c["edge"] >= threshold
                       and c["ev"] > 0
