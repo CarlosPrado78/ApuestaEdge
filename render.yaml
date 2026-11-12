@@ -16,11 +16,8 @@ services:
       #   Añade STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET con sync: false
       #   STRIPE_WEBHOOK_SECRET: whsec_... (generado por Stripe en el dashboard)
       #   STRIPE_SECRET_KEY: sk_test_... (clave secreta de Stripe test)
-      # Acceso por correo (magic link): configura un proveedor de correo para que
-      # los usuarios puedan entrar. Sin esto el login devuelve 503.
-      #   EMAIL_FROM, SMTP_HOST/PORT/USER/PASSWORD  (Brevo, gratis, sin dominio)
-      #   o RESEND_API_KEY (requiere dominio verificado)
-      #   PUBLIC_BASE_URL (opcional; se infiere del Host si no se define)
+      # Acceso: email + contraseña (sin proveedor de correo externo).
+      #   PASSWORD_MIN_LENGTH (opcional, default 8)
       # PostgreSQL (persistencia real): define DATABASE_URL en el dashboard
       #   (Neon/Supabase/Render Postgres). Sin ella se usa SQLite en /data,
       #   que en el plan Free se borra en cada despliegue.

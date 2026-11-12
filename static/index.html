@@ -28,16 +28,19 @@
 
 <dialog id="login-dialog" class="dialog">
   <form id="login-form" method="dialog">
-    <h3>Entrar en ApuestaEdge</h3>
-    <p class="muted">Te enviamos un enlace a tu correo. Sin contraseña: solo
-      quien controla el correo puede entrar. Si no tienes cuenta, se crea al
-      usar el enlace.</p>
+    <h3 id="login-title">Entrar en ApuestaEdge</h3>
+    <p class="muted" id="login-help">Accede con tu email y contraseña.</p>
     <input type="email" id="login-email" placeholder="tu@correo.com" required autocomplete="email">
+    <input type="password" id="login-password" placeholder="Contraseña (mín. 8 caracteres)"
+           required autocomplete="current-password" minlength="8">
     <div class="dialog-actions">
       <button type="button" class="btn ghost" id="login-cancel">Cancelar</button>
-      <button type="submit" class="btn primary" id="login-submit">Enviar enlace</button>
+      <button type="submit" class="btn primary" id="login-submit">Entrar</button>
     </div>
     <p id="login-msg" class="sub-msg" role="status"></p>
+    <p class="sub-msg" style="margin-top:8px">
+      <a href="#" id="login-toggle" style="color:#16a34a">¿No tienes cuenta? Crear una</a>
+    </p>
   </form>
 </dialog>
 

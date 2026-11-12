@@ -136,7 +136,7 @@ def test_methodology_and_plans(client):
 
 def test_subscribe(client):
     ok = client.post("/api/subscribe", json={"email": "apostador@test.com",
-                                             "plan": "premium"})
+                                             "plan": "free"})
     assert ok.status_code == 200
     bad = client.post("/api/subscribe", json={"email": "no-es-correo", "plan": "premium"})
     assert bad.status_code == 400

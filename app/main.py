@@ -16,11 +16,11 @@ import time
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import (auth, billing, config, db, explain, mailer, notifier, providers,
+from . import (auth, billing, config, db, explain, notifier, providers,
                service)
 
 
@@ -253,25 +253,38 @@ async def _checkout_or_demo(request: Request, email: str) -> dict:
 
 @app.post("/api/subscribe")
 async def subscribe(payload: SubscribeIn, request: Request) -> dict:
-    """Alta de suscriptor: Free pide enlace por correo; Premium va a Stripe."""
+    """Alta de suscriptor: Free informativo; Premium crea sesión de Stripe.
+
+    Para pagar hace falta haber iniciado sesión (email + contraseña).
+    """
     if not _valid_email(payload.email):
         raise HTTPException(status_code=400, detail="Correo inválido.")
     email = payload.email.strip().lower()
-    conn = db.connect()
-    try:
-        result = db.add_subscriber(conn, email, payload.plan)
-        user = db.create_user(conn, email)
-    finally:
-        conn.close()
 
     if payload.plan != "premium":
-        # No hay contraseña: el acceso real es el enlace enviado al correo.
-        link = await _issue_login_link(request, email)
-        return {**result, "plan": user.get("plan", "free"), "email": email,
-                "activated": False, "demo": not billing.stripe_enabled(),
-                "message": link["message"],
-                **({"dev_link": link["dev_link"]} if link.get("dev_link")
-                   else {})}
+        conn = db.connect()
+        try:
+            result = db.add_subscriber(conn, email, "free")
+            db.create_user(conn, email)
+        finally:
+            conn.close()
+        return {**result, "plan": "free", "email": email,
+                "activated": True, "demo": not billing.stripe_enabled(),
+                "message": "Cuenta Free creada. Inicia sesión para entrar."}
+
+    # Premium: hace falta sesión autenticada.
+    user = auth.user_from_request(request)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Inicia sesión (o crea tu cuenta) antes de suscribirte.")
+    email = user["email"]
+
+    conn = db.connect()
+    try:
+        result = db.add_subscriber(conn, email, "premium")
+    finally:
+        conn.close()
 
     upgrade = await _checkout_or_demo(request, email)
     result.update(upgrade)
@@ -281,11 +294,7 @@ async def subscribe(payload: SubscribeIn, request: Request) -> dict:
     finally:
         conn.close()
     if upgrade.get("mode") == "stripe":
-        result["message"] += (" Entrarás en tu cuenta con un enlace por correo"
-                              " cuando el pago se confirme.")
-    # El plan devuelto siempre es el real de la BD: en modo Stripe sigue siendo
-    # Free hasta que el pago se confirme (y no el plan solicitado). Nunca se
-    # devuelve un token de sesión por conocer solo el correo.
+        result["message"] += " Tu cuenta pasará a Premium al confirmarse el pago."
     result["plan"] = user.get("plan", "free")
     result["email"] = email
     result["demo"] = not billing.stripe_enabled()
@@ -324,14 +333,6 @@ async def _recover_premium(user: dict) -> dict:
         conn.close()
 
 
-def _client_ip(request: Request) -> str:
-    """IP real del cliente (Render/proxies usan X-Forwarded-For)."""
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else ""
-
-
 def _set_session_cookie(response, request: Request, token: str) -> None:
     """Cookie de sesión (HttpOnly: el JS no puede leerla ni filtrarla)."""
     secure = (request.headers.get("x-forwarded-proto", request.url.scheme)
@@ -341,184 +342,79 @@ def _set_session_cookie(response, request: Request, token: str) -> None:
         httponly=True, samesite="lax", secure=secure)
 
 
-async def _issue_login_link(request: Request, email: str) -> dict:
-    """Crea y envía un enlace de acceso (con límite anti-abuso)."""
-    email = email.strip().lower()
-    ip = _client_ip(request)
-    now = time.time()
-    window = now - config.LOGIN_RATE_WINDOW_MINUTES * 60
-    ttl = config.LOGIN_TOKEN_TTL_MINUTES * 60
-
-    conn = db.connect()
-    try:
-        db.purge_login_tokens(conn)
-        limited = (
-            db.count_login_requests(conn, email=email, since=window)
-            >= config.LOGIN_MAX_PER_EMAIL
-            or db.count_login_requests(conn, ip=ip, since=window)
-            >= config.LOGIN_MAX_PER_IP)
-        token = None if limited else db.create_login_token(
-            conn, email, ttl_seconds=ttl, request_ip=ip)
-    finally:
-        conn.close()
-
-    if limited:
-        raise HTTPException(
-            status_code=429,
-            detail="Has pedido demasiados enlaces. Espera unos minutos "
-                   "antes de volver a intentarlo.")
-
-    base = config.public_base_url() or auth.server_origin(request)
-    url = f"{base}/api/auth/verify?token={token}"
-    result = {
-        "ok": True,
-        "email": email,
-        "expires_in_minutes": config.LOGIN_TOKEN_TTL_MINUTES,
-        "message": "Te enviamos un enlace de acceso. Revisa tu correo "
-                   "(mira también la carpeta de spam).",
-    }
-
-    if not mailer.configured():
-        # Sin proveedor de correo: solo en desarrollo se devuelve el enlace.
-        if not config.dev_login_enabled():
-            raise HTTPException(
-                status_code=503,
-                detail="El envío de correo no está configurado en el "
-                       "servidor (EMAIL_PROVIDER/SMTP o RESEND_API_KEY).")
-        await mailer.send_login_link(email, url,
-                                     config.LOGIN_TOKEN_TTL_MINUTES)
-        result["dev_link"] = url
-        return result
-
-    try:
-        await mailer.send_login_link(email, url, config.LOGIN_TOKEN_TTL_MINUTES)
-    except Exception as exc:  # noqa: BLE001 - error del proveedor de correo
-        raise HTTPException(
-            status_code=502,
-            detail="No se pudo enviar el correo de acceso. Inténtalo de "
-                   "nuevo en un minuto.") from exc
-    return result
+class RegisterIn(BaseModel):
+    email: str = Field(min_length=5, max_length=200)
+    password: str = Field(min_length=1, max_length=200)
 
 
-@app.post("/api/auth/request-link")
-async def request_login_link(payload: LoginIn, request: Request) -> dict:
-    """Envía por correo un enlace de acceso de un solo uso.
+class LoginIn(BaseModel):
+    email: str = Field(min_length=5, max_length=200)
+    password: str = Field(min_length=1, max_length=200)
 
-    La respuesta es siempre la misma exista o no la cuenta: así no se puede
-    averiguar quién está registrado.
+
+@app.post("/api/auth/register")
+async def register(payload: RegisterIn, request: Request) -> dict:
+    """Crea una cuenta con email + contraseña.
+
+    Si el email ya tiene cuenta, se rechaza (no se revela si existía antes).
     """
     email = payload.email.strip().lower()
     if not _valid_email(email):
         raise HTTPException(status_code=400, detail="Correo inválido.")
-    return await _issue_login_link(request, email)
-
-
-@app.post("/api/auth/login")
-async def login(payload: LoginIn) -> dict:
-    """Acceso directo **solo en desarrollo/tests** (``AUTH_DEV_LOGIN``).
-
-    En producción está desactivado: si se mantuviera, bastaría escribir el
-    correo de otra persona para entrar en su cuenta.
-    """
-    if not config.dev_login_enabled():
+    if len(payload.password) < config.PASSWORD_MIN_LENGTH:
         raise HTTPException(
-            status_code=404,
-            detail="El acceso es con enlace por correo: "
-                   "usa /api/auth/request-link.")
-    if not _valid_email(payload.email):
-        raise HTTPException(status_code=400, detail="Correo inválido.")
+            status_code=400,
+            detail=f"La contraseña debe tener al menos "
+                   f"{config.PASSWORD_MIN_LENGTH} caracteres.")
+
     conn = db.connect()
     try:
-        user = db.create_user(conn, payload.email)
+        existing = db.get_user_by_email(conn, email)
+        if existing and db.has_password(conn, email):
+            raise HTTPException(
+                status_code=409,
+                detail="Ya existe una cuenta con ese correo. Inicia sesión.")
+        user = db.create_user(conn, email)
+        db.set_user_password(conn, email, auth.hash_password(payload.password))
+        user = db.get_user_by_email(conn, email) or user
     finally:
         conn.close()
+
     user = await _recover_premium(user)
-    return {"ok": True, "email": user.get("email"), "plan": user.get("plan"),
-            "token": user.get("token", ""), "demo": not billing.stripe_enabled()}
-
-
-_VERIFY_PAGE = """<!doctype html>
-<html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Entrar en ApuestaEdge</title>
-<style>
-  body{{margin:0;min-height:100vh;display:grid;place-items:center;
-       background:#0b1220;color:#e8eefc;
-       font-family:system-ui,-apple-system,Segoe UI,sans-serif}}
-  .box{{background:#111c2e;border:1px solid #24344d;border-radius:14px;
-       padding:32px;max-width:420px;text-align:center}}
-  h1{{font-size:20px;margin:0 0 10px}}
-  p{{color:#9fb0c9;line-height:1.5;margin:0 0 22px}}
-  button{{background:#16a34a;color:#fff;border:0;border-radius:9px;
-         padding:13px 26px;font-size:16px;font-weight:600;cursor:pointer}}
-  button:hover{{background:#15803d}}
-</style></head><body>
-<div class="box">
-  <h1>Entrar en ApuestaEdge</h1>
-  <p>Pulsa el botón para confirmar que eres tú. El enlace caduca en
-     {minutes} minutos.</p>
-  <form method="post" action="/api/auth/verify/confirm?token={token}">
-    <button type="submit">Entrar en mi cuenta</button>
-  </form>
-</div></body></html>"""
-
-
-@app.get("/api/auth/verify")
-def verify_login_page(token: str = Query(default="")) -> HTMLResponse:
-    """Paso 1: página de confirmación.
-
-    No se consume el enlace aquí: los escáneres de correo (Outlook Safe Links,
-    antivirus) abren los enlaces automáticamente y lo dejarían inservible.
-    """
-    conn = db.connect()
-    try:
-        email = db.peek_login_token(conn, token)
-    finally:
-        conn.close()
-    if not email:
-        return RedirectResponse("/?acceso=caducado", status_code=303)
-    page = _VERIFY_PAGE.format(minutes=config.LOGIN_TOKEN_TTL_MINUTES,
-                               token=token)
-    return HTMLResponse(page, headers={"Cache-Control": "no-store"})
-
-
-def _consume_and_login(token: str):
-    """Valida el enlace, crea/recupera la cuenta y devuelve el usuario."""
-    conn = db.connect()
-    try:
-        email = db.consume_login_token(conn, token)
-        if not email:
-            return None
-        return db.create_user(conn, email)
-    finally:
-        conn.close()
-
-
-@app.post("/api/auth/verify/confirm")
-async def verify_login_confirm(request: Request, token: str = Query(default="")
-                               ) -> RedirectResponse:
-    """Paso 2 (formulario del correo): quema el enlace y abre sesión."""
-    user = _consume_and_login(token)
-    if not user:
-        return RedirectResponse("/?acceso=caducado", status_code=303)
-    user = await _recover_premium(user)
-    response = RedirectResponse("/?acceso=ok", status_code=303)
+    response = JSONResponse({
+        "ok": True, "email": user.get("email"), "plan": user.get("plan"),
+        "token": user.get("token", ""),
+        "demo": not billing.stripe_enabled()})
     _set_session_cookie(response, request, user.get("token", ""))
     return response
 
 
-class TokenIn(BaseModel):
-    token: str = Field(min_length=10, max_length=200)
+@app.post("/api/auth/login")
+async def login(payload: LoginIn, request: Request) -> dict:
+    """Acceso con email + contraseña."""
+    email = payload.email.strip().lower()
+    if not _valid_email(email):
+        raise HTTPException(status_code=400, detail="Correo inválido.")
 
+    conn = db.connect()
+    try:
+        user = db.get_user_by_email(conn, email)
+        stored_hash = db.get_password_hash(conn, email) if user else None
+    finally:
+        conn.close()
 
-@app.post("/api/auth/verify")
-async def verify_login(payload: TokenIn, request: Request) -> dict:
-    """Variante JSON (clientes/API): devuelve la sesión ya iniciada."""
-    user = _consume_and_login(payload.token)
-    if not user:
-        raise HTTPException(status_code=400,
-                            detail="El enlace no es válido o ha caducado.")
+    if not user or not auth.verify_password(payload.password, stored_hash):
+        raise HTTPException(status_code=401,
+                            detail="Correo o contraseña incorrectos.")
+
     user = await _recover_premium(user)
+    # Releer por si _recover_premium actualizó el plan.
+    conn = db.connect()
+    try:
+        user = db.get_user_by_email(conn, user["email"]) or user
+    finally:
+        conn.close()
+
     response = JSONResponse({
         "ok": True, "email": user.get("email"), "plan": user.get("plan"),
         "token": user.get("token", ""),

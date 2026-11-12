@@ -133,7 +133,8 @@ CREATE TABLE IF NOT EXISTS users (
     link_code TEXT,
     stripe_subscription_id TEXT,
     sub_current_period_end DOUBLE PRECISION,
-    sub_cancel_at_period_end INTEGER DEFAULT 0
+    sub_cancel_at_period_end INTEGER DEFAULT 0,
+    password_hash TEXT
 );
 CREATE TABLE IF NOT EXISTS alerts (
     id BIGSERIAL PRIMARY KEY,
@@ -162,12 +163,14 @@ CREATE INDEX IF NOT EXISTS idx_login_tokens_email ON login_tokens(email);
 _USER_COLUMNS = ("telegram_chat_id TEXT", "link_code TEXT",
                  "stripe_subscription_id TEXT",
                  "sub_current_period_end REAL",
-                 "sub_cancel_at_period_end INTEGER DEFAULT 0")
+                 "sub_cancel_at_period_end INTEGER DEFAULT 0",
+                 "password_hash TEXT")
 
 _PG_USER_COLUMNS = ("telegram_chat_id TEXT", "link_code TEXT",
                     "stripe_subscription_id TEXT",
                     "sub_current_period_end DOUBLE PRECISION",
-                    "sub_cancel_at_period_end INTEGER DEFAULT 0")
+                    "sub_cancel_at_period_end INTEGER DEFAULT 0",
+                    "password_hash TEXT")
 
 _SEED_SQL = """INSERT INTO history
     (ts, sport, match, selection, odds, edge, stake_pct, won, profit, clv_pct)
@@ -391,6 +394,31 @@ def create_user(conn: sqlite3.Connection, email: str,
 
 
 def set_user_plan(conn: sqlite3.Connection, email: str, plan: str) -> None:
+    """Activa/desactiva el plan (lo llama Stripe webhook o el modo demo)."""
+    if plan not in ("free", "premium"):
+        raise ValueError(f"plan inválido: {plan}")
+    conn.execute("UPDATE users SET plan=? WHERE email=?",
+                 (plan, _normalize_email(email)))
+    conn.commit()
+
+
+def set_user_password(conn: sqlite3.Connection, email: str,
+                     password_hash: str) -> None:
+    """Guarda (o reemplaza) el hash de contraseña del usuario."""
+    conn.execute("UPDATE users SET password_hash=? WHERE email=?",
+                 (password_hash, _normalize_email(email)))
+    conn.commit()
+
+
+def get_password_hash(conn: sqlite3.Connection, email: str) -> str | None:
+    row = conn.execute(
+        "SELECT password_hash FROM users WHERE email=?",
+        (_normalize_email(email),)).fetchone()
+    return (row["password_hash"] if row else None)
+
+
+def has_password(conn: sqlite3.Connection, email: str) -> bool:
+    return bool(get_password_hash(conn, email))
     """Activa/desactiva el plan (lo llama Stripe webhook o el modo demo)."""
     if plan not in ("free", "premium"):
         raise ValueError(f"plan inválido: {plan}")

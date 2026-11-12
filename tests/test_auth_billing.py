@@ -24,26 +24,39 @@ def _auth(token: str) -> dict:
 
 # ------------------------------------------------------------ modo demo
 def test_register_login_and_me(client):
-    # El registro se hace por correo; en tests el login directo crea la cuenta.
-    r = client.post("/api/auth/login", json={"email": "ana@test.com"})
+    r = client.post("/api/auth/register",
+                    json={"email": "ana@test.com", "password": "secret123"})
     assert r.status_code == 200
     body = r.json()
     assert body["token"] and body["plan"] == "free"
     me = client.get("/api/auth/me", headers=_auth(body["token"])).json()
     assert me["authenticated"] and me["email"] == "ana@test.com"
+    # Login con contraseña correcta funciona.
+    r2 = client.post("/api/auth/login",
+                     json={"email": "ana@test.com", "password": "secret123"})
+    assert r2.status_code == 200 and r2.json()["token"]
+    # Contraseña incorrecta -> 401.
+    bad = client.post("/api/auth/login",
+                      json={"email": "ana@test.com", "password": "wrong"})
+    assert bad.status_code == 401
     # Anónimo: sin sesión.
+    client.cookies.clear()
     assert client.get("/api/auth/me").json()["authenticated"] is False
 
 
 def test_demo_premium_unlocks(client):
     """Sin claves de Stripe todo es demo y Premium se activa al instante."""
-    r = client.post("/api/subscribe", json={"email": "luis@test.com",
-                                            "plan": "premium"})
+    client.post("/api/auth/register",
+                json={"email": "luis@test.com", "password": "secret123"})
+    token = client.post("/api/auth/login",
+                        json={"email": "luis@test.com",
+                              "password": "secret123"}).json()["token"]
+    r = client.post("/api/subscribe",
+                    json={"email": "luis@test.com", "plan": "premium"},
+                    headers=_auth(token))
     body = r.json()
     assert body["mode"] == "demo" and body["activated"] is True
     assert body["plan"] == "premium"
-    token = client.post("/api/auth/login",
-                        json={"email": "luis@test.com"}).json()["token"]
     rec = client.get("/api/recommendations?plan=premium",
                      headers=_auth(token))
     assert rec.status_code == 200
@@ -60,8 +73,11 @@ def test_stripe_lock_returns_402_without_subscription(client, monkeypatch):
     assert client.get("/api/recommendations?plan=premium").status_code == 402
 
     # Usuario free -> también 402.
+    client.post("/api/auth/register",
+                json={"email": "free@test.com", "password": "secret123"})
     token = client.post("/api/auth/login",
-                        json={"email": "free@test.com"}).json()["token"]
+                        json={"email": "free@test.com",
+                              "password": "secret123"}).json()["token"]
     assert client.get("/api/recommendations?plan=premium",
                       headers=_auth(token)).status_code == 402
 
@@ -86,13 +102,17 @@ def test_checkout_flow_activates_only_after_webhook(client, monkeypatch):
     finally:
         raw.close()
 
+    client.post("/api/auth/register",
+                json={"email": "pago@test.com", "password": "secret123"})
+    token = client.post("/api/auth/login",
+                        json={"email": "pago@test.com",
+                              "password": "secret123"}).json()["token"]
     r = client.post("/api/subscribe", json={"email": "pago@test.com",
-                                            "plan": "premium"})
+                                            "plan": "premium"},
+                    headers=_auth(token))
     body = r.json()
     assert body["mode"] == "stripe" and body["checkout_url"].startswith("https://")
     assert body["plan"] == "free"  # el plan solicitado no se activa sin pago
-    token = client.post("/api/auth/login",
-                        json={"email": "pago@test.com"}).json()["token"]
     # Mientras no haya pago confirmado: sigue bloqueado.
     assert client.get("/api/recommendations?plan=premium",
                       headers=_auth(token)).status_code == 402
@@ -182,7 +202,8 @@ def test_subscription_lifecycle_activate_renew_deactivate(client, monkeypatch):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
     monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_test")
     email = "ciclo@test.com"
-    token = client.post("/api/auth/login", json={"email": email}).json()["token"]
+    client.post("/api/auth/register", json={"email": email, "password": "secret123"})
+    token = client.post("/api/auth/login", json={"email": email, "password": "secret123"}).json()["token"]
 
     # 1) checkout completado -> Premium activo.
     ev1 = {"type": "checkout.session.completed",
@@ -247,8 +268,11 @@ def test_portal_requires_auth_and_stripe_customer(client, monkeypatch):
     r = client.post("/api/billing/portal", json={"email": "a@b.com"})
     assert r.status_code == 401
     # Sesión sin customer de Stripe.
+    client.post("/api/auth/register",
+                json={"email": "portal@test.com", "password": "secret123"})
     token = client.post("/api/auth/login",
-                        json={"email": "portal@test.com"}).json()["token"]
+                        json={"email": "portal@test.com",
+                              "password": "secret123"}).json()["token"]
     r = client.post("/api/billing/portal", json={"email": "portal@test.com"},
                     headers=_auth(token))
     assert r.status_code == 404
@@ -269,7 +293,8 @@ def test_subscription_endpoint_anonymous(client):
 def test_login_keeps_existing_premium_plan(client):
     """Volver a iniciar sesión NUNCA degrada a Free a quien ya pagó."""
     email = "premium-login@test.com"
-    first = client.post("/api/auth/login", json={"email": email}).json()
+    client.post("/api/auth/register", json={"email": email, "password": "secret123"})
+    first = client.post("/api/auth/login", json={"email": email, "password": "secret123"}).json()
     assert first["plan"] == "free"
 
     conn = db.connect()
@@ -278,7 +303,7 @@ def test_login_keeps_existing_premium_plan(client):
     finally:
         conn.close()
 
-    again = client.post("/api/auth/login", json={"email": email}).json()
+    again = client.post("/api/auth/login", json={"email": email, "password": "secret123"}).json()
     assert again["plan"] == "premium"
     me = client.get("/api/auth/me", headers=_auth(again["token"])).json()
     assert me["authenticated"] is True and me["plan"] == "premium"
@@ -287,7 +312,8 @@ def test_login_keeps_existing_premium_plan(client):
 def test_recommendations_use_account_plan_by_default(client, monkeypatch):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
     email = "auto-plan@test.com"
-    token = client.post("/api/auth/login", json={"email": email}).json()["token"]
+    client.post("/api/auth/register", json={"email": email, "password": "secret123"})
+    token = client.post("/api/auth/login", json={"email": email, "password": "secret123"}).json()["token"]
 
     free = client.get("/api/recommendations", headers=_auth(token)).json()
     assert free["plan"] == "free" and free["min_edge"] == 0.06
@@ -360,7 +386,8 @@ def test_confirm_checkout_does_not_activate_unpaid(client, monkeypatch):
 
 def test_logout_clears_auth_cookie(client):
     email = "logout@test.com"
-    token = client.post("/api/auth/login", json={"email": email}).json()["token"]
+    client.post("/api/auth/register", json={"email": email, "password": "secret123"})
+    token = client.post("/api/auth/login", json={"email": email, "password": "secret123"}).json()["token"]
     client.cookies.set("ae_token", token)
     r = client.post("/api/auth/logout")
     assert r.status_code == 200 and r.json()["ok"] is True
@@ -381,7 +408,8 @@ def test_login_recovers_premium_from_stripe(client, monkeypatch):
                                      {"current_period_end": 1900000000}]}}}
 
     monkeypatch.setattr(billing, "find_active_subscription", fake_find)
-    login = client.post("/api/auth/login", json={"email": email}).json()
+    client.post("/api/auth/register", json={"email": email, "password": "secret123"})
+    login = client.post("/api/auth/login", json={"email": email, "password": "secret123"}).json()
     assert login["plan"] == "premium"
     me = client.get("/api/auth/me", headers=_auth(login["token"])).json()
     assert me["plan"] == "premium" and me["has_stripe_customer"] is True
@@ -398,7 +426,8 @@ def test_login_does_not_fail_if_stripe_is_down(client, monkeypatch):
         raise RuntimeError("stripe caído")
 
     monkeypatch.setattr(billing, "find_active_subscription", boom)
-    r = client.post("/api/auth/login", json={"email": email})
+    client.post("/api/auth/register", json={"email": email, "password": "secret123"})
+    r = client.post("/api/auth/login", json={"email": email, "password": "secret123"})
     assert r.status_code == 200
     assert r.json()["plan"] == "free"
 
@@ -406,7 +435,8 @@ def test_login_does_not_fail_if_stripe_is_down(client, monkeypatch):
 def test_login_skips_stripe_lookup_for_active_premium(client, monkeypatch):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
     email = "already-premium@test.com"
-    token = client.post("/api/auth/login", json={"email": email}).json()["token"]
+    client.post("/api/auth/register", json={"email": email, "password": "secret123"})
+    token = client.post("/api/auth/login", json={"email": email, "password": "secret123"}).json()["token"]
     conn = db.connect()
     try:
         db.set_user_plan(conn, email, "premium")
@@ -420,7 +450,7 @@ def test_login_skips_stripe_lookup_for_active_premium(client, monkeypatch):
         return None
 
     monkeypatch.setattr(billing, "find_active_subscription", fake_find)
-    again = client.post("/api/auth/login", json={"email": email}).json()
+    again = client.post("/api/auth/login", json={"email": email, "password": "secret123"}).json()
     assert again["plan"] == "premium" and again["token"] == token
     assert calls == []
 
@@ -438,7 +468,8 @@ def test_subscription_period_end_handles_new_api_shape():
 def test_subscription_endpoint_repairs_missing_period_end(client, monkeypatch):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
     email = "repair@test.com"
-    token = client.post("/api/auth/login", json={"email": email}).json()["token"]
+    client.post("/api/auth/register", json={"email": email, "password": "secret123"})
+    token = client.post("/api/auth/login", json={"email": email, "password": "secret123"}).json()["token"]
     conn = db.connect()
     try:
         user = db.get_user_by_email(conn, email)

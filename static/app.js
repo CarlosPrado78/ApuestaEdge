@@ -176,16 +176,31 @@ async function afterAccountChange() {
   await Promise.all([loadPicks(), loadSubscription(), loadTelegram()]);
 }
 
-async function requestLoginLink(email) {
-  const r = await api("/api/auth/request-link", {
+let loginMode = "login"; // "login" | "register"
+
+async function doLogin(email, password) {
+  const r = await api("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, password }),
   });
-  if (r.dev_link) {
-    showActivation(`Enlace de desarrollo (solo local):<br><a href="${esc(r.dev_link)}" target="_blank">${esc(r.dev_link)}</a>`,
-                   "ok", 20000);
-  }
+  if (r.token) localStorage.setItem("ae_token", r.token);
+  applyAccount({ authenticated: true, email: r.email, plan: r.plan,
+                  billing: r.demo ? "demo" : "stripe" });
+  await afterAccountChange();
+  return r;
+}
+
+async function doRegister(email, password) {
+  const r = await api("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (r.token) localStorage.setItem("ae_token", r.token);
+  applyAccount({ authenticated: true, email: r.email, plan: r.plan,
+                  billing: r.demo ? "demo" : "stripe" });
+  await afterAccountChange();
   return r;
 }
 async function logout() {
@@ -427,14 +442,42 @@ $("#login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const msg = $("#login-msg");
   const email = ($("#login-email").value || "").trim();
-  if (!email) return;
-  msg.textContent = "Enviando enlace…";
+  const password = $("#login-password").value || "";
+  if (!email || !password) return;
+  msg.textContent = loginMode === "register" ? "Creando cuenta…" : "Entrando…";
   try {
-    const r = await requestLoginLink(email);
-    msg.textContent = r.message || "Te enviamos un enlace de acceso.";
+    const r = loginMode === "register"
+      ? await doRegister(email, password)
+      : await doLogin(email, password);
+    closeLogin();
+    msg.textContent = "";
+    if (r.plan === "premium") {
+      showActivation("✓ Sesión iniciada como Premium.", "ok", 3500);
+    }
   } catch (err) {
     msg.textContent = `⚠️ ${err.message}`;
   }
+});
+
+$("#login-toggle").addEventListener("click", (e) => {
+  e.preventDefault();
+  loginMode = loginMode === "login" ? "register" : "login";
+  const title = $("#login-title");
+  const help = $("#login-help");
+  const submit = $("#login-submit");
+  const toggle = $("#login-toggle");
+  if (loginMode === "register") {
+    title.textContent = "Crear cuenta en ApuestaEdge";
+    help.textContent = "Email y contraseña (mín. 8 caracteres).";
+    submit.textContent = "Crear cuenta";
+    toggle.textContent = "¿Ya tienes cuenta? Entrar";
+  } else {
+    title.textContent = "Entrar en ApuestaEdge";
+    help.textContent = "Accede con tu email y contraseña.";
+    submit.textContent = "Entrar";
+    toggle.textContent = "¿No tienes cuenta? Crear una";
+  }
+  $("#login-msg").textContent = "";
 });
 $("#login-dialog").addEventListener("click", (e) => {
   if (e.target === $("#login-dialog")) closeLogin();
@@ -629,16 +672,8 @@ async function handleStripeReturn() {
 async function init() {
   await loadPlans();
   await refreshAccount();
-  const params = new URLSearchParams(location.search);
-  if (params.get("acceso") === "ok") {
-    showActivation("✓ Sesión iniciada. Ya puedes ver tus picks.", "ok", 4000);
-    history.replaceState(null, "", location.pathname + "#picks");
-  } else if (params.get("acceso") === "caducado") {
-    showActivation("El enlace de acceso ha caducado o ya se usó. Pide uno nuevo.", "error", 6000);
-    history.replaceState(null, "", location.pathname);
-  }
   if (localStorage.getItem(PENDING_KEY) &&
-      !params.get("suscripcion")) {
+      !new URLSearchParams(location.search).get("suscripcion")) {
     await confirmPendingSession();
   }
   await Promise.all([
