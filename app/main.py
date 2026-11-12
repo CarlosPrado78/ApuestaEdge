@@ -389,7 +389,7 @@ async def billing_confirm(payload: ConfirmIn, request: Request) -> dict:
 
     status = str((sub or {}).get("status") or "active")
     active = status in billing.ACTIVE_SUB_STATUSES
-    period_end = float((sub or {}).get("current_period_end") or 0) or None
+    period_end = billing.subscription_period_end(sub or {})
     cancel_at_end = bool((sub or {}).get("cancel_at_period_end"))
 
     conn = db.connect()
@@ -491,7 +491,7 @@ async def stripe_webhook(request: Request) -> dict:
 
 
 @app.get("/api/billing/subscription")
-def subscription_status(request: Request) -> dict:
+async def subscription_status(request: Request) -> dict:
     """Estado de la suscripción del usuario (para gestionarla en la web)."""
     user = auth.user_from_request(request)
     if not user:
@@ -502,12 +502,36 @@ def subscription_status(request: Request) -> dict:
     finally:
         conn.close()
     period_end = row.get("sub_current_period_end")
+    cancel_at_end = bool(row.get("sub_cancel_at_period_end"))
+    plan = row.get("plan", "free")
+
+    # Autorreparación: si falta la fecha de renovación (p. ej. una compra
+    # anterior a este cambio), se consulta Stripe una sola vez y se guarda.
+    if (billing.stripe_enabled() and period_end is None
+            and row.get("stripe_subscription_id")):
+        try:
+            live = await billing.retrieve_subscription(row["stripe_subscription_id"])
+        except Exception:  # noqa: BLE001 - si Stripe falla, se responde lo guardado
+            live = None
+        if live:
+            period_end = billing.subscription_period_end(live)
+            cancel_at_end = bool(live.get("cancel_at_period_end"))
+            status = str(live.get("status") or "")
+            plan = "premium" if status in billing.ACTIVE_SUB_STATUSES else "free"
+            conn = db.connect()
+            try:
+                db.set_subscription_state(
+                    conn, row["id"], plan=plan, period_end=period_end,
+                    cancel_at_period_end=cancel_at_end)
+            finally:
+                conn.close()
+
     return {
         "authenticated": True,
         "billing": "demo" if not billing.stripe_enabled() else "stripe",
-        "plan": row.get("plan", "free"),
+        "plan": plan,
         "has_stripe_customer": bool(row.get("stripe_customer_id")),
-        "cancel_at_period_end": bool(row.get("sub_cancel_at_period_end")),
+        "cancel_at_period_end": cancel_at_end,
         "current_period_end": (dt.datetime.fromtimestamp(
             period_end, dt.timezone.utc).isoformat() if period_end else None),
         "can_manage": billing.stripe_enabled() and bool(row.get("stripe_customer_id")),

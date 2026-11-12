@@ -158,6 +158,23 @@ def email_from_session(session: dict) -> str | None:
     return _event_email(session or {})
 
 
+def subscription_period_end(subscription: dict) -> float | None:
+    """Fin del periodo actual, venga donde venga según la versión de la API.
+
+    Stripe movió ``current_period_end`` del objeto suscripción a cada ítem
+    (``items.data[0]``) en las versiones de API de 2025.
+    """
+    value = (subscription or {}).get("current_period_end")
+    if not value:
+        items = ((subscription or {}).get("items") or {}).get("data") or []
+        if items:
+            value = (items[0] or {}).get("current_period_end")
+    try:
+        return float(value) if value else None
+    except (TypeError, ValueError):
+        return None
+
+
 def subscription_from_event(event: dict) -> dict | None:
     """Extrae el estado de la suscripción de un evento de ciclo de vida.
 
@@ -185,7 +202,7 @@ def subscription_from_event(event: dict) -> dict | None:
         "customer_id": str(obj.get("customer") or ""),
         "subscription_id": str(sub_id or ""),
         "status": str(status),
-        "period_end": float(obj.get("current_period_end") or 0) or None,
+        "period_end": subscription_period_end(obj),
         "cancel_at_period_end": bool(obj.get("cancel_at_period_end")),
         "email": email,
     }

@@ -361,3 +361,44 @@ def test_logout_clears_auth_cookie(client):
     assert r.status_code == 200 and r.json()["ok"] is True
     # La respuesta pide borrar la cookie de sesión.
     assert "ae_token=" in r.headers.get("set-cookie", "")
+
+
+def test_subscription_period_end_handles_new_api_shape():
+    """Stripe 2025 movió current_period_end a items.data[0]."""
+    assert billing.subscription_period_end(
+        {"current_period_end": 123}) == 123
+    assert billing.subscription_period_end(
+        {"items": {"data": [{"current_period_end": 1900000000}]}}) == 1900000000
+    assert billing.subscription_period_end({}) is None
+    assert billing.subscription_period_end({"items": {"data": []}}) is None
+
+
+def test_subscription_endpoint_repairs_missing_period_end(client, monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
+    email = "repair@test.com"
+    token = client.post("/api/auth/login", json={"email": email}).json()["token"]
+    conn = db.connect()
+    try:
+        user = db.get_user_by_email(conn, email)
+        db.save_stripe_ids(conn, email, customer_id="cus_rep",
+                           subscription_id="sub_rep")
+        db.set_subscription_state(conn, user["id"], plan="premium",
+                                  period_end=None)
+    finally:
+        conn.close()
+
+    async def fake_sub(_subscription_id: str) -> dict:
+        return {"status": "active", "cancel_at_period_end": False,
+                "items": {"data": [{"current_period_end": 1900000000}]}}
+
+    monkeypatch.setattr(billing, "retrieve_subscription", fake_sub)
+    body = client.get("/api/billing/subscription", headers=_auth(token)).json()
+    assert body["plan"] == "premium"
+    assert body["current_period_end"].startswith("2030-")
+    # Se guarda para no volver a consultar a Stripe en cada carga.
+    conn = db.connect()
+    try:
+        row = db.get_user_by_email(conn, email)
+    finally:
+        conn.close()
+    assert row["sub_current_period_end"] == 1900000000
