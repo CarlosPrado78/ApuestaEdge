@@ -285,7 +285,7 @@ async def subscribe(payload: SubscribeIn, request: Request) -> dict:
 
 
 @app.post("/api/auth/login")
-def login(payload: LoginIn) -> dict:
+async def login(payload: LoginIn) -> dict:
     """Acceso sin contraseña (demo). En producción: magic link o OAuth."""
     if not _valid_email(payload.email):
         raise HTTPException(status_code=400, detail="Correo inválido.")
@@ -294,6 +294,32 @@ def login(payload: LoginIn) -> dict:
         user = db.create_user(conn, payload.email)
     finally:
         conn.close()
+
+    # Recuperación automática: si la BD se recreó (o el pago se confirmó en
+    # otro dispositivo) se reengancha la suscripción activa que ya existe en
+    # Stripe. Así nadie pierde Premium ni hay que tocar SQL a mano.
+    if (billing.stripe_enabled() and user.get("plan") != "premium"
+            and not user.get("stripe_subscription_id")):
+        found = None
+        try:
+            found = await billing.find_active_subscription(user["email"])
+        except Exception:  # noqa: BLE001 - Stripe caído: se entra como Free
+            found = None
+        if found:
+            sub = found["subscription"]
+            conn = db.connect()
+            try:
+                db.save_stripe_ids(
+                    conn, user["email"], customer_id=found.get("customer_id"),
+                    subscription_id=str(sub.get("id") or "") or None)
+                db.set_subscription_state(
+                    conn, user["id"], plan="premium",
+                    period_end=billing.subscription_period_end(sub),
+                    cancel_at_period_end=bool(sub.get("cancel_at_period_end")))
+                user = db.get_user_by_email(conn, user["email"]) or user
+            finally:
+                conn.close()
+
     return {"ok": True, "email": user.get("email"), "plan": user.get("plan"),
             "token": user.get("token", ""), "demo": not billing.stripe_enabled()}
 

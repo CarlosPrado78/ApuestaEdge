@@ -106,6 +106,38 @@ async def retrieve_subscription(subscription_id: str,
         return resp.json()
 
 
+async def find_active_subscription(email: str,
+                                   timeout: float = 15.0) -> dict | None:
+    """Busca en Stripe una suscripción activa del correo indicado.
+
+    Sirve de red de seguridad: si la base de datos se recrea o el usuario
+    entra desde otro dispositivo, al iniciar sesión se recupera el Premium
+    que ya pagó sin intervención manual.
+    """
+    email = (email or "").strip().lower()
+    if not email:
+        return None
+    headers = {"Authorization": f"Bearer {stripe_secret()}"}
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        customers = await client.get(
+            f"{STRIPE_API}/customers",
+            params={"email": email, "limit": 10}, headers=headers)
+        customers.raise_for_status()
+        for customer in customers.json().get("data", []):
+            customer_id = customer.get("id")
+            if not customer_id:
+                continue
+            subs = await client.get(
+                f"{STRIPE_API}/subscriptions",
+                params={"customer": customer_id, "status": "active", "limit": 1},
+                headers=headers)
+            subs.raise_for_status()
+            data = subs.json().get("data", [])
+            if data:
+                return {"customer_id": customer_id, "subscription": data[0]}
+    return None
+
+
 def verify_signature(payload: bytes, header: str, secret: str,
                      now: float | None = None) -> bool:
     """Verificación de ``Stripe-Signature`` (esquema v1 de Stripe)."""

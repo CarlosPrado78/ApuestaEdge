@@ -363,6 +363,63 @@ def test_logout_clears_auth_cookie(client):
     assert "ae_token=" in r.headers.get("set-cookie", "")
 
 
+def test_login_recovers_premium_from_stripe(client, monkeypatch):
+    """Si la BD se recrea, el login reengancha la suscripción activa."""
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
+    email = "recover@test.com"
+
+    async def fake_find(_email: str) -> dict:
+        return {"customer_id": "cus_rec",
+                "subscription": {"id": "sub_rec", "status": "active",
+                                 "cancel_at_period_end": False,
+                                 "items": {"data": [
+                                     {"current_period_end": 1900000000}]}}}
+
+    monkeypatch.setattr(billing, "find_active_subscription", fake_find)
+    login = client.post("/api/auth/login", json={"email": email}).json()
+    assert login["plan"] == "premium"
+    me = client.get("/api/auth/me", headers=_auth(login["token"])).json()
+    assert me["plan"] == "premium" and me["has_stripe_customer"] is True
+    sub = client.get("/api/billing/subscription",
+                     headers=_auth(login["token"])).json()
+    assert sub["plan"] == "premium" and sub["current_period_end"].startswith("2030-")
+
+
+def test_login_does_not_fail_if_stripe_is_down(client, monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
+    email = "stripe-down@test.com"
+
+    async def boom(_email: str) -> dict:
+        raise RuntimeError("stripe caído")
+
+    monkeypatch.setattr(billing, "find_active_subscription", boom)
+    r = client.post("/api/auth/login", json={"email": email})
+    assert r.status_code == 200
+    assert r.json()["plan"] == "free"
+
+
+def test_login_skips_stripe_lookup_for_active_premium(client, monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
+    email = "already-premium@test.com"
+    token = client.post("/api/auth/login", json={"email": email}).json()["token"]
+    conn = db.connect()
+    try:
+        db.set_user_plan(conn, email, "premium")
+    finally:
+        conn.close()
+
+    calls = []
+
+    async def fake_find(_email: str) -> dict:
+        calls.append(_email)
+        return None
+
+    monkeypatch.setattr(billing, "find_active_subscription", fake_find)
+    again = client.post("/api/auth/login", json={"email": email}).json()
+    assert again["plan"] == "premium" and again["token"] == token
+    assert calls == []
+
+
 def test_subscription_period_end_handles_new_api_shape():
     """Stripe 2025 movió current_period_end a items.data[0]."""
     assert billing.subscription_period_end(
