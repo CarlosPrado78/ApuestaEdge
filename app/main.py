@@ -270,6 +270,9 @@ async def subscribe(payload: SubscribeIn, request: Request) -> dict:
         result["message"] = "¡Cuenta creada!"
         result.update(activated=True, mode="demo" if not billing.stripe_enabled()
                       else "stripe", plan=user.get("plan", "free"))
+    # El plan devuelto siempre es el real de la BD: en modo Stripe sigue siendo
+    # Free hasta que el pago se confirme (y no el plan solicitado).
+    result["plan"] = user.get("plan", "free")
     result["token"] = user.get("token", "")
     result["email"] = user.get("email", payload.email.strip().lower())
     result["demo"] = not billing.stripe_enabled()

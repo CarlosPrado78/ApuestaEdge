@@ -87,6 +87,7 @@ def test_checkout_flow_activates_only_after_webhook(client, monkeypatch):
                                             "plan": "premium"})
     body = r.json()
     assert body["mode"] == "stripe" and body["checkout_url"].startswith("https://")
+    assert body["plan"] == "free"  # el plan solicitado no se activa sin pago
     # Mientras no haya pago confirmado: sigue bloqueado.
     assert client.get("/api/recommendations?plan=premium",
                       headers=_auth(body["token"])).status_code == 402
