@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import os
 import time
 from contextlib import asynccontextmanager, suppress
 
@@ -99,10 +100,13 @@ def _resolve_plan(request: Request, requested: str) -> str:
 @app.get("/api/health")
 def health() -> dict:
     matches, source = _get_matches()
+    # Render expone el commit desplegado: permite verificar qué versión corre.
+    commit = (os.environ.get("RENDER_GIT_COMMIT") or "")[:7]
     return {"status": "ok", "matches": len(matches), "source": source,
             "live_api_key": bool(config.ODDS_API_KEY),
             "billing": "stripe" if billing.stripe_enabled() else "demo",
-            "premium_locked": billing.stripe_enabled()}
+            "premium_locked": billing.stripe_enabled(),
+            "commit": commit}
 
 
 @app.get("/api/matches")
