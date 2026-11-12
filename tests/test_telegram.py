@@ -151,8 +151,8 @@ def test_telegram_status_anonymous(client):
 
 
 def test_telegram_status_returns_link_code_for_users(client):
-    token = client.post("/api/subscribe",
-                        json={"email": "tgapi@test.com", "plan": "free"}).json()["token"]
+    token = client.post("/api/auth/login",
+                        json={"email": "tgapi@test.com"}).json()["token"]
     body = client.get("/api/telegram", headers=_auth(token)).json()
     assert body["authenticated"] is True
     assert body["link_code"] and len(body["link_code"]) >= 6
@@ -161,8 +161,8 @@ def test_telegram_status_returns_link_code_for_users(client):
 def test_telegram_deep_link_with_username(client, monkeypatch):
     monkeypatch.setattr(config, "TELEGRAM_BOT_TOKEN", "123:abc")
     monkeypatch.setattr(config, "TELEGRAM_BOT_USERNAME", "apuesta_edge_bot")
-    token = client.post("/api/subscribe",
-                        json={"email": "tgapi2@test.com", "plan": "free"}).json()["token"]
+    token = client.post("/api/auth/login",
+                        json={"email": "tgapi2@test.com"}).json()["token"]
     body = client.get("/api/telegram", headers=_auth(token)).json()
     assert body["configured"] is True
     assert body["deep_link"].startswith("https://t.me/apuesta_edge_bot?start=")

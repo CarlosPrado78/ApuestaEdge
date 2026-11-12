@@ -48,3 +48,10 @@ def origin_of(request: Request) -> str:
     """Origen público (para URLs de retorno de Stripe)."""
     proto = request.headers.get("x-forwarded-proto", request.url.scheme)
     return str(request.headers.get("origin") or f"{proto}://{request.url.netloc}")
+
+
+def server_origin(request: Request) -> str:
+    """Origen público derivado del Host (no de Origin, controlado por el cliente)."""
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host") or request.url.netloc
+    return f"{proto}://{host}".rstrip("/")

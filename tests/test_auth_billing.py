@@ -24,7 +24,8 @@ def _auth(token: str) -> dict:
 
 # ------------------------------------------------------------ modo demo
 def test_register_login_and_me(client):
-    r = client.post("/api/subscribe", json={"email": "ana@test.com", "plan": "free"})
+    # El registro se hace por correo; en tests el login directo crea la cuenta.
+    r = client.post("/api/auth/login", json={"email": "ana@test.com"})
     assert r.status_code == 200
     body = r.json()
     assert body["token"] and body["plan"] == "free"
@@ -41,8 +42,10 @@ def test_demo_premium_unlocks(client):
     body = r.json()
     assert body["mode"] == "demo" and body["activated"] is True
     assert body["plan"] == "premium"
+    token = client.post("/api/auth/login",
+                        json={"email": "luis@test.com"}).json()["token"]
     rec = client.get("/api/recommendations?plan=premium",
-                     headers=_auth(body["token"]))
+                     headers=_auth(token))
     assert rec.status_code == 200
     assert rec.json()["demo_mode"] is True
     assert rec.json()["count"] > 0
@@ -88,9 +91,11 @@ def test_checkout_flow_activates_only_after_webhook(client, monkeypatch):
     body = r.json()
     assert body["mode"] == "stripe" and body["checkout_url"].startswith("https://")
     assert body["plan"] == "free"  # el plan solicitado no se activa sin pago
+    token = client.post("/api/auth/login",
+                        json={"email": "pago@test.com"}).json()["token"]
     # Mientras no haya pago confirmado: sigue bloqueado.
     assert client.get("/api/recommendations?plan=premium",
-                      headers=_auth(body["token"])).status_code == 402
+                      headers=_auth(token)).status_code == 402
 
     # Stripe confirma el pago por webhook.
     payload = json.dumps({
@@ -106,7 +111,7 @@ def test_checkout_flow_activates_only_after_webhook(client, monkeypatch):
 
     # Ahora sí: premium desbloqueado con la sesión del usuario.
     assert client.get("/api/recommendations?plan=premium",
-                      headers=_auth(body["token"])).status_code == 200
+                      headers=_auth(token)).status_code == 200
 
 
 def test_webhook_rejects_bad_signature(client, monkeypatch):

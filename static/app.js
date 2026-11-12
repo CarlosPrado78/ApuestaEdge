@@ -162,12 +162,11 @@ function closeLogin() {
 }
 
 async function refreshAccount() {
-  if (!localStorage.getItem("ae_token")) { applyAccount(null); return null; }
   try {
     const me = await api("/api/auth/me");
     if (me && me.authenticated) { applyAccount(me); return me; }
   } catch (err) {
-    if (!err.status || err.status === 401) localStorage.removeItem("ae_token");
+    if (err.status === 401) localStorage.removeItem("ae_token");
   }
   applyAccount(null);
   return null;
@@ -177,19 +176,18 @@ async function afterAccountChange() {
   await Promise.all([loadPicks(), loadSubscription(), loadTelegram()]);
 }
 
-async function login(email) {
-  const r = await api("/api/auth/login", {
+async function requestLoginLink(email) {
+  const r = await api("/api/auth/request-link", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
-  if (r.token) localStorage.setItem("ae_token", r.token);
-  applyAccount({ authenticated: true, email: r.email, plan: r.plan,
-                 billing: r.demo ? "demo" : "stripe" });
-  await afterAccountChange();
+  if (r.dev_link) {
+    showActivation(`Enlace de desarrollo (solo local):<br><a href="${esc(r.dev_link)}" target="_blank">${esc(r.dev_link)}</a>`,
+                   "ok", 20000);
+  }
   return r;
 }
-
 async function logout() {
   try { await api("/api/auth/logout", { method: "POST" }); } catch { /* da igual */ }
   localStorage.removeItem("ae_token");
@@ -430,14 +428,10 @@ $("#login-form").addEventListener("submit", async (e) => {
   const msg = $("#login-msg");
   const email = ($("#login-email").value || "").trim();
   if (!email) return;
-  msg.textContent = "Entrando…";
+  msg.textContent = "Enviando enlace…";
   try {
-    const r = await login(email);
-    closeLogin();
-    msg.textContent = "";
-    if (r.plan === "premium") {
-      showActivation("✓ Sesión iniciada como Premium.", "ok", 3500);
-    }
+    const r = await requestLoginLink(email);
+    msg.textContent = r.message || "Te enviamos un enlace de acceso.";
   } catch (err) {
     msg.textContent = `⚠️ ${err.message}`;
   }
@@ -635,8 +629,16 @@ async function handleStripeReturn() {
 async function init() {
   await loadPlans();
   await refreshAccount();
+  const params = new URLSearchParams(location.search);
+  if (params.get("acceso") === "ok") {
+    showActivation("✓ Sesión iniciada. Ya puedes ver tus picks.", "ok", 4000);
+    history.replaceState(null, "", location.pathname + "#picks");
+  } else if (params.get("acceso") === "caducado") {
+    showActivation("El enlace de acceso ha caducado o ya se usó. Pide uno nuevo.", "error", 6000);
+    history.replaceState(null, "", location.pathname);
+  }
   if (localStorage.getItem(PENDING_KEY) &&
-      !new URLSearchParams(location.search).get("suscripcion")) {
+      !params.get("suscripcion")) {
     await confirmPendingSession();
   }
   await Promise.all([

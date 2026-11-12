@@ -110,3 +110,28 @@ ALERT_TIMEOUT = float(os.environ.get("ALERT_TIMEOUT", "15"))
 
 def telegram_enabled() -> bool:
     return bool(TELEGRAM_BOT_TOKEN)
+
+
+# ------------------------------------------------------------ acceso (login)
+# El acceso es con enlace de un solo uso enviado por correo (magic link):
+# nadie puede entrar solo por saber el email de otra persona.
+LOGIN_TOKEN_TTL_MINUTES = int(os.environ.get("LOGIN_TOKEN_TTL_MINUTES", "20"))
+# Límite de enlaces por email y por IP (anti-abuso / spam de correos).
+LOGIN_MAX_PER_EMAIL = int(os.environ.get("LOGIN_MAX_PER_EMAIL", "3"))
+LOGIN_MAX_PER_IP = int(os.environ.get("LOGIN_MAX_PER_IP", "10"))
+LOGIN_RATE_WINDOW_MINUTES = int(os.environ.get("LOGIN_RATE_WINDOW_MINUTES", "15"))
+
+
+def public_base_url() -> str:
+    """URL pública para los enlaces del correo (sin barra final).
+
+    Nunca se usa la cabecera ``Origin``: la controla el cliente y permitiría
+    robar el enlace. En producción define ``PUBLIC_BASE_URL``.
+    """
+    return os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+
+
+def dev_login_enabled() -> bool:
+    """``POST /api/auth/login`` (sin verificar el correo). Solo dev/tests."""
+    return os.environ.get("AUTH_DEV_LOGIN", "").strip().lower() in {
+        "1", "true", "yes", "on"}

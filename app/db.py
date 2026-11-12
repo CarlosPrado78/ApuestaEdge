@@ -12,6 +12,7 @@ instalar nada ni configurar variables.
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import secrets
 import sqlite3
@@ -88,6 +89,16 @@ CREATE TABLE IF NOT EXISTS alerts (
     sent_at REAL NOT NULL,
     UNIQUE(chat_id, match_id, selection)
 );
+CREATE TABLE IF NOT EXISTS login_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_hash TEXT UNIQUE NOT NULL,
+    email TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    expires_at REAL NOT NULL,
+    used_at REAL,
+    request_ip TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_login_tokens_email ON login_tokens(email);
 """
 
 # Equivalente para PostgreSQL (mismas tablas y columnas).
@@ -133,6 +144,16 @@ CREATE TABLE IF NOT EXISTS alerts (
     sent_at DOUBLE PRECISION NOT NULL,
     UNIQUE(chat_id, match_id, selection)
 );
+CREATE TABLE IF NOT EXISTS login_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    token_hash TEXT UNIQUE NOT NULL,
+    email TEXT NOT NULL,
+    created_at DOUBLE PRECISION NOT NULL,
+    expires_at DOUBLE PRECISION NOT NULL,
+    used_at DOUBLE PRECISION,
+    request_ip TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_login_tokens_email ON login_tokens(email);
 """
 
 # Columnas añadidas con el tiempo (migración ligera para BD ya creadas).
@@ -515,3 +536,79 @@ def alerts_reset(conn: sqlite3.Connection, chat_id: str | None = None) -> int:
         cur = conn.execute("DELETE FROM alerts WHERE chat_id=?", (str(chat_id),))
     conn.commit()
     return cur.rowcount
+
+
+# ------------------------------------------------------- enlaces de acceso
+# Solo se guarda el hash SHA-256 del enlace: quien lea la BD no puede usarlo.
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def create_login_token(conn, email: str, *, ttl_seconds: int = 1200,
+                       request_ip: str | None = None) -> str:
+    """Crea un enlace de un solo uso y anula los pendientes del mismo correo."""
+    email = _normalize_email(email)
+    now = time.time()
+    token = secrets.token_urlsafe(32)
+    conn.execute(
+        "UPDATE login_tokens SET used_at=? WHERE email=? AND used_at IS NULL",
+        (now, email))
+    conn.execute(
+        "INSERT INTO login_tokens "
+        "(token_hash, email, created_at, expires_at, request_ip) "
+        "VALUES (?,?,?,?,?)",
+        (_hash_token(token), email, now, now + ttl_seconds, request_ip))
+    conn.commit()
+    return token
+
+
+def consume_login_token(conn, token: str) -> str | None:
+    """Valida y quema el enlace. Devuelve el email o ``None`` si no sirve."""
+    if not token:
+        return None
+    now = time.time()
+    row = conn.execute(
+        "SELECT * FROM login_tokens WHERE token_hash=? AND used_at IS NULL",
+        (_hash_token(token),)).fetchone()
+    if not row or float(row["expires_at"]) < now:
+        return None
+    conn.execute("UPDATE login_tokens SET used_at=? WHERE id=?", (now, row["id"]))
+    conn.commit()
+    return str(row["email"])
+
+
+def peek_login_token(conn, token: str) -> str | None:
+    """Email del enlace si sigue vigente (sin quemarlo)."""
+    if not token:
+        return None
+    row = conn.execute(
+        "SELECT email, expires_at FROM login_tokens "
+        "WHERE token_hash=? AND used_at IS NULL",
+        (_hash_token(token),)).fetchone()
+    if not row or float(row["expires_at"]) < time.time():
+        return None
+    return str(row["email"])
+
+
+def count_login_requests(conn, *, email: str | None = None,
+                         ip: str | None = None, since: float = 0) -> int:
+    """Peticiones de enlace recientes (límite anti-abuso)."""
+    if email:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM login_tokens "
+            "WHERE email=? AND created_at>=?",
+            (_normalize_email(email), since)).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM login_tokens "
+            "WHERE request_ip=? AND created_at>=?",
+            (ip, since)).fetchone()
+    return int(row["n"]) if row else 0
+
+
+def purge_login_tokens(conn, older_than: float | None = None) -> int:
+    """Limpia enlaces caducados (mantenimiento)."""
+    cur = conn.execute("DELETE FROM login_tokens WHERE expires_at < ?",
+                       (older_than or time.time(),))
+    conn.commit()
+    return cur.rowcount or 0

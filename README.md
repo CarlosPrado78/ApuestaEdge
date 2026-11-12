@@ -106,6 +106,14 @@ El panel indica en el encabezado si está en modo **demo** o **en vivo**.
 | `DEFAULT_BANKROLL` | `1000` | Banca por defecto del panel |
 | `EFFECTIVE_N` | `60` | Tamaño muestral efectivo de los ratings |
 | `APUESTAEDGE_DB` | `data/apuesta_edge.db` | Ruta de la base SQLite |
+| `DATABASE_URL` | vacía | PostgreSQL (Neon/Supabase/Render): persistencia real |
+| `PUBLIC_BASE_URL` | vacía | URL pública para los enlaces del correo (en Render se infiere del Host) |
+| `EMAIL_PROVIDER` | autodetectado | `resend`, `smtp` o `console` (dev) |
+| `EMAIL_FROM` | — | Remitente, p. ej. `ApuestaEdge <acceso@tudominio.com>` |
+| `RESEND_API_KEY` | vacía | Si usas Resend (requiere dominio verificado para enviar a cualquiera) |
+| `SMTP_HOST`/`PORT`/`USER`/`PASSWORD` | vacíos | Cualquier SMTP: Brevo (gratis, sin dominio), Gmail, Mailgun… |
+| `AUTH_DEV_LOGIN` | `0` | `1` permite `POST /api/auth/login` sin correo (solo dev/tests) |
+| `AUTH_DEV_MODE` | `0` | `1` devuelve el enlace en la respuesta (solo dev) |
 
 ## API
 
@@ -296,6 +304,37 @@ cd apuesta_edge
 ```
 
 Abre `http://<IP-de-esta-mac>:8123` desde cualquier equipo de la misma Wi-Fi.
+
+### Acceso sin contraseña (magic link)
+
+El login es por **enlace de un solo uso enviado al correo**. Nadie puede entrar
+solo por conocer el email de otra persona:
+
+- `POST /api/auth/request-link` `{email}` → envía el enlace (la respuesta es
+  siempre la misma exista o no la cuenta, para no filtrar registros).
+- El enlace caduca en 20 min (`LOGIN_TOKEN_TTL_MINUTES`) y solo sirve una vez.
+- Tras verificarlo se crea/recupera la cuenta y se reengancha el Premium
+  ya pagado en Stripe (si la BD se borró o el usuario cambió de dispositivo).
+
+**Para producción configura un proveedor de correo** (sin esto el login
+devuelve 503):
+
+- **Brevo (recomendado, gratis)**: crea cuenta en brevo.com → *SMTP & API* →
+  genera una clave. Configura en Render:
+  ```
+  SMTP_HOST=smtp-relay.brevo.com
+  SMTP_PORT=587
+  SMTP_USER=<tu login SMTP de Brevo>
+  SMTP_PASSWORD=<tu clave SMTP>
+  EMAIL_FROM=ApuestaEdge <acceso@tudominio.com>
+  ```
+  Brevo permite verificar un solo remitente (tu Gmail) sin dominio propio.
+- **Resend** (requiere dominio verificado para enviar a cualquiera):
+  `RESEND_API_KEY`, `EMAIL_FROM` con dominio verificado.
+- **Gmail SMTP**: `smtp.gmail.com:587` con una *App Password* (solo para pruebas).
+
+En desarrollo (sin proveedor) el enlace se imprime en el log del servidor y,
+si `AUTH_DEV_MODE=1`, se devuelve en la respuesta.
 
 ## Monetización
 
