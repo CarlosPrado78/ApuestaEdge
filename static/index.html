@@ -30,17 +30,17 @@
 <dialog id="login-dialog" class="dialog">
   <form id="login-form" method="dialog">
     <h3 id="login-title" data-i18n="login_title">Entrar en ApuestaEdge</h3>
-    <p class="muted" id="login-help">Accede con tu email y contraseña.</p>
-    <input type="email" id="login-email" placeholder="tu@correo.com" required autocomplete="email">
+    <p class="muted" id="login-help" data-i18n="login_help">Accede con tu email y contraseña.</p>
+    <input type="email" id="login-email" placeholder="tu@correo.com" data-i18n-placeholder="email_placeholder" required autocomplete="email">
     <input type="password" id="login-password" placeholder="Contraseña (mín. 8 caracteres)"
            required autocomplete="current-password" minlength="8">
     <div class="dialog-actions">
-      <button type="button" class="btn ghost" id="login-cancel">Cancelar</button>
-      <button type="submit" class="btn primary" id="login-submit">Entrar</button>
+      <button type="button" class="btn ghost" id="login-cancel" data-i18n="cancel">Cancelar</button>
+      <button type="submit" class="btn primary" id="login-submit" data-i18n="btn_login_submit">Entrar</button>
     </div>
     <p id="login-msg" class="sub-msg" role="status"></p>
     <p class="sub-msg" style="margin-top:8px">
-      <a href="#" id="login-toggle" style="color:#16a34a">¿No tienes cuenta? Crear una</a>
+      <a href="#" id="login-toggle" style="color:#16a34a" data-i18n="login_toggle">¿No tienes cuenta? Crear una</a>
     </p>
   </form>
 </dialog>
@@ -62,7 +62,7 @@
       <div class="stat"><span class="num" id="hs-p">—</span><label>Significancia estadística</label></div>
       <div class="stat"><span class="num" id="hs-bets">—</span><label>Picks auditados</label></div>
     </div>
-    <p class="source-note" id="source-note">Cargando datos…</p>
+    <p class="source-note" id="source-note" data-i18n="loading_data">Cargando datos…</p>
   </div>
 </section>
 
@@ -71,18 +71,18 @@
   <div class="section-head">
     <div>
       <h2 data-i18n="picks_title">Recomendaciones de hoy</h2>
-      <p class="sub" id="picks-sub">Filtradas por valor esperado positivo y confianza estadística.</p>
+      <p class="sub" id="picks-sub" data-i18n="picks_sub">Filtradas por valor esperado positivo y confianza estadística.</p>
     </div>
     <div class="controls">
       <div class="chips" id="sport-chips">
         <button class="chip active" data-sport="" data-i18n="chip_all">Todos</button>
-        <button class="chip" data-sport="soccer">⚽ Fútbol</button>
-        <button class="chip" data-sport="basketball">🏀 Básquet</button>
-        <button class="chip" data-sport="tennis">🎾 Tenis</button>
-        <button class="chip" data-sport="americanfootball">🏈 Fútbol americano</button>
-        <button class="chip" data-sport="boxing">🥊 Boxeo</button>
-        <button class="chip" data-sport="baseball">⚾ Béisbol</button>
-        <button class="chip" data-sport="hockey">🏒 Hockey</button>
+        <button class="chip" data-sport="soccer" data-i18n-sport="soccer">⚽ Fútbol</button>
+        <button class="chip" data-sport="basketball" data-i18n-sport="basketball">🏀 Básquet</button>
+        <button class="chip" data-sport="tennis" data-i18n-sport="tennis">🎾 Tenis</button>
+        <button class="chip" data-sport="americanfootball" data-i18n-sport="americanfootball">🏈 Fútbol americano</button>
+        <button class="chip" data-sport="boxing" data-i18n-sport="boxing">🥊 Boxeo</button>
+        <button class="chip" data-sport="baseball" data-i18n-sport="baseball">⚾ Béisbol</button>
+        <button class="chip" data-sport="hockey" data-i18n-sport="hockey">🏒 Hockey</button>
       </div>
       <label class="bankroll"><span data-i18n="bankroll">Bankroll</span> $
         <input type="number" id="bankroll" value="1000" min="50" step="50">
@@ -95,74 +95,68 @@
 
 <section id="rendimiento" class="section band">
   <div class="wrap">
-    <h2>Rendimiento auditable</h2>
-    <p class="sub">Historial completo de picks (ganados y perdidos). Publicamos lo bueno y lo malo: sin track record verificable no hay confianza posible.</p>
+    <h2 data-i18n="perf_title">Rendimiento auditable</h2>
+    <p class="sub" data-i18n="perf_sub">Historial completo de picks (ganados y perdidos). Publicamos lo bueno y lo malo: sin track record verificable no hay confianza posible.</p>
     <div class="metrics" id="metrics"><p class="muted">Cargando métricas…</p></div>
     <div class="grid-2">
       <div class="panel">
-        <h3>Curva de equity (unidades acumuladas)</h3>
+        <h3 data-i18n="perf_equity">Curva de equity (unidades acumuladas)</h3>
         <div id="equity" class="chart"></div>
       </div>
       <div class="panel">
-        <h3>Por deporte</h3>
+        <h3 data-i18n="perf_by_sport">Por deporte</h3>
         <table class="table" id="sport-table">
-          <thead><tr><th>Deporte</th><th>Picks</th><th>Acierto</th><th>ROI</th><th>CLV</th><th>p</th></tr></thead>
+          <thead><tr><th data-i18n="th_sport">Deporte</th><th data-i18n="th_picks">Picks</th><th data-i18n="th_hit">Acierto</th><th>ROI</th><th>CLV</th><th>p</th></tr></thead>
           <tbody></tbody>
         </table>
-        <p class="footnote">p &lt; 0.05 → la ventaja es estadísticamente significativa al 95%.</p>
+        <p class="footnote" data-i18n="perf_footnote">p &lt; 0.05 → la ventaja es estadísticamente significativa al 95%.</p>
       </div>
     </div>
   </div>
 </section>
 
 <section id="beneficios" class="wrap section">
-  <h2>¿Por qué ApuestaEdge?</h2>
-  <p class="sub">Lo que recibes, en concreto — sin humo:</p>
+  <h2 data-i18n="why_title">¿Por qué ApuestaEdge?</h2>
+  <p class="sub" data-i18n="why_sub">Lo que recibes, en concreto — sin humo:</p>
   <div class="grid-2">
     <div class="panel ok">
-      <h3>🎯 Solo entradas con ventaja</h3>
-      <p>Nada entra al radar sin valor esperado positivo: si la cuota no supera
-        lo que el mercado exige, no te lo enseñamos. Cero corazonadas.</p>
+      <h3 data-i18n="benefit1_title">🎯 Solo entradas con ventaja</h3>
+      <p data-i18n="benefit1_desc">Nada entra al radar sin valor esperado positivo: si la cuota no supera lo que el mercado exige, no te lo enseñamos. Cero corazonadas.</p>
     </div>
     <div class="panel ok">
-      <h3>💸 El «cuánto», calculado por ti</h3>
-      <p>Cada recomendación trae su stake sugerido (calculado automáticamente con tope
-        del 3% de tu bankroll): disciplina automática, sin adivinar cantidades.</p>
+      <h3 data-i18n="benefit2_title">💸 El «cuánto», calculado por ti</h3>
+      <p data-i18n="benefit2_desc">Cada recomendación trae su stake sugerido (calculado automáticamente con tope del 3% de tu bankroll): disciplina automática, sin adivinar cantidades.</p>
     </div>
     <div class="panel ok">
-      <h3>⚡ Picks listos cada pocos minutos</h3>
-      <p>Ahorras horas de análisis: el radar procesa todos los mercados solo
-        y te muestra lo que interesa, con filtros por deporte en un clic.</p>
+      <h3 data-i18n="benefit3_title">⚡ Picks listos cada pocos minutos</h3>
+      <p data-i18n="benefit3_desc">Ahorras horas de análisis: el radar procesa todos los mercados solo y te muestra lo que interesa, con filtros por deporte en un clic.</p>
     </div>
     <div class="panel ok">
-      <h3>📱 Alertas al instante en Telegram</h3>
-      <p>En cuanto aparece una entrada nueva con valor recibes la notificación
-        en tu móvil, con cuota, stake y el porqué. Sin recargar nada.</p>
+      <h3 data-i18n="benefit4_title">📱 Alertas al instante en Telegram</h3>
+      <p data-i18n="benefit4_desc">En cuanto aparece una entrada nueva con valor recibes la notificación en tu móvil, con cuota, stake y el porqué. Sin recargar nada.</p>
     </div>
     <div class="panel ok">
-      <h3>🏅 9 deportes, un solo radar</h3>
-      <p>Fútbol, básquet, tenis, fútbol americano, boxeo, béisbol, Fórmula 1,
-        MotoGP y carreras de caballos en la misma plataforma.</p>
+      <h3 data-i18n="benefit5_title">🏅 9 deportes, un solo radar</h3>
+      <p data-i18n="benefit5_desc">Fútbol, básquet, tenis, fútbol americano, boxeo, béisbol, Fórmula 1, MotoGP y carreras de caballos en la misma plataforma.</p>
     </div>
     <div class="panel ok">
-      <h3>📈 Track record público y auditable</h3>
-      <p>Publicamos ROI, CLV, drawdown y test estadístico de cada deporte —
-        lo bueno y lo malo. Sin resultados verificables no hay confianza.</p>
+      <h3 data-i18n="benefit6_title">📈 Track record público y auditable</h3>
+      <p data-i18n="benefit6_desc">Publicamos ROI, CLV, drawdown y test estadístico de cada deporte — lo bueno y lo malo. Sin resultados verificables no hay confianza.</p>
     </div>
   </div>
 
-  <h3 class="mt">Empieza en 3 pasos</h3>
+  <h3 class="mt" data-i18n="steps_title">Empieza en 3 pasos</h3>
   <ol class="pipeline">
-    <li><b>Crea tu cuenta gratis</b> (sin tarjeta) y mira las 10 recomendaciones del día.</li>
-    <li><b>Define tu bankroll</b> arriba de la lista de picks: cada tarjeta calcula su stake exacto sobre tu capital.</li>
-    <li><b>Activa las alertas de Telegram</b> y recibe cada valor nuevo al instante; cuando quieras más, Premium desbloquea el análisis completo.</li>
+    <li><b data-i18n="step1_bold">Crea tu cuenta gratis</b> <span data-i18n="step1_text">(sin tarjeta) y mira las 5 recomendaciones del día.</span></li>
+    <li><b data-i18n="step2_bold">Define tu bankroll</b> <span data-i18n="step2_text">arriba de la lista de picks: cada tarjeta calcula su stake exacto sobre tu capital.</span></li>
+    <li><b data-i18n="step3_bold">Activa las alertas de Telegram</b> <span data-i18n="step3_text">y recibe cada valor nuevo al instante; cuando quieras más, Premium desbloquea el análisis completo.</span></li>
   </ol>
 </section>
 
 <section id="precios" class="section band">
   <div class="wrap">
-    <h2>Planes</h2>
-    <p class="sub">Empieza gratis. Premium desbloquea todos los valores, el stake exacto y el análisis completo.</p>
+    <h2 data-i18n="plans_title">Planes</h2>
+    <p class="sub" data-i18n="plans_sub">Empieza gratis. Premium desbloquea todos los valores, el stake exacto y el análisis completo.</p>
     <div class="plans" id="plans"></div>
     <form id="subscribe-form" class="subscribe">
       <input type="email" id="email" placeholder="tu@correo.com" required autocomplete="email">
@@ -170,24 +164,23 @@
         <option value="premium">Premium</option>
         <option value="free">Free</option>
       </select>
-      <button class="btn primary" type="submit" id="subscribe-btn">Crear cuenta</button>
+      <button class="btn primary" type="submit" id="subscribe-btn" data-i18n="creating">Crear cuenta</button>
       <span id="sub-msg" class="sub-msg" role="status"></span>
     </form>
-    <p class="footnote" style="text-align:center">¿Ya tienes cuenta? Usa
-      <b>Iniciar sesión</b> arriba a la derecha.</p>
+    <p class="footnote" style="text-align:center" data-i18n="already_have_account">¿Ya tienes cuenta? Usa Iniciar sesión arriba a la derecha.</p>
 
     <div class="panel tg-panel" id="sub-panel" hidden>
-      <h3>💳 Tu suscripción</h3>
-      <div id="sub-state" class="muted">Comprobando estado…</div>
+      <h3 data-i18n="subscription_title">💳 Tu suscripción</h3>
+      <div id="sub-state" class="muted" data-i18n="checking">Comprobando estado…</div>
       <div class="panel-actions">
-        <button class="btn ghost" id="btn-sync" type="button">Actualizar estado</button>
-        <button class="btn ghost" id="btn-portal" type="button" hidden>Gestionar suscripción</button>
+        <button class="btn ghost" id="btn-sync" type="button" data-i18n="update_status">Actualizar estado</button>
+        <button class="btn ghost" id="btn-portal" type="button" hidden data-i18n="manage_subscription">Gestionar suscripción</button>
       </div>
     </div>
 
     <div class="panel tg-panel">
-      <h3>📣 Alertas por Telegram</h3>
-      <div id="tg-body" class="muted">Comprobando estado…</div>
+      <h3 data-i18n="telegram_title">📣 Alertas por Telegram</h3>
+      <div id="tg-body" class="muted" data-i18n="checking">Comprobando estado…</div>
     </div>
   </div>
 </section>
@@ -195,10 +188,8 @@
 
 <footer class="footer">
   <div class="wrap">
-    <p><strong>+18 · Juego responsable.</strong> Apostar conlleva riesgo de perder dinero. Este sitio ofrece
-      análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados.
-      Ningún modelo acierta siempre: jugamos para tener ventaja a largo plazo, no certezas por partido.</p>
-    <p class="muted">ApuestaEdge © 2026 · Datos: The Odds API (o dataset de demostración)</p>
+    <p data-i18n="footer_disclaimer"><strong>+18 · Juego responsable.</strong> Apostar conlleva riesgo de perder dinero. Este sitio ofrece análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados. Ningún modelo acierta siempre: jugamos para tener ventaja a largo plazo, no certezas por partido.</p>
+    <p class="muted" data-i18n="footer_copyright">ApuestaEdge © 2026 · Datos: The Odds API (o dataset de demostración)</p>
   </div>
 </footer>
 

@@ -27,6 +27,10 @@ const I18N = {
     already_exists: "Ya existe una cuenta con ese correo. Inicia sesión.",
     account_created: "Cuenta creada.",
     picks_loading: "Calculando valor esperado…",
+    plan_label: "Plan", min_edge_label: "edge mínimo",
+    matches_analyzed: "partidos analizados", with_value: "con valor",
+    edge_label: "Edge", ev_label: "Valor esperado", confidence_label: "Confianza",
+    why_trust: "¿Por qué confiar?",
     no_picks_short: "Sin picks con valor ahora mismo.",
     no_picks_detail: "Esperar a que el mercado ofrezca ventaja es parte del método: no apostar también es una decisión estadística.",
     delayed_note: "Desbloquea 20 picks con edge ≥ 3%, stake Kelly, confianza y backtest completos en Premium.",
@@ -44,6 +48,8 @@ const I18N = {
     hit_rate_label: "Acierto",
     breakeven_label: "breakeven",
     demo_mode: "Modo demostración: partidos y cuotas de ejemplo. Añade ODDS_API_KEY al entorno para datos en vivo.",
+    live_odds: "✅ Cuotas en vivo (The Odds API) actualizadas cada pocos minutos.",
+    matches_on_radar: "partidos en el radar",
     hit_rate_table: "Acierto",
     breakeven_table: "breakeven",
     clv_avg: "CLV medio",
@@ -51,6 +57,51 @@ const I18N = {
     plan_free_label: "Plan Free",
     start_free: "Empezar gratis",
     create_account_title: "Crear cuenta en ApuestaEdge",
+    create_account_title: "Crear cuenta en ApuestaEdge",
+    premium_active: "✅ Premium activo",
+    loading: "Cargando…",
+    picks_sub: "Filtradas por valor esperado positivo y confianza estadística.",
+    perf_title: "Rendimiento auditable",
+    perf_sub: "Historial completo de picks (ganados y perdidos). Publicamos lo bueno y lo malo: sin track record verificable no hay confianza posible.",
+    perf_equity: "Curva de equity (unidades acumuladas)",
+    perf_by_sport: "Por deporte",
+    th_sport: "Deporte", th_picks: "Picks", th_hit: "Acierto",
+    perf_footnote: "p < 0.05 → la ventaja es estadísticamente significativa al 95%.",
+    why_title: "¿Por qué ApuestaEdge?",
+    why_sub: "Lo que recibes, en concreto — sin humo:",
+    benefit1_title: "🎯 Solo entradas con ventaja",
+    benefit1_desc: "Nada entra al radar sin valor esperado positivo: si la cuota no supera lo que el mercado exige, no te lo enseñamos. Cero corazonadas.",
+    benefit2_title: "💸 El «cuánto», calculado por ti",
+    benefit2_desc: "Cada recomendación trae su stake sugerido (calculado automáticamente con tope del 3% de tu bankroll): disciplina automática, sin adivinar cantidades.",
+    benefit3_title: "⚡ Picks listos cada pocos minutos",
+    benefit3_desc: "Ahorras horas de análisis: el radar procesa todos los mercados solo y te muestra lo que interesa, con filtros por deporte en un clic.",
+    benefit4_title: "📱 Alertas al instante en Telegram",
+    benefit4_desc: "En cuanto aparece una entrada nueva con valor recibes la notificación en tu móvil, con cuota, stake y el porqué. Sin recargar nada.",
+    benefit5_title: "🏅 9 deportes, un solo radar",
+    benefit5_desc: "Fútbol, básquet, tenis, fútbol americano, boxeo, béisbol, Fórmula 1, MotoGP y carreras de caballos en la misma plataforma.",
+    benefit6_title: "📈 Track record público y auditable",
+    benefit6_desc: "Publicamos ROI, CLV, drawdown y test estadístico de cada deporte — lo bueno y lo malo. Sin resultados verificables no hay confianza.",
+    steps_title: "Empieza en 3 pasos",
+    step1_bold: "Crea tu cuenta gratis",
+    step1_text: "(sin tarjeta) y mira las 5 recomendaciones del día.",
+    step2_bold: "Define tu bankroll",
+    step2_text: "arriba de la lista de picks: cada tarjeta calcula su stake exacto sobre tu capital.",
+    step3_bold: "Activa las alertas de Telegram",
+    step3_text: "y recibe cada valor nuevo al instante; cuando quieras más, Premium desbloquea el análisis completo.",
+    plans_title: "Planes",
+    plans_sub: "Empieza gratis. Premium desbloquea todos los valores, el stake exacto y el análisis completo.",
+    creating: "Crear cuenta",
+    already_have_account: "¿Ya tienes cuenta? Usa Iniciar sesión arriba a la derecha.",
+    telegram_title: "📣 Alertas por Telegram",
+    checking: "Comprobando estado…",
+    subscription_title: "💳 Tu suscripción",
+    update_status: "Actualizar estado",
+    manage_subscription: "Gestionar suscripción",
+    footer_disclaimer: "+18 · Juego responsable. Apostar conlleva riesgo de perder dinero. Este sitio ofrece análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados. Ningún modelo acierta siempre: jugamos para tener ventaja a largo plazo, no certezas por partido.",
+    footer_copyright: "ApuestaEdge © 2026 · Datos: The Odds API (o dataset de demostración)",
+    email_placeholder: "tu@correo.com",
+    pw_placeholder: "Contraseña (mín. 8 caracteres)",
+    loading_data: "Cargando datos…",
     premium_active: "✅ Premium activo",
     loading: "Cargando…",
     no_picks: "Sin picks con valor ahora mismo. Esperar a que el mercado ofrezca ventaja es parte del método: no apostar también es una decisión estadística.",
@@ -87,6 +138,10 @@ const I18N = {
     already_exists: "An account with this email already exists. Sign in.",
     account_created: "Account created.",
     picks_loading: "Calculating expected value…",
+    plan_label: "Plan", min_edge_label: "min edge",
+    matches_analyzed: "matches analyzed", with_value: "with value",
+    edge_label: "Edge", ev_label: "Expected value", confidence_label: "Confidence",
+    why_trust: "Why trust?",
     no_picks_short: "No value picks right now.",
     no_picks_detail: "Waiting for the market to offer an edge is part of the method: not betting is also a statistical decision.",
     delayed_note: "Unlock 20 picks with edge ≥ 3%, Kelly stake, confidence and full backtest in Premium.",
@@ -104,6 +159,8 @@ const I18N = {
     hit_rate_label: "Hit rate",
     breakeven_label: "breakeven",
     demo_mode: "Demo mode: sample matches and odds. Add ODDS_API_KEY to the environment for live data.",
+    live_odds: "✅ Live odds (The Odds API) updated every few minutes.",
+    matches_on_radar: "matches on the radar",
     hit_rate_table: "Hit rate",
     breakeven_table: "breakeven",
     clv_avg: "Avg CLV",
@@ -111,6 +168,51 @@ const I18N = {
     plan_free_label: "Free plan",
     start_free: "Start free",
     create_account_title: "Create account on ApuestaEdge",
+    create_account_title: "Create account on ApuestaEdge",
+    premium_active: "✅ Premium active",
+    loading: "Loading…",
+    picks_sub: "Filtered by positive expected value and statistical confidence.",
+    perf_title: "Auditable performance",
+    perf_sub: "Full pick history (wins and losses). We publish the good and the bad: without a verifiable track record there is no trust.",
+    perf_equity: "Equity curve (cumulative units)",
+    perf_by_sport: "By sport",
+    th_sport: "Sport", th_picks: "Picks", th_hit: "Hit rate",
+    perf_footnote: "p < 0.05 → the edge is statistically significant at 95%.",
+    why_title: "Why ApuestaEdge?",
+    why_sub: "What you get, concretely — no hype:",
+    benefit1_title: "🎯 Only entries with an edge",
+    benefit1_desc: "Nothing enters the radar without positive expected value: if the odds don't beat what the market demands, we don't show it. No gut feelings.",
+    benefit2_title: "💸 The «how much», calculated for you",
+    benefit2_desc: "Each recommendation includes a suggested stake (automatically calculated with a 3% bankroll cap): automatic discipline, no guessing amounts.",
+    benefit3_title: "⚡ Picks ready every few minutes",
+    benefit3_desc: "Save hours of analysis: the radar processes all markets on its own and shows you what matters, with one-click sport filters.",
+    benefit4_title: "📱 Instant Telegram alerts",
+    benefit4_desc: "As soon as a new value entry appears you get a notification on your phone, with odds, stake and the why. No refreshing needed.",
+    benefit5_title: "🏅 9 sports, one radar",
+    benefit5_desc: "Soccer, basketball, tennis, American football, boxing, baseball, Formula 1, MotoGP and horse racing on one platform.",
+    benefit6_title: "📈 Public and auditable track record",
+    benefit6_desc: "We publish ROI, CLV, drawdown and statistical test per sport — the good and the bad. Without verifiable results there is no trust.",
+    steps_title: "Start in 3 steps",
+    step1_bold: "Create your free account",
+    step1_text: "(no card) and see the 5 daily recommendations.",
+    step2_bold: "Set your bankroll",
+    step2_text: "above the picks list: each card calculates its exact stake on your capital.",
+    step3_bold: "Enable Telegram alerts",
+    step3_text: "and receive every new value instantly; when you want more, Premium unlocks full analysis.",
+    plans_title: "Plans",
+    plans_sub: "Start free. Premium unlocks all values, exact stake and full analysis.",
+    creating: "Create account",
+    already_have_account: "Already have an account? Use Sign in at the top right.",
+    telegram_title: "📣 Telegram alerts",
+    checking: "Checking status…",
+    subscription_title: "💳 Your subscription",
+    update_status: "Update status",
+    manage_subscription: "Manage subscription",
+    footer_disclaimer: "+18 · Responsible gambling. Betting carries risk of losing money. This site offers statistical analysis for informational purposes; it is not financial advice or a guarantee of results. No model is always right: we play for long-term edge, not per-match certainty.",
+    footer_copyright: "ApuestaEdge © 2026 · Data: The Odds API (or demo dataset)",
+    email_placeholder: "you@email.com",
+    pw_placeholder: "Password (min. 8 characters)",
+    loading_data: "Loading data…",
     premium_active: "✅ Premium active",
     loading: "Loading…",
     no_picks: "No value picks right now. Waiting for the market to offer an edge is part of the method: not betting is also a statistical decision.",
@@ -141,12 +243,19 @@ function applyLang(lang) {
   // Update hero title (contains HTML)
   const heroTitle = document.querySelector("h1");
   if (heroTitle && t("hero_title") !== "hero_title") heroTitle.innerHTML = t("hero_title");
+  // Update sport chips
+  document.querySelectorAll("[data-i18n-sport]").forEach((el) => {
+    const sport = el.getAttribute("data-i18n-sport");
+    const icon = el.textContent.trim().split(" ")[0];
+    el.textContent = icon + " " + SPORT_NAME(sport);
+  });
   // Update language toggle button
   const btn = document.getElementById("lang-toggle");
   if (btn) btn.textContent = lang === "es" ? "EN" : "ES";
   // Update sport chips (they have emoji + text, handle separately)
   // Re-render picks if loaded
   if (typeof renderPlanBanner === "function") renderPlanBanner();
+  if (typeof loadPicks === "function" && state && state.plan) loadPicks();
   // Update login dialog text based on mode
   updateLoginDialogText();
 }
@@ -397,18 +506,18 @@ async function loadPicks() {
   try {
     const data = await api(`/api/recommendations?${q}`);
     if (requestId !== picksRequest) return;   // respuesta vieja: se descarta
-    const label = data.plan === "premium" ? "Premium" : "Free";
+    const label = data.plan === "premium" ? "Premium" : t("plan_free_label");
     if (!data.picks.length) {
       $("#picks-sub").innerHTML =
-        `Plan <b>${label}</b> · edge mínimo ${pct(data.min_edge, 0)} · ` +
-        `${data.models_scanned} partidos analizados · ${data.value_candidates} con valor`;
+        `${t("plan_label")} <b>${label}</b> · ${t("min_edge_label")} ${pct(data.min_edge, 0)} · ` +
+        `${data.models_scanned} ${t("matches_analyzed")} · ${data.value_candidates} ${t("with_value")}`;
       box.innerHTML = '<p class="muted">' + t('no_picks_short') + ' ' +
         t('no_picks_detail') + '</p>';
       return;
     }
     $("#picks-sub").innerHTML =
-      `Plan <b>${label}</b> · Top ${data.count} · edge mínimo ${pct(data.min_edge, 0)} · ` +
-      `${data.models_scanned} partidos analizados · ${data.value_candidates} con valor`;
+      `${t("plan_label")} <b>${label}</b> · Top ${data.count} · ${t("min_edge_label")} ${pct(data.min_edge, 0)} · ` +
+      `${data.models_scanned} ${t("matches_analyzed")} · ${data.value_candidates} ${t("with_value")}`;
     box.innerHTML = data.picks.map(card).join("");
     $$(".why-btn").forEach((b) => b.addEventListener("click", () => {
       b.closest(".pick").classList.toggle("open");
@@ -455,13 +564,13 @@ function card(p) {
         <span class="time">🕐 ${esc(when(p.commence_time))} UTC · antes del pitido inicial</span>
       </div>
       <div class="sel">${esc(p.selection_label)}<small>${p.odds ? `cuota ${num(p.odds)} · ${esc(p.bookmaker)}` : t('locked_odds_full')}</small></div>
-      <div class="val"><label>Edge</label><b class="pos">${signed(p.edge)}</b>
-        <span class="badge edge">modelo ${pct(p.model_prob || 0)}</span></div>
-      <div class="val"><label>Valor esperado</label><b class="pos">${signed(p.ev)}</b></div>
-      <div class="val"><label>Confianza</label><b>${p.confidence ? pct(p.confidence, 0) : '🔒'}</b>
+      <div class="val"><label>${t("edge_label")}</label><b class="pos">${signed(p.edge)}</b>
+        <span class="badge edge">${t("model_label").toLowerCase()} ${pct(p.model_prob || 0)}</span></div>
+      <div class="val"><label>${t("ev_label")}</label><b class="pos">${signed(p.ev)}</b></div>
+      <div class="val"><label>${t("confidence_label")}</label><b>${p.confidence ? pct(p.confidence, 0) : '🔒'}</b>
         ${p.confidence ? `<span class="conf"><i style="width:${Math.round(p.confidence * 100)}%"></i></span>` : '<span class="muted small">Premium</span>'}</div>
-      ${p.delayed ? `<div class="delayed-badge">⏱ Premium vio este pick hace 2 h</div>` : ""}
-      <button class="why-btn" type="button">¿Por qué confiar?</button>
+      ${p.delayed ? `<div class="delayed-badge">${t("delayed_badge")}</div>` : ""}
+      <button class="why-btn" type="button">${t("why_trust")}</button>
     </div>
     <div class="pick-body">
       <div class="why-summary">${esc(p.explanation.summary)}</div>
@@ -507,9 +616,9 @@ async function loadStats() {
     }
     $("#source-note").textContent =
       (health.source === "live"
-        ? "✅ Cuotas en vivo (The Odds API) actualizadas cada pocos minutos."
+        ? t("live_odds")
         : t("demo_mode")) +
-      ` · ${health.matches} partidos en el radar.`;
+      ` · ${health.matches} ${t("matches_on_radar")}`;
   } catch { /* silencioso: el hero sigue siendo legible */ }
 }
 
