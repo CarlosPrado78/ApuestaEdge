@@ -34,8 +34,28 @@ const when = (iso) => {
   } catch { return iso || "por confirmar"; }
 };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const PENDING_KEY = "ae_pending_session";
 let picksRequest = 0;
 let subRequest = 0;
+
+async function confirmPendingSession() {
+  const sessionId = localStorage.getItem(PENDING_KEY);
+  if (!sessionId) return false;
+  try {
+    const r = await api("/api/billing/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId }),
+    });
+    if (r.token) localStorage.setItem("ae_token", r.token);
+    if (r.plan === "premium") {
+      localStorage.removeItem(PENDING_KEY);
+      await refreshAccount();
+      return true;
+    }
+  } catch { /* se reintenta más tarde */ }
+  return false;
+}
 
 async function api(path, opts = {}) {
   const headers = { ...(opts.headers || {}) };
@@ -173,6 +193,7 @@ async function login(email) {
 async function logout() {
   try { await api("/api/auth/logout", { method: "POST" }); } catch { /* da igual */ }
   localStorage.removeItem("ae_token");
+  localStorage.removeItem(PENDING_KEY);
   applyAccount(null);
   await afterAccountChange();
 }
@@ -506,6 +527,7 @@ async function loadSubscription() {
   sync.onclick = async () => {
     sync.disabled = true;
     sync.textContent = "Actualizando…";
+    await confirmPendingSession();
     await refreshAccount();
     await Promise.all([loadSubscription(), loadPicks()]);
     sync.disabled = false;
@@ -569,6 +591,7 @@ async function handleStripeReturn() {
   const params = new URLSearchParams(location.search);
   if (params.get("suscripcion") !== "ok") return;
   const sessionId = params.get("session_id");
+  if (sessionId) localStorage.setItem(PENDING_KEY, sessionId);
   showActivation("⏳ Confirmando tu pago con Stripe…");
   let activated = state.plan === "premium";
 
@@ -581,6 +604,7 @@ async function handleStripeReturn() {
       });
       if (r.token) localStorage.setItem("ae_token", r.token);
       activated = r.plan === "premium";
+      if (activated) localStorage.removeItem(PENDING_KEY);
       if (!activated) {
         showActivation("Stripe todavía está procesando el pago. Esperando confirmación…");
       }
@@ -596,6 +620,7 @@ async function handleStripeReturn() {
   }
 
   if (activated) {
+    localStorage.removeItem(PENDING_KEY);
     await refreshAccount();
     showActivation("✓ <b>Premium activado</b>. Ya ves 20 picks con edge ≥ 3% y análisis completo.", "ok", 8000);
   } else {
@@ -610,6 +635,10 @@ async function handleStripeReturn() {
 async function init() {
   await loadPlans();
   await refreshAccount();
+  if (localStorage.getItem(PENDING_KEY) &&
+      !new URLSearchParams(location.search).get("suscripcion")) {
+    await confirmPendingSession();
+  }
   await Promise.all([
     loadPicks(), loadStats(), loadPerformance(), loadTelegram(), loadSubscription()]);
   await handleStripeReturn();
