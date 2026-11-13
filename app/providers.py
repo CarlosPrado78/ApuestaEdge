@@ -118,15 +118,25 @@ def _map_h2h_outcomes(outcomes: list[dict], home: str, away: str,
     return odds
 
 
+# Diagnóstico de la última consulta a The Odds API (sin secretos):
+# por qué se cayó al dataset de demo. Se expone en /api/health.
+LAST_DIAG: dict[str, Any] = {}
+
+
 def fetch_live_matches() -> tuple[list[dict], str]:
     """Obtiene cuotas en vivo. Devuelve ``(matches, fuente)``.
 
     Si no hay clave o la llamada falla, devuelve la demo y lo indica.
     """
     if not config.ODDS_API_KEY:
+        LAST_DIAG.clear()
+        LAST_DIAG["reason"] = "no_api_key"
         return load_sample_matches(), "sample"
     ratings = load_ratings()
     matches: list[dict] = []
+    status_by_key: dict[str, Any] = {}
+    LAST_DIAG.clear()
+    LAST_DIAG["status_by_key"] = status_by_key
     try:
         with httpx.Client(base_url="https://api.the-odds-api.com/v4",
                           timeout=config.ODDS_API_TIMEOUT) as client:
@@ -138,8 +148,12 @@ def fetch_live_matches() -> tuple[list[dict], str]:
                                 "regions": config.ODDS_API_REGION,
                                 "markets": "h2h",
                                 "oddsFormat": "decimal"})
+                    status_by_key[key] = resp.status_code
                     if resp.status_code != 200:
-                        log.warning("The Odds API %s -> HTTP %s", key, resp.status_code)
+                        body = resp.text[:160]
+                        status_by_key[f"{key}_body"] = body
+                        log.warning("The Odds API %s -> HTTP %s %s", key,
+                                    resp.status_code, body)
                         continue
                     for ev in resp.json():
                         home, away = ev.get("home_team"), ev.get("away_team")
@@ -173,9 +187,12 @@ def fetch_live_matches() -> tuple[list[dict], str]:
                         _attach_ratings(match, ratings)
                         matches.append(match)
     except Exception as exc:  # noqa: BLE001 - cualquier fallo usa la demo
+        LAST_DIAG["reason"] = f"exception: {exc}"
         log.warning("Fallo al consultar The Odds API (%s); usando dataset demo", exc)
         return load_sample_matches(), "sample"
+    LAST_DIAG["events_with_odds"] = len(matches)
     if not matches:
+        LAST_DIAG.setdefault("reason", "no_events_with_odds")
         return load_sample_matches(), "sample"
     # Deportes sin cobertura en vivo (outright demo o fuera de temporada):
     # se completan con el dataset de demostración para no perderlos del radar.

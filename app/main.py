@@ -105,6 +105,7 @@ def health() -> dict:
     commit = (os.environ.get("RENDER_GIT_COMMIT") or "")[:7]
     return {"status": "ok", "matches": len(matches), "source": source,
             "live_api_key": bool(config.ODDS_API_KEY),
+            "odds_api": dict(providers.LAST_DIAG),
             "billing": "stripe" if billing.stripe_enabled() else "demo",
             "premium_locked": billing.stripe_enabled(),
             "database": "postgres" if db.using_postgres() else "sqlite",
