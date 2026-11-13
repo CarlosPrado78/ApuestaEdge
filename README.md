@@ -32,19 +32,19 @@ incluye aviso de juego responsable (+18) y explícitamente dice lo que el modelo
 
 ## Qué hace
 
-- **Radar de partidos**: fútbol, básquet, tenis, **fútbol americano (NFL/NCAA)**,
-  **boxeo**, **béisbol (MLB)**, **Fórmula 1**, **MotoGP** y **carreras de caballos**
-  (demo incluida; cuotas en vivo con [The Odds API](https://the-odds-api.com) para
-  los deportes que cubre — boxeo y béisbol incluidos).
+- **Radar de partidos**: **7 deportes con datos reales** — fútbol (EPL, LaLiga,
+  Serie A, Bundesliga, Ligue 1, Liga MX), básquet (NBA), tenis (ATP/WTA en
+  temporada), **fútbol americano (NFL/NCAA)**, **boxeo**, **béisbol (MLB)** y
+  **hockey (NHL)**, con cuotas en vivo de [The Odds API](https://the-odds-api.com).
+  Con `ODDS_API_KEY` configurada solo se muestran eventos reales: nunca se
+  mezclan partidos de demostración con datos en vivo.
 - **Modelos**: Elo por deporte con ventaja de localía; en fútbol, tasas de goles
   Poisson **calibradas** al score esperado del Elo → matriz de marcadores → 1X2.
   En básquet, tenis, fútbol americano y béisbol: moneyline logístico del Elo
   (localía: 60/50/20/40/25 pts según deporte; 0 en boxeo, terreno neutral).
-  En F1, MotoGP y caballos (**mercados outright**, ganador de la carrera con
-  N participantes): Elo de participantes → **Bradley-Terry** (con N=2 coincide
-  exactamente con la logística Elo). *Honestidad de datos: The Odds API no
-  cubre F1/MotoGP/caballos, así que esos tres deportes funcionan con el dataset
-  de demostración hasta conectar otro proveedor.*
+  Los grupos outright (F1/MotoGP/caballos, **Bradley-Terry**) siguen soportados
+  por el motor en desarrollo, pero **no aparecen en el radar de producción**:
+  The Odds API no los cubre y no se muestran eventos sin fuente real.
 - **Desvigado de las cuotas**: método de potencias (Shin) + consenso entre casas.
 - **Frontend orientado a conversión**: «Recomendaciones de hoy» (5 picks curados en Free,
   todos los valores en Premium), rendimiento auditable, sección de beneficios y
@@ -89,18 +89,35 @@ Sin configuración funciona con el dataset de demostración
 (`data/sample_odds.json`). Para datos reales:
 
 ```bash
-export ODDS_API_KEY='tu_clave'        # plan gratis: 500 créditos/mes
+export ODDS_API_KEY='tu_clave'        # plan 20K: 20.000 créditos/mes ($30)
 uvicorn app.main:app --port 8000
 ```
 
-El panel indica en el encabezado si está en modo **demo** o **en vivo**.
+Con `ODDS_API_KEY` configurada la página **solo muestra eventos reales**:
+nunca se mezcla el dataset de demo con datos en vivo. Si la API falla
+(cuota agotada, red caída) se sirve el último parte real guardado en la
+base (máx. 7 días, sin eventos ya iniciados) y, si no lo hay, la página
+indica "sin datos" con el radar vacío en lugar de inventar partidos.
+
+Presupuesto de créditos: cada refresco cuesta (deportes × regiones)
+créditos, así que la caché dura 2 h por defecto
+(`MATCHES_CACHE_TTL=7200`) → ~11K de 20K créditos/mes. Si la API reporta
+menos de `ODDS_QUOTA_SOFT_FLOOR` créditos restantes, el refresco se
+extiende a 6 h para no agotar la cuota antes del día 1.
+
+El panel indica en el encabezado si está en modo **demo**, **en vivo** o
+**sin datos**.
 
 ### Variables de entorno
 
 | Variable | Default | Qué controla |
 |---|---|---|
 | `ODDS_API_KEY` | vacía | Clave de The Odds API (sin clave = demo) |
-| `ODDS_API_REGION` | `eu` | Región de las casas de apuestas |
+| `ODDS_API_REGION` | `us,eu` | Región de las casas de apuestas |
+| `ODDS_API_TIMEOUT` | `12` | Timeout (s) por llamada a The Odds API |
+| `ODDS_QUOTA_SOFT_FLOOR` | `2000` | Si quedan menos créditos, alarga la caché |
+| `MATCHES_CACHE_TTL` | `7200` con clave / `120` sin clave | Caducidad (s) de la caché de partidos |
+| `ALLOW_SAMPLE_DATA` | `1` sin clave / `0` con clave | ¿Se permite caer al dataset de demo? |
 | `KELLY_FRACTION` | `0.25` | Fracción del Kelly usada |
 | `MAX_STAKE_PCT` | `3` | Tope de stake (% del bankroll) |
 | `DEFAULT_BANKROLL` | `1000` | Banca por defecto del panel |
@@ -250,7 +267,7 @@ carga solo).
    | Variable | Para qué |
    |---|---|
    | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Cobros reales (bloqueo 402) |
-   | `ODDS_API_KEY` | Cuotas en vivo (The Odds API) |
+   | `ODDS_API_KEY` | Cuotas en vivo (The Odds API, plan 20K $30/mes) |
    | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_USERNAME` | Alertas al Telegram |
 
 5. **Webhook de Stripe**: apunta a

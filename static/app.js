@@ -120,7 +120,9 @@ const I18N = {
     hit_rate_label: "Acierto",
     breakeven_label: "breakeven",
     demo_mode: "Modo demostración: partidos y cuotas de ejemplo. Añade ODDS_API_KEY al entorno para datos en vivo.",
-    live_odds: "✅ Cuotas en vivo (The Odds API) actualizadas cada pocos minutos.",
+    live_odds: "✅ Cuotas en vivo (The Odds API), actualizadas cada ~2 h.",
+    live_cached: "⏳ Datos en vivo del último parte guardado; la API no responde ahora mismo.",
+    no_live_data: "⚠️ Sin datos en vivo ahora mismo. No mostramos eventos inventados: vuelve en unos minutos.",
     matches_on_radar: "partidos en el radar",
     hit_rate_table: "Acierto",
     breakeven_table: "breakeven",
@@ -147,12 +149,12 @@ const I18N = {
     benefit1_desc: "Nada entra al radar sin valor esperado positivo: si la cuota no supera lo que el mercado exige, no te lo enseñamos. Cero corazonadas.",
     benefit2_title: "💸 El «cuánto», calculado por ti",
     benefit2_desc: "Cada recomendación trae su stake sugerido (calculado automáticamente con tope del 3% de tu bankroll): disciplina automática, sin adivinar cantidades.",
-    benefit3_title: "⚡ Picks listos cada pocos minutos",
+    benefit3_title: "⚡ Picks listos cada pocas horas",
     benefit3_desc: "Ahorras horas de análisis: el radar procesa todos los mercados solo y te muestra lo que interesa, con filtros por deporte en un clic.",
     benefit4_title: "📱 Alertas al instante en Telegram",
     benefit4_desc: "En cuanto aparece una entrada nueva con valor recibes la notificación en tu móvil, con cuota, stake y el porqué. Sin recargar nada.",
-    benefit5_title: "🏅 9 deportes, un solo radar",
-    benefit5_desc: "Fútbol, básquet, tenis, fútbol americano, boxeo, béisbol, Fórmula 1, MotoGP y carreras de caballos en la misma plataforma.",
+    benefit5_title: "🏅 7 deportes, un solo radar",
+    benefit5_desc: "Fútbol, básquet, tenis, fútbol americano, boxeo, béisbol y hockey en la misma plataforma, con cuotas reales de cada partido.",
     benefit6_title: "📈 Track record público y auditable",
     benefit6_desc: "Publicamos ROI, CLV, drawdown y test estadístico de cada deporte — lo bueno y lo malo. Sin resultados verificables no hay confianza.",
     steps_title: "Empieza en 3 pasos",
@@ -172,7 +174,7 @@ const I18N = {
     update_status: "Actualizar estado",
     manage_subscription: "Gestionar suscripción",
     footer_disclaimer: "+18 · Juego responsable. Apostar conlleva riesgo de perder dinero. Este sitio ofrece análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados. Ningún modelo acierta siempre: jugamos para tener ventaja a largo plazo, no certezas por partido.",
-    footer_copyright: "ApuestaEdge © 2026 · Datos: The Odds API (o dataset de demostración)",
+    footer_copyright: "ApuestaEdge © 2026 · Datos de partidos y cuotas: The Odds API (solo eventos reales)",
     email_placeholder: "tu@correo.com",
     pw_placeholder: "Contraseña (mín. 8 caracteres)",
     loading_data: "Cargando datos…",
@@ -305,7 +307,9 @@ const I18N = {
     hit_rate_label: "Hit rate",
     breakeven_label: "breakeven",
     demo_mode: "Demo mode: sample matches and odds. Add ODDS_API_KEY to the environment for live data.",
-    live_odds: "✅ Live odds (The Odds API) updated every few minutes.",
+    live_odds: "✅ Live odds (The Odds API), refreshed every ~2 hours.",
+    live_cached: "⏳ Live data from the last saved snapshot; the API is not responding right now.",
+    no_live_data: "⚠️ No live data right now. We don't show invented events: check back in a few minutes.",
     matches_on_radar: "matches on the radar",
     hit_rate_table: "Hit rate",
     breakeven_table: "breakeven",
@@ -332,12 +336,12 @@ const I18N = {
     benefit1_desc: "Nothing enters the radar without positive expected value: if the odds don't beat what the market demands, we don't show it. No gut feelings.",
     benefit2_title: "💸 The «how much», calculated for you",
     benefit2_desc: "Each recommendation includes a suggested stake (automatically calculated with a 3% bankroll cap): automatic discipline, no guessing amounts.",
-    benefit3_title: "⚡ Picks ready every few minutes",
+    benefit3_title: "⚡ Picks ready every few hours",
     benefit3_desc: "Save hours of analysis: the radar processes all markets on its own and shows you what matters, with one-click sport filters.",
     benefit4_title: "📱 Instant Telegram alerts",
     benefit4_desc: "As soon as a new value entry appears you get a notification on your phone, with odds, stake and the why. No refreshing needed.",
-    benefit5_title: "🏅 9 sports, one radar",
-    benefit5_desc: "Soccer, basketball, tennis, American football, boxing, baseball, Formula 1, MotoGP and horse racing on one platform.",
+    benefit5_title: "🏅 7 sports, one radar",
+    benefit5_desc: "Soccer, basketball, tennis, American football, boxing, baseball and hockey on one platform, with real odds for every match.",
     benefit6_title: "📈 Public and auditable track record",
     benefit6_desc: "We publish ROI, CLV, drawdown and statistical test per sport — the good and the bad. Without verifiable results there is no trust.",
     steps_title: "Start in 3 steps",
@@ -357,7 +361,7 @@ const I18N = {
     update_status: "Update status",
     manage_subscription: "Manage subscription",
     footer_disclaimer: "+18 · Responsible gambling. Betting carries risk of losing money. This site offers statistical analysis for informational purposes; it is not financial advice or a guarantee of results. No model is always right: we play for long-term edge, not per-match certainty.",
-    footer_copyright: "ApuestaEdge © 2026 · Data: The Odds API (or demo dataset)",
+    footer_copyright: "ApuestaEdge © 2026 · Match & odds data: The Odds API (real events only)",
     email_placeholder: "you@email.com",
     pw_placeholder: "Password (min. 8 characters)",
     loading_data: "Loading data…",
@@ -784,11 +788,13 @@ async function loadStats() {
       $("#hs-p").textContent = num(perf.binomial_p_value, 3);
       $("#hs-bets").textContent = String(perf.bets);
     }
+    const src = health.source;
+    const note = src === "live" ? t("live_odds")
+      : src === "live_cached" ? t("live_cached")
+      : src === "unavailable" ? t("no_live_data")
+      : t("demo_mode");
     $("#source-note").textContent =
-      (health.source === "live"
-        ? t("live_odds")
-        : t("demo_mode")) +
-      ` · ${health.matches} ${t("matches_on_radar")}`;
+      note + ` · ${health.matches} ${t("matches_on_radar")}`;
   } catch { /* silencioso: el hero sigue siendo legible */ }
 }
 

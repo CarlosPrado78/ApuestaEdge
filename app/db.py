@@ -99,6 +99,11 @@ CREATE TABLE IF NOT EXISTS login_tokens (
     request_ip TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_login_tokens_email ON login_tokens(email);
+CREATE TABLE IF NOT EXISTS kv (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at REAL NOT NULL
+);
 """
 
 # Equivalente para PostgreSQL (mismas tablas y columnas).
@@ -155,6 +160,11 @@ CREATE TABLE IF NOT EXISTS login_tokens (
     request_ip TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_login_tokens_email ON login_tokens(email);
+CREATE TABLE IF NOT EXISTS kv (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at DOUBLE PRECISION NOT NULL
+);
 """
 
 # Columnas añadidas con el tiempo (migración ligera para BD ya creadas).
@@ -300,6 +310,34 @@ def _migrate(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_users_tg_chat "
                  "ON users(telegram_chat_id)")
     conn.commit()
+
+
+def kv_set(key: str, value: str) -> None:
+    """Guarda un valor texto (p. ej. el último parte de cuotas en vivo)."""
+    conn = connect()
+    try:
+        conn.execute(
+            "INSERT INTO kv (key, value, updated_at) VALUES (?,?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value, "
+            "updated_at = excluded.updated_at",
+            (key, value, time.time()))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def kv_get(key: str) -> tuple[str, float] | None:
+    """Lee un valor guardado con :func:`kv_set`; ``None`` si no existe."""
+    conn = connect()
+    try:
+        row = conn.execute(
+            "SELECT value, updated_at FROM kv WHERE key = ?",
+            (key,)).fetchone()
+        if row is None:
+            return None
+        return row["value"], float(row["updated_at"])
+    finally:
+        conn.close()
 
 
 def seed_history(conn: sqlite3.Connection) -> int:

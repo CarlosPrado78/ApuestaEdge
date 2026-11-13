@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import json
 import os
 import time
 from contextlib import asynccontextmanager, suppress
@@ -60,20 +61,82 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Cache corto para no repetir llamadas a la API de cuotas.
-_CACHE: dict = {"ts": 0.0, "matches": None, "source": None}
-CACHE_TTL = 120.0
+# Cache para no repetir llamadas a la API de cuotas (cada llamada cuesta
+# créditos: ver config.MATCHES_CACHE_TTL).
+_CACHE: dict = {"ts": 0.0, "matches": None, "source": None, "updated_at": 0.0}
+CACHE_TTL = config.MATCHES_CACHE_TTL
+
+# Último parte real guardado en la BD: sobrevive a cortes de cuota o de
+# red sin caer en eventos de demostración.
+_SNAPSHOT_KEY = "live_matches_snapshot"
+_SNAPSHOT_MAX_AGE = 7 * 24 * 3600.0  # 7 días: más allá, caduca
+
+
+def _save_live_snapshot(matches: list[dict]) -> None:
+    try:
+        db.kv_set(_SNAPSHOT_KEY, json.dumps(
+            {"ts": time.time(), "matches": matches}, ensure_ascii=False))
+    except Exception as exc:  # noqa: BLE001 - el respaldo es best-effort
+        print(f"[apuesta_edge] no se pudo guardar el parte en vivo: {exc}")
+
+
+def _load_live_snapshot() -> tuple[list[dict], str, float] | None:
+    """Último parte real, sin eventos que ya hayan empezado."""
+    try:
+        row = db.kv_get(_SNAPSHOT_KEY)
+        if not row:
+            return None
+        payload = json.loads(row[0])
+        ts = float(payload.get("ts", 0.0))
+        if not ts or time.time() - ts > _SNAPSHOT_MAX_AGE:
+            return None
+        cutoff = time.time() - 3600.0  # se descartan eventos ya iniciados
+        fresh = [m for m in payload.get("matches", [])
+                 if _commence_ts(m.get("commence_time", "")) > cutoff]
+        if not fresh:
+            return None
+        return fresh, "live_cached", ts
+    except Exception:  # noqa: BLE001 - respaldo best-effort
+        return None
+
+
+def _commence_ts(iso: str) -> float:
+    try:
+        return dt.datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp()
+    except (ValueError, AttributeError):
+        return 0.0
 
 
 def _get_matches() -> tuple[list[dict], str]:
     now = time.time()
-    if _CACHE["matches"] is None or now - _CACHE["ts"] > CACHE_TTL:
+    ttl = CACHE_TTL
+    # Con la cuota casi agotada se refresca menos para no quedarse sin
+    # créditos antes del día 1.
+    quota = providers.LAST_DIAG.get("quota_remaining")
+    if isinstance(quota, int) and 0 < quota < config.QUOTA_SOFT_FLOOR:
+        ttl = max(ttl, 6 * 3600.0)
+    if _CACHE["matches"] is None or now - _CACHE["ts"] > ttl:
         matches, source = providers.get_matches()
+        updated_at = now
+        if source == "error":
+            # Sin datos en vivo: último parte real guardado, si existe.
+            snapshot = _load_live_snapshot()
+            if snapshot:
+                matches, source, updated_at = snapshot
+            elif config.ALLOW_SAMPLE_DATA:
+                matches, source = providers.load_sample_matches(), "sample"
+            else:
+                # Nunca eventos inventados en producción: se indica
+                # explícitamente que no hay datos en vivo.
+                matches, source = [], "unavailable"
+        elif source == "live":
+            _save_live_snapshot(matches)
         # Deportes ocultos temporalmente (sin datos reales) fuera del radar.
         if config.HIDDEN_SPORTS:
             matches = [m for m in matches
                        if m.get("sport_group") not in config.HIDDEN_SPORTS]
-        _CACHE.update(ts=now, matches=matches, source=source)
+        _CACHE.update(ts=now, matches=matches, source=source,
+                      updated_at=updated_at)
     return _CACHE["matches"], _CACHE["source"]
 
 
@@ -104,6 +167,8 @@ def health() -> dict:
     # Render expone el commit desplegado: permite verificar qué versión corre.
     commit = (os.environ.get("RENDER_GIT_COMMIT") or "")[:7]
     return {"status": "ok", "matches": len(matches), "source": source,
+            "source_updated_at": _CACHE.get("updated_at") or None,
+            "allow_sample": config.ALLOW_SAMPLE_DATA,
             "live_api_key": bool(config.ODDS_API_KEY),
             "odds_api": dict(providers.LAST_DIAG),
             "billing": "stripe" if billing.stripe_enabled() else "demo",

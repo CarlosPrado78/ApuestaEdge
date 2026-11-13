@@ -28,13 +28,22 @@ HISTORY_PATH = asset_path("history.json")
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 
 # Deportes soportados en la API externa (The Odds API).
+# Notas de cobertura (verificado 2026-11):
+#  - ``tennis_atp`` NO existe: los torneos son claves individuales
+#    (``tenis_atp_*``/``tenis_wta_*``) y se descubren en vivo desde el
+#    endpoint gratuito ``/sports`` (solo torneos en temporada).
+#  - ``americanfootball_ncaa_fbs`` NO existe (404 UNKNOWN_SPORT);
+#    la clave real es ``americanfootball_ncaaf``.
+#  - The Odds API no cubre F1, MotoGP ni carreras de caballos -> esos
+#    grupos no se piden nunca (sin eventos inventados en el radar).
 ODDS_API_SPORTS = {
     "soccer": ["soccer_epl", "soccer_spain_la_liga", "soccer_mexico_ligamx",
-               "soccer_italy_serie_a"],
+               "soccer_italy_serie_a", "soccer_germany_bundesliga",
+               "soccer_france_ligue_one"],
     "basketball": ["basketball_nba"],
-    "tennis": ["tennis_atp"],
+    "tennis": [],   # torneos en temporada: descubrimiento dinámico
     # Fútbol americano: NFL (temporada regular + playoffs) y NCAA FBS.
-    "americanfootball": ["americanfootball_nfl", "americanfootball_ncaa_fbs"],
+    "americanfootball": ["americanfootball_nfl", "americanfootball_ncaaf"],
     # Boxeo y béisbol: mercados h2h con cobertura en vivo.
     "boxing": ["boxing_boxing"],
     "baseball": ["baseball_mlb"],
@@ -55,8 +64,35 @@ DEMO_ONLY_SPORTS = ("formula1", "motogp", "horseracing")
 # (evita presentar eventos demo como si fueran cartelera real).
 # Quitar de esta tupla cuando se conecte un proveedor en vivo para ellos.
 HIDDEN_SPORTS = OUTRIGHT_GROUPS
-ODDS_API_REGION = os.environ.get("ODDS_API_REGION", "eu")
+ODDS_API_REGION = os.environ.get("ODDS_API_REGION", "us,eu")
 ODDS_API_TIMEOUT = float(os.environ.get("ODDS_API_TIMEOUT", "12"))
+
+# Caducidad de la caché de partidos en memoria. Cada refresco cuesta
+# créditos (deportes × regiones), así que en producción se refresca como
+# mucho cada 2 horas (~11K créditos/mes del plan 20K). Sin clave (demo
+# local) el refresco es inmediato porque no consume créditos.
+_MATCHES_TTL_DEFAULT = "7200" if ODDS_API_KEY else "120"
+MATCHES_CACHE_TTL = float(os.environ.get("MATCHES_CACHE_TTL",
+                                         _MATCHES_TTL_DEFAULT))
+
+# ¿Se puede caer al dataset de demostración? Por defecto solo cuando NO
+# hay clave de The Odds API (desarrollo local). Con clave configurada la
+# página jamás muestra eventos inventados: o hay datos reales (o el
+# último parte real guardado) o se indica "sin datos".
+def _allow_sample_default() -> bool:
+    value = os.environ.get("ALLOW_SAMPLE_DATA", "").strip().lower()
+    if value in ("1", "true", "yes"):
+        return True
+    if value in ("0", "false", "no"):
+        return False
+    return not ODDS_API_KEY
+
+
+ALLOW_SAMPLE_DATA = _allow_sample_default()
+
+# Si The Odds API reporta menos créditos que este umbral, la caché se
+# extiende para no agotar la cuota antes de fin de mes.
+QUOTA_SOFT_FLOOR = int(os.environ.get("ODDS_QUOTA_SOFT_FLOOR", "2000"))
 
 # Parámetros de recomendación por plan.
 PLANS = {

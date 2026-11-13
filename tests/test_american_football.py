@@ -22,7 +22,9 @@ def test_config_includes_nfl_and_ncaa():
     from app import config
     keys = config.ODDS_API_SPORTS["americanfootball"]
     assert "americanfootball_nfl" in keys
-    assert "americanfootball_ncaa_fbs" in keys
+    # Clave real de The Odds API: "ncaa_fbs" devuelve 404 UNKNOWN_SPORT.
+    assert "americanfootball_ncaaf" in keys
+    assert "americanfootball_ncaa_fbs" not in keys
 
 
 def test_sample_data_has_nfl_matches():

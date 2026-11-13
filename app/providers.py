@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any
 
 import httpx
@@ -123,10 +124,81 @@ def _map_h2h_outcomes(outcomes: list[dict], home: str, away: str,
 LAST_DIAG: dict[str, Any] = {}
 
 
-def fetch_live_matches() -> tuple[list[dict], str]:
+# Descubrimiento de deportes en temporada (endpoint gratuito /sports,
+# no consume créditos). Se usa para no pedir torneos fuera de temporada
+# (ahorra créditos) y para localizar los torneos de tenis, que son claves
+# individuales (no existe "tennis_atp" genérico).
+_IN_SEASON_CACHE: dict[str, Any] = {"ts": 0.0, "keys": set()}
+IN_SEASON_TTL = 6 * 3600.0
+
+
+def in_season_keys(client) -> set[str]:
+    """Claves de deportes en temporada; vacío si la consulta falla."""
+    now = time.time()
+    cached = _IN_SEASON_CACHE["keys"]
+    if cached and now - _IN_SEASON_CACHE["ts"] < IN_SEASON_TTL:
+        return cached
+    try:
+        resp = client.get("/sports", params={"apiKey": config.ODDS_API_KEY})
+        if resp.status_code != 200:
+            log.warning("The Odds API /sports -> HTTP %s", resp.status_code)
+            return cached
+        keys = {s.get("key") for s in resp.json() if s.get("key")}
+        _IN_SEASON_CACHE.update(ts=now, keys=keys)
+        return keys
+    except Exception as exc:  # noqa: BLE001 - sin descubrimiento seguimos
+        log.warning("No se pudo listar deportes en temporada (%s)", exc)
+        return cached
+
+
+def plan_keys(in_season: set[str]) -> list[tuple[str, list[str]]]:
+    """Decide qué claves pedir por grupo.
+
+    - Fuera de ``in_season`` no se piden (ahorra créditos y evita
+      eventos vacíos). Si el descubrimiento falló (``in_season`` vacío)
+      se usan las claves configuradas como respaldo.
+    - El tenis se descubre: todos los torneos ``tennis_atp_*``/
+      ``tennis_wta_*`` en temporada.
+    """
+    out: list[tuple[str, list[str]]] = []
+    for group, keys in config.ODDS_API_SPORTS.items():
+        if in_season:
+            selected = [k for k in keys if k in in_season]
+            if group == "tennis":
+                selected += sorted(
+                    k for k in in_season
+                    if k.startswith(("tennis_atp_", "tennis_wta_")))
+        else:
+            selected = list(keys)
+        if selected:
+            out.append((group, selected))
+    return out
+
+
+def _track_quota(resp) -> None:
+    """Registra el consumo de créditos reportado por la API (cabeceras)."""
+    remaining = resp.headers.get("x-requests-remaining")
+    used = resp.headers.get("x-requests-used")
+    if remaining is not None:
+        try:
+            LAST_DIAG["quota_remaining"] = int(remaining)
+        except ValueError:
+            pass
+    if used is not None:
+        try:
+            LAST_DIAG["quota_used"] = int(used)
+        except ValueError:
+            pass
+
+
+def fetch_live_matches() -> tuple[list[dict] | None, str]:
     """Obtiene cuotas en vivo. Devuelve ``(matches, fuente)``.
 
-    Si no hay clave o la llamada falla, devuelve la demo y lo indica.
+    - Sin clave -> dataset de demostración (solo desarrollo local).
+    - Con clave -> solo datos reales. Cualquier fallo devuelve
+      ``(None, "error")`` para que el llamador use el último parte real
+      guardado (o indique "sin datos"). JAMÁS se mezclan eventos de
+      demostración con datos en vivo.
     """
     if not config.ODDS_API_KEY:
         LAST_DIAG.clear()
@@ -140,7 +212,9 @@ def fetch_live_matches() -> tuple[list[dict], str]:
     try:
         with httpx.Client(base_url="https://api.the-odds-api.com/v4",
                           timeout=config.ODDS_API_TIMEOUT) as client:
-            for group, keys in config.ODDS_API_SPORTS.items():
+            in_season = in_season_keys(client)
+            LAST_DIAG["in_season_keys"] = len(in_season)
+            for group, keys in plan_keys(in_season):
                 for key in keys:
                     resp = client.get(
                         f"/sports/{key}/odds",
@@ -148,6 +222,7 @@ def fetch_live_matches() -> tuple[list[dict], str]:
                                 "regions": config.ODDS_API_REGION,
                                 "markets": "h2h",
                                 "oddsFormat": "decimal"})
+                    _track_quota(resp)
                     status_by_key[key] = resp.status_code
                     if resp.status_code != 200:
                         body = resp.text[:160]
@@ -159,13 +234,22 @@ def fetch_live_matches() -> tuple[list[dict], str]:
                         home, away = ev.get("home_team"), ev.get("away_team")
                         if not home or not away:
                             continue
+                        # Solo partidos que el modelo puede evaluar: si
+                        # falta el rating de alguno de los dos lados no se
+                        # publica (evita "valor" falso con rating plano).
+                        elo_home = ratings.get(home)
+                        elo_away = ratings.get(away)
+                        if elo_home is None or elo_away is None:
+                            LAST_DIAG["skipped_no_rating"] = (
+                                LAST_DIAG.get("skipped_no_rating", 0) + 1)
+                            continue
                         bookmakers = []
                         for bm in ev.get("bookmakers", []):
                             for mk in bm.get("markets", []):
                                 if mk.get("key") != "h2h":
                                     continue
-                                odds = _map_h2h_outcomes(mk.get("outcomes", []),
-                                                         home, away, group)
+                                odds = _map_h2h_outcomes(
+                                    mk.get("outcomes", []), home, away, group)
                                 if odds:
                                     bookmakers.append({
                                         "key": bm.get("key", ""),
@@ -177,29 +261,27 @@ def fetch_live_matches() -> tuple[list[dict], str]:
                             "id": ev.get("id", f"{key}-{home}-{away}"),
                             "sport_key": key,
                             "sport_group": group,
-                            "league": (ev.get("sport_key") or key).replace("_", " ").title(),
+                            "league": (ev.get("sport_title") or key
+                                       ).replace("_", " "),
                             "commence_time": ev.get("commence_time", ""),
                             "home_team": home,
                             "away_team": away,
+                            "elo_home": float(elo_home),
+                            "elo_away": float(elo_away),
                             "bookmakers": bookmakers,
                             "source": "live",
                         }
-                        _attach_ratings(match, ratings)
                         matches.append(match)
-    except Exception as exc:  # noqa: BLE001 - cualquier fallo usa la demo
+    except Exception as exc:  # noqa: BLE001 - el llamador usa el respaldo
         LAST_DIAG["reason"] = f"exception: {exc}"
-        log.warning("Fallo al consultar The Odds API (%s); usando dataset demo", exc)
-        return load_sample_matches(), "sample"
+        log.warning("Fallo al consultar The Odds API (%s)", exc)
+        return None, "error"
     LAST_DIAG["events_with_odds"] = len(matches)
     if not matches:
         LAST_DIAG.setdefault("reason", "no_events_with_odds")
-        return load_sample_matches(), "sample"
-    # Deportes sin cobertura en vivo (outright demo o fuera de temporada):
-    # se completan con el dataset de demostración para no perderlos del radar.
-    grupos_vivos = {m["sport_group"] for m in matches}
-    for m in load_sample_matches():
-        if m["sport_group"] not in grupos_vivos:
-            matches.append(m)
+        return None, "error"
+    # Sin relleno de demostración: los deportes sin eventos en vivo
+    # simplemente no aparecen hasta que los haya de verdad.
     return matches, "live"
 
 
