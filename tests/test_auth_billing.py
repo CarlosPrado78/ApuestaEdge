@@ -495,3 +495,30 @@ def test_subscription_endpoint_repairs_missing_period_end(client, monkeypatch):
     finally:
         conn.close()
     assert row["sub_current_period_end"] == 1900000000
+
+
+# ------------------------------------------------- plan Free y prueba de 7 días
+def test_free_plan_is_one_pick_per_day_and_seven_day_history():
+    from app import config
+    free = config.PLANS["free"]
+    premium = config.PLANS["premium"]
+    assert free["max_picks"] == 1
+    assert free["history_days"] == 7
+    assert premium["history_days"] is None
+    assert premium["price_usd"] == 29
+
+
+def test_checkout_payload_has_29_and_cardless_trial():
+    data = billing.checkout_payload("ana@test.com", "https://example.com")
+    assert data["line_items[0][price_data][unit_amount]"] == "2900"
+    assert data["line_items[0][price_data][recurring][interval]"] == "month"
+    assert data["subscription_data[trial_period_days]"] == "7"
+    assert data["payment_method_collection"] == "if_required"
+    assert data["metadata[email]"] == "ana@test.com"
+
+
+def test_free_plan_serves_at_most_one_pick(client):
+    body = client.get("/api/recommendations?plan=free").json()
+    assert body["count"] <= 1
+    if body["count"]:
+        assert body["picks"][0]["edge"] >= body["min_edge"]

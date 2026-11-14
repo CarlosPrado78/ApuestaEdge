@@ -964,6 +964,7 @@ def ledger_summary() -> dict:
 
 @app.get("/api/ledger/picks")
 def ledger_picks(
+    request: Request,
     league: str | None = None,
     sport: str | None = None,
     edge_min: float | None = Query(None, ge=0.0, le=0.5),
@@ -976,13 +977,27 @@ def ledger_picks(
     offset: int = Query(0, ge=0),
     format: str = Query("json", pattern="^(json|csv)$"),
 ):
-    """Registro completo, filtrable y exportable a CSV (con hashes)."""
+    """Registro filtrable (JSON o CSV).
+
+    El plan Free y los visitantes ven los últimos 7 días; Premium ve el
+    archivo completo. La verificación y el paquete de hashes siguen siendo
+    públicos para cualquiera: el límite es de navegación, no de auditoría.
+    """
+    premium = auth.is_premium(request)
+    history_days = (None if premium
+                    else config.PLANS["free"]["history_days"])
+    cutoff = (time.time() - history_days * 86400
+              if history_days else None)
+
+    from_ts = _day_ts(date_from)
+    if cutoff is not None:
+        from_ts = cutoff if from_ts is None else max(from_ts, cutoff)
     conn = db.connect()
     try:
         rows, total = db.ledger_pick_rows(
             conn, league=league, sport=sport, edge_min=edge_min,
             edge_max=edge_max, market=market, result=result,
-            date_from=_day_ts(date_from), date_to=_day_ts(date_to, end=True),
+            date_from=from_ts, date_to=_day_ts(date_to, end=True),
             limit=limit, offset=offset)
         data = [_pick_public(r) for r in rows]
         if format == "csv":
@@ -1005,8 +1020,12 @@ def ledger_picks(
                 content="\ufeff" + buf.getvalue(),
                 media_type="text/csv; charset=utf-8",
                 headers={"Content-Disposition":
-                         f'attachment; filename="{filename}"'})
-        return {"total": total, "count": len(data), "picks": data}
+                         f'attachment; filename="{filename}"',
+                         "X-History-Days": str(history_days or 0),
+                         "X-History-Limited": str(bool(history_days)).lower()})
+        return {"total": total, "count": len(data), "picks": data,
+                "history_days": history_days,
+                "history_limited": bool(history_days)}
     finally:
         conn.close()
 

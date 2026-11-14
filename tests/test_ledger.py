@@ -415,3 +415,43 @@ def test_model_page_explains_the_auditable_logic(client):
     versions = client.get("/api/ledger/versions").json()
     assert versions["current"]
     assert isinstance(versions["versions"], list)
+
+
+# ------------------------------------------- archivo: Free 7 días / Premium todo
+def test_free_history_is_limited_to_seven_days(client):
+    conn = _conn()
+    try:
+        ledger.append_pick(conn, _pick(
+            match_id="old-1", odds=1.91,
+            commence_time="2026-10-01T20:00:00Z"))
+        ledger.append_pick(conn, _pick(
+            match_id="recent-1", odds=2.05,
+            commence_time="2026-11-20T20:00:00Z"))
+    finally:
+        conn.close()
+
+    free = client.get("/api/ledger/picks").json()
+    assert free["history_limited"] is True and free["history_days"] == 7
+    assert [round(p["bet_odds"], 2) for p in free["picks"]] == [2.05]
+
+    # Un filtro explícito anterior tampoco salta el límite.
+    old = client.get("/api/ledger/picks?date_from=2026-09-01").json()
+    assert old["total"] == 1
+    assert round(old["picks"][0]["bet_odds"], 2) == 2.05
+
+    # Premium ve el archivo completo.
+    email = "archivo@test.com"
+    client.post("/api/auth/register",
+                json={"email": email, "password": "secret123"})
+    token = client.post("/api/auth/login",
+                        json={"email": email,
+                              "password": "secret123"}).json()["token"]
+    conn = _conn()
+    try:
+        db.set_user_plan(conn, email, "premium")
+    finally:
+        conn.close()
+    full = client.get("/api/ledger/picks",
+                      headers={"Authorization": f"Bearer {token}"}).json()
+    assert full["history_limited"] is False and full["history_days"] is None
+    assert full["total"] == 2

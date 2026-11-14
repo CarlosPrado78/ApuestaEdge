@@ -100,18 +100,19 @@ PLANS = {
         "name": "Free",
         "price_usd": 0,
         "min_edge": 0.06,      # exige al menos +6% de edge
-        "max_picks": 5,        # muestra curada: 2+2+1 por demanda
+        "max_picks": 1,        # 1 pick al día
+        "history_days": 7,     # archivo visible: últimos 7 días
         "full_analysis": False,
         "features": [
-            "5 selecciones diarias con edge ≥ 6%",
-            "Probabilidad modelo vs mercado",
-            "ROI público histórico",
+            "1 pick diario con edge ≥ 6%",
+            "Historial de los últimos 7 días",
+            "Resultado público verificable",
         ],
         "name_en": "Free",
         "features_en": [
-            "5 daily selections with edge ≥ 6%",
-            "Model vs market probability",
-            "Public historical ROI",
+            "1 daily pick with edge ≥ 6%",
+            "Last 7 days of history",
+            "Public, verifiable results",
         ],
     },
     "premium": {
@@ -119,11 +120,13 @@ PLANS = {
         "price_usd": 29,
         "min_edge": 0.03,      # exige al menos +3% de edge
         "max_picks": 20,       # todas las selecciones con valor
+        "history_days": None,  # archivo completo
         "full_analysis": True,
         "features": [
             "Todas las selecciones con edge ≥ 3%",
             "Stake Kelly fraccional y confianza estadística",
             "Explicación completa del modelo en cada pick",
+            "Archivo completo del registro (sin límite de 7 días)",
             "Métricas CLV, drawdown y test binomial por liga",
             "Alertas cuando aparece valor nuevo",
         ],
@@ -132,6 +135,7 @@ PLANS = {
             "All selections with edge ≥ 3%",
             "Fractional Kelly stake and statistical confidence",
             "Full model explanation on every pick",
+            "Complete ledger archive (no 7-day limit)",
             "CLV, drawdown and binomial test metrics per league",
             "Alerts when new value appears",
         ],

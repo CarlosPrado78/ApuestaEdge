@@ -49,6 +49,9 @@ const I18N = {
     empty_filtered_title: "Ningún pick coincide con estos filtros",
     empty_filtered_body: "Prueba con un rango de fechas más amplio o quita algún filtro. No ocultamos filas: simplemente no hay coincidencias.",
     count_showing: "Mostrando {shown} de {total} picks.",
+    history_free: "Vista gratuita: últimos {days} días del archivo. Premium abre el archivo completo; la verificación y el paquete de hashes siguen abiertos para cualquiera.",
+    history_full: "Archivo completo desbloqueado (Premium).",
+    history_cta: "Ver Premium",
     count_empty: "0 picks publicados todavía.",
     count_none: "0 coincidencias.",
     detail_more: "Más datos",
@@ -100,6 +103,9 @@ const I18N = {
     empty_filtered_title: "No picks match these filters",
     empty_filtered_body: "Try a wider date range or remove a filter. We do not hide rows: there are simply no matches.",
     count_showing: "Showing {shown} of {total} picks.",
+    history_free: "Free view: last {days} days of the archive. Premium opens the full archive; verification and the hash package remain open to anyone.",
+    history_full: "Full archive unlocked (Premium).",
+    history_cta: "See Premium",
     count_empty: "0 picks published yet.",
     count_none: "0 matches.",
     detail_more: "More details",
@@ -361,6 +367,18 @@ function renderEmpty() {
   $("#empty-reset").hidden = !filtered;
 }
 
+function renderHistory(data) {
+  const el = $("#ledger-history");
+  if (!el) return;
+  el.hidden = false;
+  if (data.history_limited) {
+    el.innerHTML = esc(fill("history_free", { days: data.history_days })) +
+      ` <a href="/#precios">${esc(t("history_cta"))}</a>`;
+  } else {
+    el.textContent = t("history_full");
+  }
+}
+
 function renderCount(total) {
   const el = $("#ledger-count");
   if (!el) return;
@@ -383,6 +401,7 @@ async function loadPicks({ append = false } = {}) {
     state.loadedOnce = true;
     renderRows();
     renderCount(data.total);
+    renderHistory(data);
   } catch (e) {
     state.rows = [];
     $("#ledger-table-wrap").hidden = true;

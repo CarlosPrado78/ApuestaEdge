@@ -46,14 +46,16 @@ def stripe_enabled() -> bool:
     return bool(stripe_secret())
 
 
+TRIAL_DAYS = int(os.environ.get("STRIPE_TRIAL_DAYS", "7"))
+
+
 def premium_cents() -> int:
     return int(config.PLANS["premium"]["price_usd"] * 100)
 
 
-async def create_checkout(email: str, origin: str,
-                          timeout: float = 15.0) -> str:
-    """Sesión de Checkout de Stripe para el plan Premium (1 mes)."""
-    data = {
+def checkout_payload(email: str, origin: str) -> dict[str, str]:
+    """Parámetros de la sesión de Checkout: $29/mes con 7 días sin tarjeta."""
+    return {
         "mode": "subscription",
         "customer_email": email,
         "client_reference_id": email,
@@ -67,11 +69,22 @@ async def create_checkout(email: str, origin: str,
         "success_url": f"{origin}/?suscripcion=ok&session_id={{CHECKOUT_SESSION_ID}}",
         "cancel_url": f"{origin}/#precios",
         "metadata[email]": email,
+        # Prueba de 7 días sin tarjeta: Stripe no pide método de pago hasta
+        # que termina el trial. Al día 8, si no hay tarjeta, no se cobra y la
+        # cuenta vuelve a Free.
+        "payment_method_collection": "if_required",
+        "subscription_data[trial_period_days]": str(TRIAL_DAYS),
         # El email viaja también en la suscripción: los eventos de ciclo de
         # vida (updated/deleted) lo traen en metadata y así podemos
         # localizar al usuario aunque no guardemos el customer id.
         "subscription_data[metadata][email]": email,
     }
+
+
+async def create_checkout(email: str, origin: str,
+                          timeout: float = 15.0) -> str:
+    """Sesión de Checkout de Stripe para el plan Premium (1 mes)."""
+    data = checkout_payload(email, origin)
     async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.post(
             f"{STRIPE_API}/checkout/sessions",
