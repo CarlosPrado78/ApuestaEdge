@@ -118,11 +118,16 @@
   <div id="plan-banner" class="plan-banner" hidden></div>
   <div id="picks-list" class="picks"><p class="muted">Cargando picks…</p></div>
   <div class="pick-mock-demo" style="margin-top:16px;padding:12px 16px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)">
-    <p class="small-note muted" style="margin:0 0 8px">Demo: pick de ejemplo con hash verificable</p>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <p class="small-note muted" style="margin:0">Demo: pick de ejemplo con hash verificable</p>
+      <span class="demo-badge">Demo</span>
+    </div>
     <div class="pick-mock-row"><strong>Evento:</strong> Lakers vs Celtics · <strong>Cuota:</strong> 1.85 · <strong>Edge:</strong> +4.2%</div>
     <div class="pick-mock-hash" style="margin-top:6px">
       <span class="hash-label">Hash:</span>
       <code class="hash-value">a3f9c2e1...c1d2</code>
+      <button class="btn small primary" onclick="alert('Demo: la verificación estará operativa en el lanzamiento.')">Verificar</button>
+      <a class="btn small ghost" href="https://opentimestamps.org" target="_blank" rel="noopener noreferrer">OpenTimestamps</a>
     </div>
   </div>
 </section>
@@ -160,7 +165,7 @@
 </section>
 
 <section id="edge-realizado" class="wrap section">
-  <h2 data-i18n="f5_title">Edge realizado vs. edge publicado</h2>
+  <h2 data-i18n="int_edge_title">Edge realizado vs. publicado</h2>
   <p class="sub" data-i18n="f5_note">Demo: datos de ejemplo. Verde = realizado mayor. Rojo = realizado menor.</p>
   <div class="table-wrap">
     <table class="ledger-table">
@@ -178,7 +183,7 @@
 
 <section id="montecarlo" class="section band">
   <div class="wrap">
-    <h2 data-i18n="f6_title">Riesgo de la estrategia — Simulación Monte Carlo</h2>
+    <h2 data-i18n="int_risk_title">Riesgo de la estrategia</h2>
     <span class="demo-badge" style="margin-bottom:12px;display:inline-block">Demo</span>
     <p class="sub" data-i18n="f6_copy">Si nos hubieras seguido durante 500 picks con bankroll de 100 unidades y Kelly 1/4, en el 10% de los escenarios peores habrías terminado con 4.14 unidades; en el escenario mediano, con 8.51; en el 10% mejor, con 17.80.</p>
     <div class="mc-cards">
@@ -233,7 +238,7 @@
   </div>
 
   <div class="panel mt" id="equipo-home">
-    <h3 data-i18n="f7_title">Quién está detrás</h3>
+    <h3 data-i18n="int_team_title">Quién está detrás</h3>
     <div class="team-mock">
       <div class="team-avatar">CP</div>
       <div>
@@ -296,7 +301,7 @@
 </section>
 
 <section id="changelog" class="wrap section">
-  <h2 data-i18n="f8_title">Historial del modelo</h2>
+  <h2 data-i18n="int_changelog_title">Historial del modelo</h2>
   <div class="panel">
     <div class="changelog-entry">
       <span class="changelog-date">13 nov 2026</span>
@@ -310,7 +315,7 @@
 
 <section id="comunidad" class="section band">
   <div class="wrap" style="text-align:center">
-    <h2 data-i18n="f9_title">Comunidad</h2>
+    <h2 data-i18n="int_community_title">Comunidad</h2>
     <p class="sub" style="margin:0 auto 16px" data-i18n="f9_copy">Únete a la comunidad en Telegram. Discute picks, reporta errores y propone mejoras.</p>
     <a class="btn primary" href="https://t.me/apuestaedge" target="_blank" rel="noopener noreferrer" data-i18n="f9_cta">Unirse a la comunidad (Telegram)</a>
     <p class="small-note muted" data-i18n="f9_note">En construcción: el grupo se abrirá en el lanzamiento.</p>
