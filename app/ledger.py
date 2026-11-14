@@ -105,12 +105,20 @@ def append_pick(conn, rec: dict, *, created_at: float | None = None,
     Un evento ya publicado no se puede "re-elegir" aunque la cuota mejore:
     eso sería reescribir el pasado.
     """
+    _created_at = time.time() if created_at is None else float(created_at)
+    _event_start = _iso_ts(rec.get("commence_time"))
+    # Validación anti-retroactivo: created_at no puede ser posterior a
+    # event_start. Si lo fuera, el pick fue insertado retroactivamente.
+    if _event_start is not None and _created_at > _event_start:
+        raise ValueError(
+            "created_at posterior a event_start: pick retroactivo rechazado "
+            f"({_created_at} > {_event_start})")
     values = {
         "pick_key": str(rec["match_id"]),
         "event_id": str(rec["match_id"]),
         "sport_key": str(rec.get("sport_key") or rec.get("sport", "")),
-        "created_at": time.time() if created_at is None else float(created_at),
-        "event_start": _iso_ts(rec.get("commence_time")),
+        "created_at": _created_at,
+        "event_start": _event_start,
         "sport": str(rec.get("sport", "")),
         "league": str(rec.get("league_raw") or rec.get("league", "")),
         "event": str(rec.get("event") or

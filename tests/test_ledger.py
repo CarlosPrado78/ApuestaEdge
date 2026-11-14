@@ -429,10 +429,12 @@ def test_free_history_is_limited_to_seven_days(client):
     try:
         ledger.append_pick(conn, _pick(
             match_id="old-1", odds=1.91,
-            commence_time="2026-10-01T20:00:00Z"))
+            commence_time="2026-10-01T20:00:00Z"),
+            created_at=1700000000.0)
         ledger.append_pick(conn, _pick(
             match_id="recent-1", odds=2.05,
-            commence_time="2026-11-20T20:00:00Z"))
+            commence_time="2026-11-20T20:00:00Z"),
+            created_at=1700000001.0)
     finally:
         conn.close()
 

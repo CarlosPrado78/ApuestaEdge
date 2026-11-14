@@ -298,6 +298,14 @@ BEFORE DELETE ON pick_results
 BEGIN
     SELECT RAISE(ABORT, 'pick_results is append-only: DELETE not allowed');
 END;
+
+-- Trigger anti-retroactivo: created_at no puede ser posterior a event_start.
+CREATE TRIGGER IF NOT EXISTS picks_created_before_start
+BEFORE INSERT ON picks
+WHEN NEW.event_start IS NOT NULL AND NEW.created_at > NEW.event_start
+BEGIN
+    SELECT RAISE(ABORT, 'picks: created_at posterior a event_start (retroactivo)');
+END;
 """
 
 # Equivalente para PostgreSQL (mismas tablas y columnas).
@@ -668,6 +676,22 @@ def _migrate_postgres(conn: _PostgresConnection) -> None:
                  "ON users(link_code)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_users_tg_chat "
                  "ON users(telegram_chat_id)")
+    # Trigger anti-retroactivo
+    conn.execute("""CREATE OR REPLACE FUNCTION prevent_retroactive_pick()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            IF NEW.event_start IS NOT NULL AND NEW.created_at > NEW.event_start THEN
+                RAISE EXCEPTION 'picks: created_at posterior a event_start (retroactivo)';
+            END IF;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;""")
+    conn.execute("""DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'picks_created_before_start') THEN
+            CREATE TRIGGER picks_created_before_start BEFORE INSERT ON picks
+                FOR EACH ROW EXECUTE FUNCTION prevent_retroactive_pick();
+        END IF;
+    END $$;""")
     # Append-only triggers
     conn.execute("""CREATE OR REPLACE FUNCTION prevent_modify_append_only()
         RETURNS TRIGGER AS $$
@@ -723,6 +747,13 @@ def _migrate(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_users_tg_chat "
                  "ON users(telegram_chat_id)")
     # Append-only triggers
+    # Trigger anti-retroactivo
+    conn.execute("""CREATE TRIGGER IF NOT EXISTS picks_created_before_start
+        BEFORE INSERT ON picks
+        WHEN NEW.event_start IS NOT NULL AND NEW.created_at > NEW.event_start
+        BEGIN
+            SELECT RAISE(ABORT, 'picks: created_at posterior a event_start (retroactivo)');
+        END;""")
     for table in ("picks", "pick_closings", "pick_results"):
         conn.execute(f"""CREATE TRIGGER IF NOT EXISTS {table}_no_update
             BEFORE UPDATE ON {table}
