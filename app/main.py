@@ -115,6 +115,9 @@ async def lifespan(_app: FastAPI):
     """Arranque: historial demo + bot de Telegram (si hay token)."""
     conn = db.connect()
     try:
+        # Cupo de la beta cerrada: se replica en la BD para que el trigger
+        # ``users_beta_cap`` lo aplique también a nivel de base de datos.
+        db.ensure_beta_cap(conn)
         if config.ALLOW_SAMPLE_DATA:
             # Solo en desarrollo/tests: nunca en producción.
             seeded = db.seed_history(conn)
@@ -302,11 +305,17 @@ def health() -> dict:
     matches, source = _get_matches()
     # Render expone el commit desplegado: permite verificar qué versión corre.
     commit = (os.environ.get("RENDER_GIT_COMMIT") or "")[:7]
+    conn = db.connect()
+    try:
+        beta = db.beta_status(conn)
+    finally:
+        conn.close()
     return {"status": "ok", "matches": len(matches), "source": source,
             "source_updated_at": _CACHE.get("updated_at") or None,
             "allow_sample": config.ALLOW_SAMPLE_DATA,
             "live_api_key": bool(config.ODDS_API_KEY),
     "triggers_ok": _check_triggers(),
+            "beta": beta,
             "odds_api": dict(providers.LAST_DIAG),
             "billing": "stripe" if billing.stripe_enabled() else "demo",
             "premium_locked": billing.stripe_enabled(),
@@ -483,7 +492,14 @@ async def subscribe(payload: SubscribeIn, request: Request) -> dict:
         conn = db.connect()
         try:
             result = db.add_subscriber(conn, email, "free")
-            db.create_user(conn, email)
+            try:
+                db.create_user(conn, email)
+            except db.BetaCapReached:
+                # Cupo lleno: se apunta a la lista de espera en vez de fallar.
+                wait = db.add_subscriber(conn, email, "waitlist")
+                return {**wait, "plan": "waitlist", "email": email,
+                        "activated": False, "waitlist": True,
+                        "message": "Beta llena: estás en la lista de espera."}
         finally:
             conn.close()
         return {**result, "plan": "free", "email": email,
@@ -592,7 +608,14 @@ async def register(payload: RegisterIn, request: Request) -> dict:
             raise HTTPException(
                 status_code=409,
                 detail="Ya existe una cuenta con ese correo. Inicia sesión.")
-        user = db.create_user(conn, email)
+        try:
+            user = db.create_user(conn, email)
+        except db.BetaCapReached as exc:
+            # Beta cerrada llena: se ofrece la lista de espera.
+            raise HTTPException(status_code=403, detail={
+                "error": "beta_full",
+                "message": "La beta cerrada está llena. Únete a la lista de espera.",
+                "cap": exc.cap, "used": exc.used}) from exc
         db.set_user_password(conn, email, auth.hash_password(payload.password))
         user = db.get_user_by_email(conn, email) or user
     finally:
@@ -676,7 +699,13 @@ async def checkout(request: Request) -> dict:
         raise HTTPException(status_code=400, detail="Correo inválido.")
     conn = db.connect()
     try:
-        db.create_user(conn, email)
+        try:
+            db.create_user(conn, email)
+        except db.BetaCapReached as exc:
+            raise HTTPException(status_code=403, detail={
+                "error": "beta_full",
+                "message": "La beta cerrada está llena. Únete a la lista de espera.",
+                "cap": exc.cap, "used": exc.used}) from exc
         db.add_subscriber(conn, email, "premium")
     finally:
         conn.close()
@@ -737,7 +766,15 @@ async def billing_confirm(payload: ConfirmIn, request: Request) -> dict:
 
     conn = db.connect()
     try:
-        user = db.get_user_by_email(conn, email) or db.create_user(conn, email)
+        user = db.get_user_by_email(conn, email)
+        if user is None:
+            try:
+                user = db.create_user(conn, email)
+            except db.BetaCapReached as exc:
+                raise HTTPException(status_code=403, detail={
+                    "error": "beta_full",
+                    "message": "La beta cerrada está llena. Únete a la lista de espera.",
+                    "cap": exc.cap, "used": exc.used}) from exc
         if customer_id or subscription_id:
             db.save_stripe_ids(conn, email, customer_id=customer_id,
                                subscription_id=subscription_id)
@@ -1818,114 +1855,6 @@ def verification_script() -> FileResponse:
     return FileResponse(config.BASE_DIR / "static" / "verify_ledger.py",
                         media_type="text/x-python",
                         filename="verify_ledger.py")
-
-
-# ------------------------------------------------- verificación temporal (beta)
-# Endpoint temporal para publicar un pick de prueba y verificar triggers en producción.
-# Se eliminará antes de la beta cerrada con usuarios reales.
-@app.post("/api/admin/verify-setup")
-async def admin_verify_setup(request: Request) -> dict:
-    """Publica un pick de prueba y verifica triggers. Solo admin."""
-    require_admin(request)
-    conn = db.connect()
-    is_pg = db.using_postgres()
-    db_type = "PostgreSQL" if is_pg else "SQLite"
-    result = {"db_type": db_type, "is_postgres": is_pg}
-
-    # Check triggers
-    if is_pg:
-        try:
-            rows = conn.execute(
-                "SELECT tgname FROM pg_trigger WHERE tgrelid = 'picks'::regclass"
-            ).fetchall()
-            result["triggers_picks"] = [r["tgname"] for r in rows]
-        except Exception as e:
-            result["triggers_picks"] = f"error: {e}"
-    else:
-        try:
-            rows = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name='picks'"
-            ).fetchall()
-            result["triggers_picks"] = [r["name"] for r in rows]
-        except Exception as e:
-            result["triggers_picks"] = f"error: {e}"
-
-    # Test trigger: try UPDATE (should fail)
-    try:
-        conn.execute("UPDATE picks SET edge = 0.99 WHERE 1=0")
-        conn.commit()
-        result["update_test"] = "NOT BLOCKED (trigger missing!)"
-    except Exception as e:
-        result["update_test"] = f"BLOCKED: {e}"
-
-    # Test trigger: try DELETE (should fail)
-    try:
-        conn.execute("DELETE FROM picks WHERE 1=0")
-        conn.commit()
-        result["delete_test"] = "NOT BLOCKED (trigger missing!)"
-    except Exception as e:
-        result["delete_test"] = f"BLOCKED: {e}"
-
-    # Test retroactive insert (should fail)
-    try:
-        import time as _t
-        conn.execute(
-            "INSERT INTO picks (pick_key, event_id, sport_key, created_at, "
-            "event_start, sport, league, event, market, selection, "
-            "selection_label, bookmaker, bet_odds, model_prob, market_prob, "
-            "edge, stake_units, model_version, source, prev_hash, row_hash) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            ("retro-test", "retro-test", "soccer", 9999999999.0, 1000.0,
-             "soccer", "L", "A vs B", "h2h", "home", "A", "P", 2.0, 0.6,
-             0.5, 0.1, 1.0, "elo-1.0", "live", "", "fakehash"))
-        conn.commit()
-        result["retroactive_test"] = "NOT BLOCKED (trigger missing!)"
-    except Exception as e:
-        result["retroactive_test"] = f"BLOCKED: {e}"
-
-    # Insert a test pick (only if no picks exist)
-    existing = conn.execute("SELECT COUNT(*) AS n FROM picks").fetchone()
-    result["existing_picks"] = int(existing["n"])
-
-    if int(existing["n"]) == 0:
-        try:
-            db.seed_model_version(conn, config.MODEL_VERSION,
-                                  "Modelo Elo + Poisson.", changes="Versión inicial.")
-            import time as _t
-            rec = {
-                "match_id": "verify-test-pick",
-                "sport_key": "basketball_nba",
-                "sport": "basketball",
-                "league": "NBA · USA",
-                "league_raw": "NBA · USA",
-                "event": "Lakers vs Celtics",
-                "market_type": "h2h",
-                "selection": "away",
-                "selection_label": "Victoria de Celtics",
-                "bookmaker": "Pinnacle",
-                "odds": 1.85,
-                "model_prob": 0.58,
-                "market_prob": 0.54,
-                "edge": 0.042,
-                "kelly": {"stake_pct": 1.5},
-                "commence_time": "2026-12-01T20:00:00Z",
-                "home_team": "Lakers",
-                "away_team": "Celtics",
-            }
-            ok = ledger.append_pick(conn, rec, created_at=_t.time() - 3600, source="live")
-            result["test_pick_created"] = ok
-            if ok:
-                row = conn.execute("SELECT id, row_hash, verification_hash FROM picks WHERE event_id='verify-test-pick'").fetchone()
-                result["test_pick_id"] = int(row["id"])
-                result["test_pick_row_hash"] = row["row_hash"]
-                result["test_pick_verification_hash"] = row["verification_hash"]
-        except Exception as e:
-            result["test_pick_created"] = f"error: {e}"
-    else:
-        result["test_pick_created"] = "skipped (picks already exist)"
-
-    conn.close()
-    return result
 
 
 # Estático al final: las rutas /api/* tienen prioridad.

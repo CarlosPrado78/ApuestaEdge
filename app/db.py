@@ -306,6 +306,19 @@ WHEN NEW.event_start IS NOT NULL AND NEW.created_at > NEW.event_start
 BEGIN
     SELECT RAISE(ABORT, 'picks: created_at posterior a event_start (retroactivo)');
 END;
+
+-- Beta cerrada: cupo duro de cuentas nuevas. El límite vive en kv
+-- ``beta_max_users`` (0 o ausente = sin límite) para cambiarlo sin migrar.
+CREATE TRIGGER IF NOT EXISTS users_beta_cap
+BEFORE INSERT ON users
+WHEN (SELECT COALESCE(CAST(value AS INTEGER), 0)
+      FROM kv WHERE key = 'beta_max_users') > 0
+ AND (SELECT COUNT(*) FROM users)
+     >= (SELECT COALESCE(CAST(value AS INTEGER), 0)
+         FROM kv WHERE key = 'beta_max_users')
+BEGIN
+    SELECT RAISE(ABORT, 'beta_full: cupo de beta lleno');
+END;
 """
 
 # Equivalente para PostgreSQL (mismas tablas y columnas).
@@ -710,6 +723,26 @@ def _migrate_postgres(conn: _PostgresConnection) -> None:
                         FOR EACH ROW EXECUTE FUNCTION prevent_modify_append_only();
                 END IF;
             END $$;""")
+    # Beta cerrada: cupo duro de cuentas nuevas (kv 'beta_max_users').
+    conn.execute("""CREATE OR REPLACE FUNCTION prevent_beta_user_overflow()
+        RETURNS TRIGGER AS $$
+        DECLARE cap INTEGER;
+        BEGIN
+            SELECT COALESCE(CAST(value AS INTEGER), 0) INTO cap
+              FROM kv WHERE key = 'beta_max_users';
+            IF cap > 0 AND (SELECT COUNT(*) FROM users) >= cap THEN
+                RAISE EXCEPTION 'beta_full: cupo de beta lleno'
+                    USING ERRCODE = 'check_violation';
+            END IF;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;""")
+    conn.execute("""DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'users_beta_cap') THEN
+            CREATE TRIGGER users_beta_cap BEFORE INSERT ON users
+                FOR EACH ROW EXECUTE FUNCTION prevent_beta_user_overflow();
+        END IF;
+    END $$;""")
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
@@ -802,6 +835,52 @@ def kv_get(key: str) -> tuple[str, float] | None:
         conn.close()
 
 
+# ------------------------------------------------------- beta cerrada (cupo)
+BETA_CAP_KEY = "beta_max_users"
+
+
+class BetaCapReached(Exception):
+    """El cupo duro de la beta cerrada está lleno (no se crea la cuenta)."""
+
+    def __init__(self, used: int, cap: int):
+        self.used = used
+        self.cap = cap
+        super().__init__(f"beta_full: {used}/{cap} cuentas de la beta")
+
+
+def beta_cap(conn) -> int:
+    """Cupo máximo de cuentas de la beta (0 = sin límite)."""
+    row = conn.execute(
+        "SELECT value FROM kv WHERE key = ?", (BETA_CAP_KEY,)).fetchone()
+    if row is None:
+        return 0
+    try:
+        return int(str(row["value"]).strip())
+    except (TypeError, ValueError):
+        return 0
+
+
+def beta_status(conn) -> dict:
+    """Estado del cupo: ``{cap, used, remaining, full}``."""
+    cap = beta_cap(conn)
+    used = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"]
+    return {"cap": cap, "used": used,
+            "remaining": None if cap <= 0 else max(0, cap - used),
+            "full": bool(cap > 0 and used >= cap)}
+
+
+def ensure_beta_cap(conn, cap: int | None = None) -> int:
+    """Escribe el cupo en ``kv`` (idempotente; lo llama el arranque)."""
+    value = config.BETA_MAX_USERS if cap is None else cap
+    conn.execute(
+        "INSERT INTO kv (key, value, updated_at) VALUES (?,?,?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value, "
+        "updated_at = excluded.updated_at",
+        (BETA_CAP_KEY, str(value), time.time()))
+    conn.commit()
+    return value
+
+
 def seed_history(conn: sqlite3.Connection) -> int:
     """Carga el historial de demostración si la tabla está vacía."""
     row = conn.execute("SELECT COUNT(*) AS n FROM history").fetchone()
@@ -881,15 +960,23 @@ def create_user(conn: sqlite3.Connection, email: str,
         return existing
     if plan not in ("free", "premium"):
         raise ValueError(f"plan inválido: {plan}")
+    # Cap de beta cerrada: solo cuentas nuevas (segunda capa: el trigger
+    # ``users_beta_cap`` en la BD, por si dos peticiones llegan a la vez).
+    status = beta_status(conn)
+    if status["full"]:
+        raise BetaCapReached(status["used"], status["cap"])
     token = secrets.token_urlsafe(24)
     try:
         conn.execute(
             "INSERT INTO users (email, plan, token, created_at) VALUES (?,?,?,?)",
             (email, plan, token, time.time()))
         conn.commit()
-    except INTEGRITY_ERRORS:
-        # Otra petición creó la cuenta al mismo tiempo: se devuelve la suya.
+    except INTEGRITY_ERRORS as exc:
         conn.rollback()
+        if "beta_full" in str(exc):
+            # El trigger de la BD cortó la inserción (carrera entre peticiones).
+            raise BetaCapReached(status["used"], status["cap"]) from exc
+        # Otra petición creó la cuenta al mismo tiempo: se devuelve la suya.
     return get_user_by_email(conn, email) or {}
 
 

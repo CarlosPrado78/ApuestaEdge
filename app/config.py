@@ -234,6 +234,10 @@ def email_enabled() -> bool:
 # ------------------------------------------------------------ acceso (auth)
 # El acceso es con email + contraseña (sin dependencias externas de correo).
 PASSWORD_MIN_LENGTH = int(os.environ.get("PASSWORD_MIN_LENGTH", "8"))
+# Cupo duro de la beta cerrada: cuentas nuevas máximas (0 = sin límite).
+# El valor se replica en la BD (kv ``beta_max_users``) para que el trigger
+# ``users_beta_cap`` lo aplique también a nivel de base de datos.
+BETA_MAX_USERS = int(os.environ.get("BETA_MAX_USERS", "10"))
 # Límite de intentos de login por IP (anti fuerza bruta).
 LOGIN_MAX_PER_IP = int(os.environ.get("LOGIN_MAX_PER_IP", "10"))
 LOGIN_RATE_WINDOW_MINUTES = int(os.environ.get("LOGIN_RATE_WINDOW_MINUTES", "15"))
