@@ -1320,6 +1320,47 @@ def ledger_versions() -> dict:
         conn.close()
 
 
+@app.get("/api/ledger/risk")
+def ledger_risk() -> dict:
+    """Simulación Monte Carlo pública (cacheada)."""
+    return ledger.monte_carlo_risk()
+
+
+@app.get("/api/ledger/market-impact")
+def ledger_market_impact() -> dict:
+    """Métrica agregada: movimiento promedio de línea post-anuncio."""
+    conn = db.connect()
+    try:
+        return {
+            "closing_line_source": config.CLOSING_LINE_SOURCE,
+            "significance_min_sample": config.SIGNIFICANCE_MIN_SAMPLE,
+            "market_impact": db.market_impact_summary(conn),
+        }
+    finally:
+        conn.close()
+
+
+@app.get("/api/ledger/closing-source")
+def ledger_closing_source() -> dict:
+    """Fuente declarada de la línea de cierre usada para el CLV."""
+    return {
+        "source": config.CLOSING_LINE_SOURCE,
+        "formula": "CLV = (cuota_entrada / cuota_cierre - 1) * 100",
+        "note": ("El CLV se calcula contra la línea de cierre de "
+                 f"{config.CLOSING_LINE_SOURCE}."),
+    }
+
+
+@app.get("/api/subscriber-caps")
+def subscriber_caps_list() -> dict:
+    conn = db.connect()
+    try:
+        return {"caps": db.subscriber_cap_list(conn),
+                "default_cap": config.PREMIUM_SUBSCRIBER_CAP_PER_LEAGUE}
+    finally:
+        conn.close()
+
+
 @app.get("/api/ledger/picks/{pick_id}")
 def ledger_pick_detail(pick_id: int) -> dict:
     """Detalle completo y verificable de un pick del registro público."""
@@ -1408,6 +1449,27 @@ def leagues_page() -> FileResponse:
 def model_page() -> FileResponse:
     """Auditoría del modelo y historial de versiones."""
     return FileResponse(config.BASE_DIR / "static" / "modelo.html",
+                        media_type="text/html")
+
+
+@app.get("/impacto", include_in_schema=False)
+def market_impact_page() -> FileResponse:
+    """Impacto de mercado: movimiento de línea post-anuncio."""
+    return FileResponse(config.BASE_DIR / "static" / "impacto.html",
+                        media_type="text/html")
+
+
+@app.get("/riesgo", include_in_schema=False)
+def risk_page() -> FileResponse:
+    """Riesgo de la estrategia: simulación Monte Carlo pública."""
+    return FileResponse(config.BASE_DIR / "static" / "riesgo.html",
+                        media_type="text/html")
+
+
+@app.get("/equipo", include_in_schema=False)
+def team_page() -> FileResponse:
+    """Quién está detrás del proyecto."""
+    return FileResponse(config.BASE_DIR / "static" / "equipo.html",
                         media_type="text/html")
 
 

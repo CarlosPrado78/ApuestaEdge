@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riesgo de la estrategia · ApuestaEdge</title>
+<meta name="description" content="Simulación Monte Carlo pública: 10.000 trayectorias con bankroll de 100 unidades y Kelly 1/4. Percentiles 10, 50 y 90 del bankroll final tras 500 picks.">
+<link rel="canonical" href="https://apuestaedge.onrender.com/riesgo">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ApuestaEdge">
+<meta property="og:title" content="Riesgo de la estrategia · ApuestaEdge">
+<meta property="og:description" content="Simulación Monte Carlo pública con 10.000 trayectorias.">
+<meta property="og:url" content="https://apuestaedge.onrender.com/riesgo">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="ledger-page">
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="logo" href="/">⚡ Apuesta<span>Edge</span></a>
+    <nav class="links">
+      <a href="/" data-i18n="nav_home">Inicio</a>
+      <a href="/picks" data-i18n="nav_ledger">Registro</a>
+      <a href="/ligas" data-i18n="nav_leagues">Ligas</a>
+      <a href="/modelo" data-i18n="nav_model">Modelo</a>
+      <a href="/verificacion" data-i18n="nav_verify">Verificación</a>
+      <a href="/alertas" data-i18n="nav_alerts">Alertas</a>
+      <a href="/impacto" data-i18n="nav_impact">Impacto</a>
+      <a href="/riesgo" data-i18n="nav_risk">Riesgo</a>
+      <a href="/equipo" data-i18n="nav_team">Equipo</a>
+      <a href="/#precios" data-i18n="nav_pricing">Precios</a>
+    </nav>
+    <div class="account">
+      <button id="lang-toggle" class="btn small ghost" type="button" title="Cambiar idioma / Change language">EN</button>
+    </div>
+  </div>
+</header>
+<main>
+<section class="ledger-hero">
+  <div class="wrap">
+    <p class="eyebrow" data-i18n="eyebrow">Riesgo de la estrategia</p>
+    <h1 data-i18n="title">Simulación Monte Carlo pública.</h1>
+    <p class="lead" data-i18n="intro">10.000 trayectorias con bankroll de 100 unidades y Kelly 1/4 sobre la distribución empírica de los picks cerrados del registro. Se recalcula automáticamente cuando hay nuevos picks asentados.</p>
+    <div class="stat-strip" id="risk-summary">
+      <div class="stat">
+        <span class="stat-label" data-i18n="p10">Percentil 10</span>
+        <span class="stat-value" id="r-p10">—</span>
+        <span class="stat-sub" data-i18n="p10_sub">Peor caso razonable</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label" data-i18n="p50">Mediana</span>
+        <span class="stat-value" id="r-p50">—</span>
+        <span class="stat-sub" data-i18n="p50_sub">Caso central</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label" data-i18n="p90">Percentil 90</span>
+        <span class="stat-value" id="r-p90">—</span>
+        <span class="stat-sub" data-i18n="p90_sub">Mejor caso razonable</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label" data-i18n="dd">Drawdown mediano</span>
+        <span class="stat-value" id="r-dd">—</span>
+        <span class="stat-sub" data-i18n="dd_sub">Peor caída típica</span>
+      </div>
+    </div>
+    <p class="source-note" id="risk-disclaimer">—</p>
+  </div>
+</section>
+<section class="wrap section ledger-section">
+  <div class="panel">
+    <h3 data-i18n="inputs_title">Parámetros de la simulación</h3>
+    <dl class="pick-dl" id="risk-inputs"></dl>
+  </div>
+  <div class="panel mt">
+    <h3 data-i18n="explain_title">Qué significa cada percentil</h3>
+    <ul class="check-list">
+      <li data-i18n="e1">Percentil 10: en 1 de cada 10 trayectorias el bankroll termina por debajo de este valor. Es el peor caso razonable, no el peor caso posible.</li>
+      <li data-i18n="e2">Mediana: la mitad de las trayectorias termina por encima y la mitad por debajo. Es el resultado más probable.</li>
+      <li data-i18n="e3">Percentil 90: en 9 de cada 10 trayectorias el bankroll termina por debajo de este valor. Es el mejor caso razonable.</li>
+      <li data-i18n="e4">Drawdown mediano: la peor caída típica desde un máximo local, medida en porcentaje del bankroll.</li>
+    </ul>
+  </div>
+</section>
+</main>
+<footer class="footer">
+  <div class="wrap">
+    <p data-i18n="footer_disclaimer"><strong>+18 · Uso responsable. No prometemos ganancias.</strong> Los pronósticos deportivos implican riesgo y los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico independiente con fines informativos; no es un operador de juego, no acepta fondos ni custodia dinero (aviso aplicable en México y demás jurisdicciones).</p>
+    <p class="muted" data-i18n="footer_copyright">ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Prado · Auditoría pública en /verificacion</p>
+  </div>
+</footer>
+<script src="/riesgo.js"></script>
+</body>
+</html>

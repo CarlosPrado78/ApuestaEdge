@@ -8,7 +8,7 @@ const I18N = {
   es: {
     nav_home: "Inicio", nav_ledger: "Registro",
     nav_leagues: "Ligas", nav_model: "Modelo",
-    nav_verify: "Verificación", nav_alerts: "Alertas", nav_pricing: "Precios",
+    nav_verify: "Verificación", nav_alerts: "Alertas", nav_impact: "Impacto", nav_pricing: "Precios",
     eyebrow: "Verificación · registro append-only",
     title: "No tienes que creernos. Verifícalo.",
     intro: "Cada pick publicado queda encadenado al anterior con SHA-256. Si alguien edita, borra o reordena una fila, la cadena deja de cuadrar. Aquí ves el estado en vivo y puedes descargar el paquete completo para recalcularlo en tu máquina, sin depender de nosotros.",
@@ -62,7 +62,7 @@ const I18N = {
   en: {
     nav_home: "Home", nav_ledger: "Ledger",
     nav_leagues: "Leagues", nav_model: "Model",
-    nav_verify: "Verification", nav_alerts: "Alerts", nav_pricing: "Pricing",
+    nav_verify: "Verification", nav_alerts: "Alerts", nav_impact: "Impact", nav_pricing: "Pricing",
     eyebrow: "Verification · append-only ledger",
     title: "You don't have to believe us. Verify it.",
     intro: "Every published pick is chained to the previous one with SHA-256. If anyone edits, deletes or reorders a row, the chain breaks. Here you see the live state and can download the full package to recompute it on your own machine, without trusting us.",

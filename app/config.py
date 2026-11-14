@@ -182,6 +182,19 @@ LEDGER_CLOSE_WINDOW = int(os.environ.get("LEDGER_CLOSE_WINDOW", "900"))
 LEDGER_SETTLE_WINDOW = int(os.environ.get("LEDGER_SETTLE_WINDOW", str(3 * 86400)))
 MODEL_VERSION = os.environ.get("MODEL_VERSION", "elo-1.0")
 
+# Fuente de la línea de cierre usada para calcular el CLV. Configurable para
+# no romper el histórico si cambiamos de proveedor. Se publica en la web.
+CLOSING_LINE_SOURCE = os.environ.get("CLOSING_LINE_SOURCE", "Pinnacle").strip()
+# Minutos tras la publicación en los que se mide el movimiento de línea
+# atribuible al anuncio (atributo "impacto de mercado").
+MARKET_IMPACT_MINUTES = (5, 15, 30)
+# Umbral a partir del cual una liga se considera con muestra suficiente para
+# el test binomial de significancia (N≥200).
+SIGNIFICANCE_MIN_SAMPLE = int(os.environ.get("SIGNIFICANCE_MIN_SAMPLE", "200"))
+# Tope configurable de suscriptores Premium por liga/mercado.
+PREMIUM_SUBSCRIBER_CAP_PER_LEAGUE = int(
+    os.environ.get("PREMIUM_SUBSCRIBER_CAP_PER_LEAGUE", "50"))
+
 # Token de administración para acciones internas (p. ej. enviar un mensaje
 # de prueba a Telegram con /api/telegram/broadcast-test). Sin él, esas rutas
 # quedan deshabilitadas: nunca abiertas al público.

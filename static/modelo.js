@@ -4,7 +4,7 @@
 const I18N = {
   es: {
     nav_home: "Inicio", nav_ledger: "Registro",
-    nav_leagues: "Ligas", nav_model: "Modelo", nav_verify: "Verificación", nav_alerts: "Alertas",
+    nav_leagues: "Ligas", nav_model: "Modelo", nav_verify: "Verificación", nav_alerts: "Alertas", nav_impact: "Impacto",
     nav_pricing: "Precios",
     eyebrow: "Auditoría del modelo",
     title: "La lógica es pública. Los pesos, no.",
@@ -28,7 +28,7 @@ const I18N = {
     clv_note: "Ejemplo: entrar a 2.20 y cerrar a 2.00 da +10% de CLV. Un CLV medio positivo sostenido es mejor señal que una racha de aciertos.",
     binom_title: "Test binomial",
     binom_body: "El p-valor responde a una pregunta concreta: si el modelo solo acertara al ritmo que exige la cuota media, ¿sería raro observar estos aciertos? Se calcula a una cola.",
-    binom_note: "Solo llamamos «significativa» a una muestra con n ≥ 30 y p < 0.05. Con menos datos, la etiqueta honesta es «muestra insuficiente».",
+    binom_note: "Solo llamamos «significativa» a una muestra con n ≥ 200 y p < 0.05. Antes de eso publicamos conteo y CLV, pero no afirmamos significancia. La barra de progreso por liga está en /ligas.",
     withhold_title: "Qué no publicamos y por qué",
     w1: "Los pesos y transformaciones internas del modelo: son la parte replicable y no queremos que se optimice el mercado contra ellos.",
     w2: "Los picks descartados por no superar el filtro: publicar todo lo que se estudió permitiría elegir a posteriori. Lo que sí se publica es cada pick aceptado, antes del evento.",
@@ -53,7 +53,7 @@ const I18N = {
   },
   en: {
     nav_home: "Home", nav_ledger: "Ledger",
-    nav_leagues: "Leagues", nav_model: "Model", nav_verify: "Verification", nav_alerts: "Alerts",
+    nav_leagues: "Leagues", nav_model: "Model", nav_verify: "Verification", nav_alerts: "Alerts", nav_impact: "Impact",
     nav_pricing: "Pricing",
     eyebrow: "Model audit",
     title: "The logic is public. The weights are not.",
@@ -77,7 +77,7 @@ const I18N = {
     clv_note: "Example: entering at 2.20 and closing at 2.00 gives +10% CLV. A sustained positive average CLV is a better signal than a winning streak.",
     binom_title: "Binomial test",
     binom_body: "The p-value answers one specific question: if the model only hit at the rate required by the average odds, how unusual would these wins be? It is computed one-sided.",
-    binom_note: "We only call a sample 'significant' with n ≥ 30 and p < 0.05. With less data, the honest label is 'insufficient sample'.",
+    binom_note: "We only call a sample 'significant' with n ≥ 200 and p < 0.05. Before that we publish counts and CLV, but we do not claim significance. The per-league progress bar is on /ligas.",
     withhold_title: "What we do not publish and why",
     w1: "The model's internal weights and transformations: they are the replicable part and we do not want the market optimized against them.",
     w2: "Picks discarded for failing the filter: publishing everything studied would allow hindsight selection. What we do publish is every accepted pick, before the event.",

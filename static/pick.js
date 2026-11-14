@@ -5,7 +5,7 @@ const I18N = {
   es: {
     nav_home: "Inicio", nav_ledger: "Registro",
     nav_leagues: "Ligas", nav_model: "Modelo",
-    nav_verify: "Verificación", nav_alerts: "Alertas",
+    nav_verify: "Verificación", nav_alerts: "Alertas", nav_impact: "Impacto",
     nav_pricing: "Precios",
     eyebrow: "Registro inmutable · Pick",
     published_before: "Publicado antes del inicio y encadenado con SHA-256.",
@@ -40,6 +40,7 @@ const I18N = {
     verify_nocrypto: "Web Crypto no está disponible en este contexto; usa verify_ledger.py en /verificacion.",
     copied_link: "Enlace copiado",
     copied_details: "Detalles copiados",
+    discuss_pick: "Discutir este pick",
     direct_no_aff: "enlace directo, sin afiliado",
     footer_disclaimer: "<strong>+18 · Uso responsable. No prometemos ganancias.</strong> Los pronósticos deportivos implican riesgo y los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico independiente con fines informativos; no es un operador de juego, no acepta fondos ni custodia dinero (aviso aplicable en México y demás jurisdicciones).",
     footer_copyright: "ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Prado · Auditoría pública en /verificacion",
@@ -47,7 +48,7 @@ const I18N = {
   en: {
     nav_home: "Home", nav_ledger: "Ledger",
     nav_leagues: "Leagues", nav_model: "Model",
-    nav_verify: "Verification", nav_alerts: "Alerts",
+    nav_verify: "Verification", nav_alerts: "Alerts", nav_impact: "Impact",
     nav_pricing: "Pricing",
     eyebrow: "Immutable ledger · Pick",
     published_before: "Published before kickoff and chained with SHA-256.",
@@ -82,6 +83,7 @@ const I18N = {
     verify_nocrypto: "Web Crypto is unavailable in this context; use verify_ledger.py on /verificacion.",
     copied_link: "Link copied",
     copied_details: "Details copied",
+    discuss_pick: "Discuss this pick",
     direct_no_aff: "direct link, no affiliate",
     footer_disclaimer: "<strong>18+ · Responsible use. We do not promise profits.</strong> Sports forecasting involves risk and past data does not guarantee future results. This site provides independent statistical analysis for informational purposes only; it is not a gaming operator, does not accept wagers and does not custody funds (notice applicable in Mexico and other jurisdictions).",
     footer_copyright: "ApuestaEdge © 2026 · Built and maintained by Carlos Prado · Public audit at /verificacion",

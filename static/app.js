@@ -4,7 +4,7 @@ const I18N = {
     login: "Iniciar sesión", logout: "Salir", nav_picks: "Picks de hoy",
     nav_perf: "Rendimiento", nav_why: "Por qué funciona", nav_pricing: "Precios",
     nav_ledger: "Registro", nav_leagues: "Ligas",
-    nav_model: "Modelo", nav_verify: "Verificación", nav_alerts: "Alertas",
+    nav_model: "Modelo", nav_verify: "Verificación", nav_alerts: "Alertas", nav_impact: "Impacto",
     hero_eyebrow: "Registro público desde el 13 nov 2026",
     hero_title: "Publicamos <em>cada</em> pick, incluidas las pérdidas.",
     hero_lead: "Cada pick se publica antes del evento, se asienta con el marcador real y queda en un registro que no se puede editar. Sin resultados inventados: si todavía no hay picks cerrados, verás 0.",
@@ -154,6 +154,11 @@ const I18N = {
     th_league: "Liga", th_picks: "Picks", th_hit: "Acierto",
     perf_footnote: "p < 0.05 → la ventaja es estadísticamente significativa al 95%. Con menos de 30 picks cerrados por liga no se reporta p-valor.",
     perf_link: "Ver el registro completo, pick por pick, con filtros y CSV →",
+    impact_title: "Atributo irreplicable: ¿el anuncio erosiona el edge?",
+    impact_sub: "Cada pick publicado se mide: cuota en el momento de publicación y cuota 5, 15 y 30 minutos después. El movimiento de línea atribuible al anuncio se publica por liga y global. Si el anuncio moviera la línea, el edge real se erosionaría y tú lo verías antes de pagar.",
+    impact_link: "Ver la página completa \"Impacto de mercado\" con la metodología →",
+    impact_empty: "Todavía no hay picks medidos. El movimiento se calcula automáticamente a los 5, 15 y 30 minutos de cada publicación.",
+    impact_picks: "Picks medidos",
     why_title: "¿Por qué ApuestaEdge?",
     why_sub: "Lo que recibes, en concreto — sin humo:",
     benefit1_title: "🎯 Solo entradas con ventaja",
@@ -202,7 +207,7 @@ const I18N = {
     login: "Sign in", logout: "Sign out", nav_picks: "Today's picks",
     nav_perf: "Performance", nav_why: "Why it works", nav_pricing: "Pricing",
     nav_ledger: "Ledger", nav_leagues: "Leagues",
-    nav_model: "Model", nav_verify: "Verification", nav_alerts: "Alerts",
+    nav_model: "Model", nav_verify: "Verification", nav_alerts: "Alerts", nav_impact: "Impact",
     hero_eyebrow: "Public ledger since 13 Nov 2026",
     hero_title: "We publish <em>every</em> pick, including the losses.",
     hero_lead: "Every pick is published before the event, settles from the real score and stays in a ledger that cannot be edited. No invented results: if there are no settled picks yet, you will see 0.",
@@ -933,6 +938,25 @@ function drawEquity(curve) {
 }
 
 /* ---------------------------------------------------------------- planes */
+async function loadImpact() {
+  try {
+    const resp = await fetch('/api/ledger/market-impact');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const mi = data.market_impact || {};
+    const g = mi.global;
+    const box = $('#impact-metrics');
+    if (!box) return;
+    const fmt = (x) => (x == null ? '—' : `${x > 0 ? '+' : ''}${Number(x).toFixed(2)}%`);
+    box.innerHTML = `
+      <div class="metric"><span class="metric-label">${esc(t('impact_picks'))}</span><span class="metric-value">${mi.picks || 0}</span><span class="metric-sub">${g ? `${g.measured} medidos (30 min)` : t('impact_empty')}</span></div>
+      <div class="metric"><span class="metric-label">Mov. 5 min</span><span class="metric-value">${fmt(g && g.avg_move_5min_pct)}</span><span class="metric-sub">vs. entrada</span></div>
+      <div class="metric"><span class="metric-label">Mov. 15 min</span><span class="metric-value">${fmt(g && g.avg_move_15min_pct)}</span><span class="metric-sub">vs. entrada</span></div>
+      <div class="metric"><span class="metric-label">Mov. 30 min</span><span class="metric-value">${fmt(g && g.avg_move_30min_pct)}</span><span class="metric-sub">Fuente: ${esc(data.closing_line_source)}</span></div>
+    `;
+  } catch { /* ignora */ }
+}
+
 async function loadPlans() {
   try {
     const { plans } = await api(`/api/plans?lang=${currentLang}`);

@@ -147,6 +147,12 @@ def publish(conn, matches: list[dict], source: str, *,
             matches, min_edge=min_edge, now=now):
         if append_pick(conn, rec, created_at=now, source=source):
             added += 1
+            pick_id = _pick_id_by_match(conn, str(rec["match_id"]))
+            if pick_id is not None:
+                db.market_line_move_create(
+                    conn, pick_id, str(rec["match_id"]),
+                    str(rec.get("league_raw") or rec.get("league", "")),
+                    float(rec["odds"]), source=source)
     return added
 
 
@@ -273,6 +279,9 @@ def summary(conn, *, league: str | None = None) -> dict:
     odds = [float(r["bet_odds"]) for r in decided]
     clv = [float(r["clv_pct"]) for r in settled
            if r["clv_pct"] is not None]
+    edge_published = [float(r["edge"]) for r in settled]
+    edge_realized = [float(r["clv_pct"]) / 100.0 for r in settled
+                     if r["clv_pct"] is not None]
 
     stats = bt.summarize(stakes, profits, results, odds, clv) if decided else None
     equity, points, running = [], [], 0.0
@@ -292,6 +301,13 @@ def summary(conn, *, league: str | None = None) -> dict:
         "voids": sum(1 for r in settled if r["result"] == "void"),
         "avg_clv_pct": round(stats["avg_clv_pct"], 3) if stats else 0.0,
         "clv_sample": len(clv),
+        "edge_published_avg": round(sum(edge_published) / len(edge_published) * 100, 3)
+        if edge_published else 0.0,
+        "edge_realized_avg": round(sum(edge_realized) / len(edge_realized) * 100, 3)
+        if edge_realized else 0.0,
+        "edge_retention_pct": (
+            round(sum(edge_realized) / sum(edge_published) * 100, 2)
+            if edge_published and sum(edge_published) else 0.0),
         "roi_pct": round(stats["roi_pct"], 2) if stats else 0.0,
         "hit_rate_pct": round(stats["hit_rate_pct"], 2) if stats else 0.0,
         "profit_units": round(sum(profits), 3),
@@ -331,12 +347,22 @@ def by_league(conn) -> dict[str, dict]:
         results = [1 if r["result"] == "won" else 0 for r in decided]
         odds = [float(r["bet_odds"]) for r in decided]
         clv = [float(r["clv_pct"]) for r in rows if r["clv_pct"] is not None]
+        edges_pub = [float(r["edge"]) for r in rows]
+        edges_real = [float(r["clv_pct"]) / 100.0 for r in rows
+                      if r["clv_pct"] is not None]
         stats = bt.summarize(stakes, profits, results, odds, clv) if decided else {}
         out[league] = {
             "picks": sum(1 for r in published if r["league"] == league),
             "sample": len(decided),
             "wins": sum(results),
             "losses": len(decided) - sum(results),
+            "edge_published_avg": round(sum(edges_pub) / len(edges_pub) * 100, 3)
+            if edges_pub else 0.0,
+            "edge_realized_avg": round(sum(edges_real) / len(edges_real) * 100, 3)
+            if edges_real else 0.0,
+            "edge_retention_pct": (
+                round(sum(edges_real) / sum(edges_pub) * 100, 2)
+                if edges_pub and sum(edges_pub) else 0.0),
             "hit_rate_pct": round(stats.get("hit_rate_pct", 0.0), 2),
             "roi_pct": round(stats.get("roi_pct", 0.0), 2),
             "avg_clv_pct": round(stats.get("avg_clv_pct", 0.0), 3),
@@ -505,6 +531,103 @@ def anchor(conn, *, day: str | None = None,
     return payload
 
 
+# ---------------------------------------------------------------- Monte Carlo
+_MC_CACHE: dict[str, Any] = {"key": None, "value": None}
+
+
+def monte_carlo_risk() -> dict:
+    """Simulacion de 10.000 trayectorias con bankroll 100 y Kelly 1/4.
+
+    Cacheada por (numero de picks cerrados, hash de resultados). Se recalcula
+    solo cuando hay nuevos picks asentados.
+    """
+    import random
+    conn = db.connect()
+    try:
+        settled = db.ledger_settled(conn)
+    finally:
+        conn.close()
+    decided = [r for r in settled if r["result"] in ("won", "lost")]
+    cache_key = (len(decided), sum(float(r["profit_units"]) for r in decided))
+    if _MC_CACHE["key"] == cache_key and _MC_CACHE["value"] is not None:
+        return _MC_CACHE["value"]
+
+    returns: list[float] = []
+    for r in decided:
+        stake = float(r["stake_units"]) or 1.0
+        profit = float(r["profit_units"])
+        returns.append(profit / stake if stake else 0.0)
+    if not returns:
+        returns = [0.0]
+
+    N_PICKS = 500
+    N_SIMS = 10000
+    BANKROLL0 = 100.0
+    rng = random.Random(42)
+    finals: list[float] = []
+    ruin = 0
+    for _ in range(N_SIMS):
+        bank = BANKROLL0
+        for _ in range(N_PICKS):
+            r = returns[rng.randrange(len(returns))]
+            stake = bank * 0.025
+            bank += stake * r
+            if bank <= 1.0:
+                bank = 1.0
+                ruin += 1
+                break
+        finals.append(bank)
+    finals.sort()
+    def pct(p: float) -> float:
+        idx = int(round((len(finals) - 1) * p))
+        return round(finals[idx], 2)
+    p10 = pct(0.10)
+    p50 = pct(0.50)
+    p90 = pct(0.90)
+    worst_dds: list[float] = []
+    for _ in range(2000):
+        bank = BANKROLL0
+        peak = bank
+        worst = 0.0
+        for _ in range(N_PICKS):
+            r = returns[rng.randrange(len(returns))]
+            stake = bank * 0.025
+            bank += stake * r
+            if bank > peak:
+                peak = bank
+            dd = (peak - bank) / peak if peak else 0.0
+            if dd > worst:
+                worst = dd
+        worst_dds.append(worst)
+    worst_dds.sort()
+    median_dd = round(worst_dds[len(worst_dds) // 2] * 100, 2)
+
+    result = {
+        "inputs": {
+            "bankroll_start": BANKROLL0,
+            "picks_simulated": N_PICKS,
+            "simulations": N_SIMS,
+            "kelly_fraction": 0.25,
+            "stake_pct_of_bankroll": 2.5,
+            "sample_picks": len(decided),
+            "real_data": bool(decided),
+        },
+        "results": {
+            "p10_final_bankroll": p10,
+            "median_final_bankroll": p50,
+            "p90_final_bankroll": p90,
+            "median_max_drawdown_pct": median_dd,
+            "ruin_probability_pct": round(ruin / N_SIMS * 100, 2),
+        },
+        "disclaimer": ("Simulacion sobre la distribucion empirica de los picks "
+                       "cerrados del registro. No es una prediccion ni una "
+                       "garantia de resultados futuros."),
+    }
+    _MC_CACHE["key"] = cache_key
+    _MC_CACHE["value"] = result
+    return result
+
+
 def pick_detail(conn, pick_id: int) -> dict | None:
     """Detalle verificable de un pick con sus cadenas canónicas SHA-256."""
     row = db.ledger_pick_by_id(conn, pick_id)
@@ -592,6 +715,52 @@ def _iso_ts(value: Any) -> float | None:
         return None
 
 
+def _pick_id_by_match(conn, match_id: str) -> int | None:
+    row = conn.execute(
+        "SELECT id FROM picks WHERE event_id=? ORDER BY id DESC LIMIT 1",
+        (str(match_id),)).fetchone()
+    return int(row["id"]) if row else None
+
+
+def _capture_market_moves(conn, matches: list[dict], now: float) -> int:
+    """Mide la cuota a los 5/15/30 min tras la publicación del pick."""
+    if not matches:
+        return 0
+    odds_by_match: dict[str, dict[str, float]] = {}
+    for m in matches:
+        for bm in m.get("bookmakers", []):
+            for sel, price in (bm.get("odds") or {}).items():
+                odds_by_match.setdefault(str(m["id"]), {}).setdefault(sel, price)
+    pending = conn.execute(
+        "SELECT mlm.*, p.selection, p.event_start "
+        "FROM market_line_moves mlm "
+        "JOIN picks p ON p.id = mlm.pick_id "
+        "WHERE mlm.move_30min_pct IS NULL").fetchall()
+    updated = 0
+    for row in pending:
+        r = dict(row)
+        sel = str(r.get("selection") or "")
+        entry_ts = float(r["created_at"])
+        delta = now - entry_ts
+        odds_map = odds_by_match.get(str(r["match_id"]), {})
+        odds = odds_map.get(sel)
+        if odds is None:
+            continue
+        if delta >= 5 * 60 and r.get("odds_5min") is None:
+            db.market_line_move_update(conn, int(r["pick_id"]), window=5,
+                                       odds=odds, measured_at=now)
+            updated += 1
+        if delta >= 15 * 60 and r.get("odds_15min") is None:
+            db.market_line_move_update(conn, int(r["pick_id"]), window=15,
+                                       odds=odds, measured_at=now)
+            updated += 1
+        if delta >= 30 * 60 and r.get("odds_30min") is None:
+            db.market_line_move_update(conn, int(r["pick_id"]), window=30,
+                                       odds=odds, measured_at=now)
+            updated += 1
+    return updated
+
+
 # ------------------------------------------------------------ tarea de fondo
 def cycle(matches_provider=None, *, now: float | None = None,
           scores_fetcher=None) -> dict:
@@ -621,6 +790,8 @@ def cycle(matches_provider=None, *, now: float | None = None,
             scores.update(fetcher(key))
         settled = settle(conn, scores, now=now)
 
+        moves = _capture_market_moves(conn, matches or [], now=now)
+
         day = time.strftime("%Y-%m-%d", time.gmtime(now))
         anchored = None
         if db.ledger_anchor_on(conn, day) is None:
@@ -629,8 +800,8 @@ def cycle(matches_provider=None, *, now: float | None = None,
                 anchored = anchor(conn, day=day, now=now)
 
         return {"published": published, "closings": closings,
-                "settled": settled, "anchored": bool(anchored),
-                "source": source}
+                "settled": settled, "market_moves": moves,
+                "anchored": bool(anchored), "source": source}
     finally:
         conn.close()
 

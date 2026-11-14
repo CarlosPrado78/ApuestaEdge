@@ -179,6 +179,35 @@ CREATE TABLE IF NOT EXISTS model_versions (
     changes TEXT
 );
 
+CREATE TABLE IF NOT EXISTS market_line_moves (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pick_id INTEGER NOT NULL,
+    match_id TEXT NOT NULL,
+    league TEXT NOT NULL,
+    entry_odds REAL NOT NULL,
+    odds_5min REAL,
+    odds_15min REAL,
+    odds_30min REAL,
+    measured_at_5 REAL,
+    measured_at_15 REAL,
+    measured_at_30 REAL,
+    move_5min_pct REAL,
+    move_15min_pct REAL,
+    move_30min_pct REAL,
+    source TEXT NOT NULL DEFAULT 'live',
+    created_at REAL NOT NULL,
+    UNIQUE(pick_id)
+);
+CREATE INDEX IF NOT EXISTS idx_market_line_moves_league
+    ON market_line_moves(league);
+
+CREATE TABLE IF NOT EXISTS subscriber_caps (
+    league TEXT PRIMARY KEY,
+    cap INTEGER NOT NULL,
+    occupied INTEGER NOT NULL DEFAULT 0,
+    updated_at REAL NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS alert_rules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT NOT NULL,
@@ -363,6 +392,35 @@ CREATE TABLE IF NOT EXISTS model_versions (
     released_at DOUBLE PRECISION NOT NULL,
     summary TEXT NOT NULL,
     changes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS market_line_moves (
+    id BIGSERIAL PRIMARY KEY,
+    pick_id BIGINT NOT NULL,
+    match_id TEXT NOT NULL,
+    league TEXT NOT NULL,
+    entry_odds DOUBLE PRECISION NOT NULL,
+    odds_5min DOUBLE PRECISION,
+    odds_15min DOUBLE PRECISION,
+    odds_30min DOUBLE PRECISION,
+    measured_at_5 DOUBLE PRECISION,
+    measured_at_15 DOUBLE PRECISION,
+    measured_at_30 DOUBLE PRECISION,
+    move_5min_pct DOUBLE PRECISION,
+    move_15min_pct DOUBLE PRECISION,
+    move_30min_pct DOUBLE PRECISION,
+    source TEXT NOT NULL DEFAULT 'live',
+    created_at DOUBLE PRECISION NOT NULL,
+    UNIQUE(pick_id)
+);
+CREATE INDEX IF NOT EXISTS idx_market_line_moves_league
+    ON market_line_moves(league);
+
+CREATE TABLE IF NOT EXISTS subscriber_caps (
+    league TEXT PRIMARY KEY,
+    cap INTEGER NOT NULL,
+    occupied INTEGER NOT NULL DEFAULT 0,
+    updated_at DOUBLE PRECISION NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS alert_rules (
@@ -552,6 +610,22 @@ def _migrate_postgres(conn: _PostgresConnection) -> None:
                  "ots_calendar TEXT")
     conn.execute("ALTER TABLE ledger_anchors ADD COLUMN IF NOT EXISTS "
                  "ots_submitted_at DOUBLE PRECISION")
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS market_line_moves ("
+        "id BIGSERIAL PRIMARY KEY, pick_id BIGINT NOT NULL, "
+        "match_id TEXT NOT NULL, league TEXT NOT NULL, entry_odds REAL NOT NULL, "
+        "odds_5min DOUBLE PRECISION, odds_15min DOUBLE PRECISION, "
+        "odds_30min DOUBLE PRECISION, measured_at_5 DOUBLE PRECISION, "
+        "measured_at_15 DOUBLE PRECISION, measured_at_30 DOUBLE PRECISION, "
+        "move_5min_pct DOUBLE PRECISION, move_15min_pct DOUBLE PRECISION, "
+        "move_30min_pct DOUBLE PRECISION, source TEXT NOT NULL DEFAULT 'live', "
+        "created_at DOUBLE PRECISION NOT NULL, UNIQUE(pick_id))"
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS subscriber_caps ("
+        "league TEXT PRIMARY KEY, cap INTEGER NOT NULL, "
+        "occupied INTEGER NOT NULL DEFAULT 0, updated_at DOUBLE PRECISION NOT NULL)"
+    )
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_link_code "
                  "ON users(link_code)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_users_tg_chat "
@@ -576,6 +650,20 @@ def _migrate(conn: sqlite3.Connection) -> None:
                     "ots_submitted_at REAL"):
         if col_def.split()[0] not in anchor_cols:
             conn.execute(f"ALTER TABLE ledger_anchors ADD COLUMN {col_def}")
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS market_line_moves ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, pick_id INTEGER NOT NULL, "
+        "match_id TEXT NOT NULL, league TEXT NOT NULL, entry_odds REAL NOT NULL, "
+        "odds_5min REAL, odds_15min REAL, odds_30min REAL, measured_at_5 REAL, "
+        "measured_at_15 REAL, measured_at_30 REAL, move_5min_pct REAL, "
+        "move_15min_pct REAL, move_30min_pct REAL, source TEXT NOT NULL "
+        "DEFAULT 'live', created_at REAL NOT NULL, UNIQUE(pick_id))"
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS subscriber_caps ("
+        "league TEXT PRIMARY KEY, cap INTEGER NOT NULL, "
+        "occupied INTEGER NOT NULL DEFAULT 0, updated_at REAL NOT NULL)"
+    )
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_link_code "
                  "ON users(link_code)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_users_tg_chat "
@@ -1189,6 +1277,136 @@ def model_versions_list(conn) -> list[dict]:
     rows = conn.execute(
         "SELECT * FROM model_versions ORDER BY released_at DESC").fetchall()
     return [dict(r) for r in rows]
+
+
+# ----------------------------------------------- mercado: movimiento post-anuncio
+def market_line_move_create(conn, pick_id: int, match_id: str, league: str,
+                            entry_odds: float, source: str = "live") -> bool:
+    """Registra la cuota de publicación para medir el impacto del anuncio."""
+    try:
+        conn.execute(
+            "INSERT INTO market_line_moves "
+            "(pick_id, match_id, league, entry_odds, source, created_at) "
+            "VALUES (?,?,?,?,?,?)",
+            (int(pick_id), str(match_id), str(league), float(entry_odds),
+             str(source), time.time()))
+        conn.commit()
+        return True
+    except INTEGRITY_ERRORS:
+        conn.rollback()
+        return False
+
+
+def market_line_move_update(conn, pick_id: int, *, window: int,
+                            odds: float | None, measured_at: float | None = None) -> bool:
+    """Guarda la cuota medida a los 5/15/30 min y calcula el movimiento %."""
+    if odds is None:
+        return False
+    ts = float(measured_at or time.time())
+    col_odds = {5: "odds_5min", 15: "odds_15min", 30: "odds_30min"}[window]
+    col_time = {5: "measured_at_5", 15: "measured_at_15", 30: "measured_at_30"}[window]
+    col_move = {5: "move_5min_pct", 15: "move_15min_pct", 30: "move_30min_pct"}[window]
+    row = conn.execute(
+        "SELECT entry_odds FROM market_line_moves WHERE pick_id=?",
+        (int(pick_id),)).fetchone()
+    if not row:
+        return False
+    entry = float(row["entry_odds"])
+    move_pct = (float(odds) - entry) / entry * 100.0 if entry else 0.0
+    conn.execute(
+        f"UPDATE market_line_moves SET {col_odds}=?, {col_time}=?, "
+        f"{col_move}=? WHERE pick_id=?",
+        (float(odds), ts, round(move_pct, 4), int(pick_id)))
+    conn.commit()
+    return True
+
+
+def market_line_move_get(conn, pick_id: int) -> dict | None:
+    row = conn.execute(
+        "SELECT * FROM market_line_moves WHERE pick_id=?",
+        (int(pick_id),)).fetchone()
+    return dict(row) if row else None
+
+
+def market_line_moves_for_league(conn, league: str | None = None) -> list[dict]:
+    if league:
+        rows = conn.execute(
+            "SELECT * FROM market_line_moves WHERE league=? ORDER BY id ASC",
+            (str(league),)).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM market_line_moves ORDER BY id ASC").fetchall()
+    return [dict(r) for r in rows]
+
+
+def market_impact_summary(conn) -> dict:
+    """Métrica agregada: movimiento promedio de línea post-anuncio."""
+    rows = market_line_moves_for_league(conn)
+    out = {"picks": len(rows), "per_league": {}, "global": None}
+    by_league: dict[str, list[dict]] = {}
+    for r in rows:
+        by_league.setdefault(str(r["league"]), []).append(r)
+
+    def _agg(items: list[dict]) -> dict | None:
+        moves = [r.get("move_30min_pct") for r in items
+                 if r.get("move_30min_pct") is not None]
+        m5 = [r.get("move_5min_pct") for r in items
+              if r.get("move_5min_pct") is not None]
+        m15 = [r.get("move_15min_pct") for r in items
+               if r.get("move_15min_pct") is not None]
+        if not moves:
+            return None
+        return {
+            "picks": len(items),
+            "measured": len(moves),
+            "avg_move_5min_pct": round(sum(m5) / len(m5), 3) if m5 else None,
+            "avg_move_15min_pct": round(sum(m15) / len(m15), 3) if m15 else None,
+            "avg_move_30min_pct": round(sum(moves) / len(moves), 3),
+            "max_move_30min_pct": round(max(moves), 3),
+            "min_move_30min_pct": round(min(moves), 3),
+        }
+
+    for league, items in sorted(by_league.items()):
+        out["per_league"][league] = _agg(items)
+    out["global"] = _agg(rows)
+    return out
+
+
+# ----------------------------------------------- contadores de suscriptores
+def subscriber_cap_set(conn, league: str, cap: int) -> dict:
+    now = time.time()
+    conn.execute(
+        "INSERT INTO subscriber_caps (league, cap, occupied, updated_at) "
+        "VALUES (?,?,0,?) "
+        "ON CONFLICT(league) DO UPDATE SET cap=excluded.cap, "
+        "updated_at=excluded.updated_at",
+        (str(league), int(cap), now))
+    conn.commit()
+    return subscriber_cap_get(conn, league) or {}
+
+
+def subscriber_cap_get(conn, league: str) -> dict | None:
+    row = conn.execute(
+        "SELECT * FROM subscriber_caps WHERE league=?", (str(league),)).fetchone()
+    return dict(row) if row else None
+
+
+def subscriber_cap_list(conn) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM subscriber_caps ORDER BY league ASC").fetchall()
+    return [dict(r) for r in rows]
+
+
+def subscriber_cap_increment(conn, league: str, delta: int = 1) -> dict | None:
+    row = subscriber_cap_get(conn, league)
+    if not row:
+        return None
+    new_occ = max(0, int(row["occupied"]) + int(delta))
+    conn.execute(
+        "UPDATE subscriber_caps SET occupied=?, updated_at=? WHERE league=?",
+        (new_occ, time.time(), str(league)))
+    conn.commit()
+    return subscriber_cap_get(conn, league)
 
 
 def seed_model_version(conn, version: str, summary: str,

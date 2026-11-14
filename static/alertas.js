@@ -6,7 +6,7 @@ const I18N = {
   es: {
     nav_home: "Inicio", nav_ledger: "Registro",
     nav_leagues: "Ligas", nav_model: "Modelo",
-    nav_verify: "Verificación", nav_alerts: "Alertas",
+    nav_verify: "Verificación", nav_alerts: "Alertas", nav_impact: "Impacto",
     nav_pricing: "Precios",
     eyebrow: "Alertas operativas",
     title: "Tus reglas, tus filtros, sin ruido.",
@@ -70,7 +70,7 @@ const I18N = {
   en: {
     nav_home: "Home", nav_ledger: "Ledger",
     nav_leagues: "Leagues", nav_model: "Model",
-    nav_verify: "Verification", nav_alerts: "Alerts",
+    nav_verify: "Verification", nav_alerts: "Alerts", nav_impact: "Impact",
     nav_pricing: "Pricing",
     eyebrow: "Operational alerts",
     title: "Your rules, your filters, zero noise.",

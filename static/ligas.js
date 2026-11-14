@@ -6,11 +6,11 @@
 const I18N = {
   es: {
     nav_home: "Inicio", nav_ledger: "Registro",
-    nav_leagues: "Ligas", nav_model: "Modelo", nav_verify: "Verificación", nav_alerts: "Alertas",
+    nav_leagues: "Ligas", nav_model: "Modelo", nav_verify: "Verificación", nav_alerts: "Alertas", nav_impact: "Impacto",
     nav_pricing: "Precios",
     eyebrow: "Rendimiento por liga",
     title: "Cada liga con su muestra. Sin cherry-picking.",
-    intro: "Estas cifras salen del registro público, solo con picks ya cerrados y asentados con el marcador real. Una liga con pocos picks no se disfraza de buena racha: se marca como muestra insuficiente. La etiqueta de mejor liga exige al menos 30 picks cerrados y p < 0.05.",
+    intro: "Estas cifras salen del registro público, solo con picks ya cerrados y asentados con el marcador real. Una liga con pocos picks no se disfraza de buena racha: se marca como muestra insuficiente. La etiqueta de mejor liga exige al menos 200 picks cerrados y p < 0.05; antes de eso publicamos conteo y CLV, pero no afirmamos significancia.",
     sum_leagues: "Ligas con picks", sum_picks: "Picks publicados",
     sum_closed: "Picks cerrados", sum_best: "Mejor liga (n≥30 y p<0.05)",
     loading: "Cargando ligas…",
@@ -26,7 +26,9 @@ const I18N = {
     card_pending: "{n} pendientes",
     label_hit: "Acierto", label_roi: "ROI", label_clv: "CLV medio",
     label_p: "p-valor", label_wl: "Ganadas / perdidas",
-    best_badge: "Mejor liga · n≥30 y p<0.05",
+    best_badge: "Mejor liga · n≥200 y p<0.05",
+    progress_label: "{n} de {target} picks cerrados hacia la significancia",
+    retention_label: "Retención de edge: {pct}% (realizado / publicado)",
     sig_badge: "Significativa · p<0.05",
     no_sig: "Sin significancia estadística",
     p_na: "Sin datos",
@@ -36,11 +38,11 @@ const I18N = {
   },
   en: {
     nav_home: "Home", nav_ledger: "Ledger",
-    nav_leagues: "Leagues", nav_model: "Model", nav_verify: "Verification", nav_alerts: "Alerts",
+    nav_leagues: "Leagues", nav_model: "Model", nav_verify: "Verification", nav_alerts: "Alerts", nav_impact: "Impact",
     nav_pricing: "Pricing",
     eyebrow: "Performance by league",
     title: "Every league with its sample. No cherry-picking.",
-    intro: "These figures come from the public ledger, only from settled picks resolved with the real score. A league with few picks is not dressed up as a hot streak: it is flagged as an insufficient sample. The best-league label requires at least 30 settled picks and p < 0.05.",
+    intro: "These figures come from the public ledger, only from settled picks resolved with the real score. A league with few picks is not dressed up as a hot streak: it is flagged as an insufficient sample. The best-league label requires at least 200 settled picks and p < 0.05; before that we publish counts and CLV, but we do not claim significance.",
     sum_leagues: "Leagues with picks", sum_picks: "Published picks",
     sum_closed: "Settled picks", sum_best: "Best league (n≥30 and p<0.05)",
     loading: "Loading leagues…",
@@ -56,7 +58,9 @@ const I18N = {
     card_pending: "{n} pending",
     label_hit: "Hit rate", label_roi: "ROI", label_clv: "Avg CLV",
     label_p: "p-value", label_wl: "Won / lost",
-    best_badge: "Best league · n≥30 and p<0.05",
+    best_badge: "Best league · n≥200 and p<0.05",
+    progress_label: "{n} of {target} settled picks towards significance",
+    retention_label: "Edge retention: {pct}% (realized / published)",
     sig_badge: "Significant · p<0.05",
     no_sig: "No statistical significance",
     p_na: "No data",
@@ -67,6 +71,7 @@ const I18N = {
 };
 
 const MIN_SAMPLE = 30;
+const SIG_SAMPLE = 200;
 const state = { lang: localStorage.getItem("ae_lang") || "es", data: null };
 
 const $ = (s) => document.querySelector(s);
@@ -131,6 +136,7 @@ function cardHtml(name, league) {
   const closedNote = fill("card_closed", { sample, picks }) +
     (pending ? ` · ${fill("card_pending", { n: pending })}` : "");
   const enough = sample >= MIN_SAMPLE;
+  const sigEnough = sample >= SIG_SAMPLE;
 
   const hit = enough ? pct(league.hit_rate_pct) : insufficient(sample);
   const roi = enough ? pct(league.roi_pct) : insufficient(sample);
@@ -144,9 +150,9 @@ function cardHtml(name, league) {
   const wl = `${Number(league.wins || 0)} / ${Number(league.losses || 0)}`;
 
   let badge = "";
-  if (league.significant) {
+  if (sigEnough && league.significant) {
     badge = `<span class="league-badge best">${esc(t("best_badge"))}</span>`;
-  } else if (enough) {
+  } else if (sigEnough) {
     badge = `<span class="league-badge muted">${esc(t("no_sig"))}</span>`;
   } else {
     badge = `<span class="league-badge warn">${esc(insufficient(sample))}</span>`;
@@ -165,6 +171,11 @@ function cardHtml(name, league) {
       ${metric(t("label_p"), p)}
     </div>
     <p class="league-wl">${esc(t("label_wl"))}: ${esc(wl)}</p>
+    <div class="league-progress">
+      <div class="league-progress-bar" style="width:${Math.min(100, sample / SIG_SAMPLE * 100).toFixed(1)}%"></div>
+    </div>
+    <p class="league-progress-label">${esc(fill("progress_label", { n: sample, target: SIG_SAMPLE }))}</p>
+    <p class="league-retention">${esc(fill("retention_label", { pct: Number(league.edge_retention_pct || 0).toFixed(1) }))}</p>
   </article>`;
 }
 
