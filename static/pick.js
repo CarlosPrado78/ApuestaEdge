@@ -3,7 +3,7 @@
 
 const I18N = {
   es: {
-    nav_home: "Inicio", nav_ledger: "Registro de picks",
+    nav_home: "Inicio", nav_ledger: "Registro",
     nav_leagues: "Ligas", nav_model: "Modelo",
     nav_verify: "Verificación", nav_alerts: "Alertas",
     nav_pricing: "Precios",
@@ -45,7 +45,7 @@ const I18N = {
     footer_copyright: "ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Prado · Auditoría pública en /verificacion",
   },
   en: {
-    nav_home: "Home", nav_ledger: "Pick ledger",
+    nav_home: "Home", nav_ledger: "Ledger",
     nav_leagues: "Leagues", nav_model: "Model",
     nav_verify: "Verification", nav_alerts: "Alerts",
     nav_pricing: "Pricing",

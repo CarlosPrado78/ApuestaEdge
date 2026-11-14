@@ -3,7 +3,7 @@ const I18N = {
   es: {
     login: "Iniciar sesión", logout: "Salir", nav_picks: "Picks de hoy",
     nav_perf: "Rendimiento", nav_why: "Por qué funciona", nav_pricing: "Precios",
-    nav_ledger: "Registro completo", nav_leagues: "Ligas",
+    nav_ledger: "Registro", nav_leagues: "Ligas",
     nav_model: "Modelo", nav_verify: "Verificación", nav_alerts: "Alertas",
     hero_eyebrow: "Registro público desde el 13 nov 2026",
     hero_title: "Publicamos <em>cada</em> pick, incluidas las pérdidas.",
@@ -201,7 +201,7 @@ const I18N = {
   en: {
     login: "Sign in", logout: "Sign out", nav_picks: "Today's picks",
     nav_perf: "Performance", nav_why: "Why it works", nav_pricing: "Pricing",
-    nav_ledger: "Full ledger", nav_leagues: "Leagues",
+    nav_ledger: "Ledger", nav_leagues: "Leagues",
     nav_model: "Model", nav_verify: "Verification", nav_alerts: "Alerts",
     hero_eyebrow: "Public ledger since 13 Nov 2026",
     hero_title: "We publish <em>every</em> pick, including the losses.",

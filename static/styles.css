@@ -17,12 +17,13 @@ em{color:var(--brand);font-style:normal}
 .mt{margin-top:1.4rem}
 
 /* nav */
-.nav{position:sticky;top:0;z-index:20;background:rgba(11,15,23,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-.nav-inner{display:flex;align-items:center;gap:24px;height:62px}
-.logo{font-weight:800;font-size:1.15rem}
+.nav{position:sticky;top:0;z-index:20;background:rgba(11,15,23,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:64px;padding:10px 0;flex-wrap:nowrap}
+.logo{display:inline-flex;align-items:center;gap:4px;font-weight:800;font-size:1.12rem;letter-spacing:-.02em;white-space:nowrap;flex-shrink:0}
 .logo span{color:var(--brand)}
-.links{display:flex;gap:18px;margin-left:auto;color:var(--muted);font-size:.92rem}
-.links a:hover{color:var(--text)}
+.links{display:flex;align-items:center;gap:4px;margin:0 auto;color:var(--muted);font-size:.86rem;font-weight:500;flex-wrap:nowrap}
+.links a{display:inline-flex;align-items:center;padding:7px 11px;border-radius:8px;white-space:nowrap;color:var(--muted);transition:color .15s ease,background .15s ease}
+.links a:hover{color:var(--text);background:rgba(255,255,255,.06)}
 .plan-switch{background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:3px;display:flex}
 .plan-btn{border:0;background:transparent;color:var(--muted);padding:6px 14px;border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
 .plan-btn.active{background:var(--brand);color:#05130a}
@@ -141,18 +142,17 @@ em{color:var(--brand);font-style:normal}
 .footer p+p{margin-top:10px}
 
 @media (max-width:860px){
-  .links{display:none}
   .pick-top{grid-template-columns:1fr 1fr;gap:12px}
   .grid-2{grid-template-columns:1fr}
 }
 
 /* ---------------------------------------------------------- cuenta / plan */
-.account{display:flex;align-items:center;gap:10px;margin-left:18px;flex-wrap:wrap;justify-content:flex-end}
-.account-email{color:var(--muted);font-size:.85rem;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.plan-badge{display:inline-block;border-radius:999px;padding:5px 12px;font-size:.76rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--line);background:var(--bg2);color:var(--muted)}
+.account{display:flex;align-items:center;gap:8px;margin-left:0;flex-wrap:nowrap;flex-shrink:0;justify-content:flex-end}
+.account-email{color:var(--muted);font-size:.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plan-badge{display:inline-flex;align-items:center;justify-content:center;height:32px;border-radius:999px;padding:0 11px;font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--line);background:var(--bg2);color:var(--muted);white-space:nowrap;flex-shrink:0}
 .plan-badge.free{border-color:var(--line);color:var(--muted)}
 .plan-badge.premium{background:rgba(56,224,123,.14);border-color:rgba(56,224,123,.5);color:var(--brand)}
-.btn.small{padding:7px 12px;font-size:.82rem;border-radius:8px}
+.btn.small{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;font-size:.8rem;font-weight:600;line-height:1;border-radius:8px;white-space:nowrap;flex-shrink:0}
 
 .dialog{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);color:var(--text);padding:0;max-width:440px;width:calc(100% - 32px);box-shadow:0 30px 80px rgba(0,0,0,.55)}
 .dialog::backdrop{background:rgba(4,7,12,.72);backdrop-filter:blur(3px)}
@@ -344,8 +344,13 @@ em{color:var(--brand);font-style:normal}
   .stat-strip .stat .num{font-size:1.35rem}
 }
 
-@media (max-width:860px){
-  .account{margin-left:auto}
+@media (max-width:1180px){
   .account-email{display:none}
+}
+
+@media (max-width:960px){
+  .nav-inner{flex-wrap:wrap;gap:8px 12px;padding:10px 0}
+  .account{margin-left:auto}
+  .links{order:3;width:100%;margin:0;padding-top:6px;border-top:1px solid rgba(36,48,74,.55);overflow-x:auto;justify-content:flex-start;gap:4px}
 }
 
