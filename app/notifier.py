@@ -22,9 +22,13 @@ Sin ``TELEGRAM_BOT_TOKEN`` el módulo está inerte: la app sigue igual.
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import html
 import logging
+import smtplib
+import time
 from contextlib import suppress
+from email.message import EmailMessage
 from typing import Any
 
 import httpx
@@ -33,6 +37,33 @@ from . import config, db, service
 
 log = logging.getLogger("apuesta_edge.telegram")
 API_BASE = "https://api.telegram.org"
+
+# Enlaces directos a las casas (sin códigos de afiliado ni parámetros de
+# seguimiento). Si una casa no está en el mapa, no se inventa URL.
+BOOKMAKER_URLS: dict[str, str] = {
+    "pinnacle": "https://www.pinnacle.com",
+    "bet365": "https://www.bet365.com",
+    "betfair": "https://www.betfair.com",
+    "betfair_ex_eu": "https://www.betfair.com/exchange",
+    "williamhill": "https://sports.williamhill.com",
+    "888sport": "https://www.888sport.com",
+    "unibet": "https://www.unibet.com",
+    "bwin": "https://sports.bwin.com",
+    "1xbet": "https://1xbet.com",
+    "marathonbet": "https://www.marathonbet.com",
+    "codere": "https://www.codere.mx",
+    "caliente": "https://www.caliente.mx",
+    "betmgm": "https://sports.betmgm.com",
+    "draftkings": "https://sportsbook.draftkings.com",
+    "fanduel": "https://sportsbook.fanduel.com",
+}
+
+
+def bookmaker_url(bookmaker: str | None) -> str | None:
+    if not bookmaker:
+        return None
+    key = str(bookmaker).strip().lower().replace(" ", "")
+    return BOOKMAKER_URLS.get(key)
 
 HELP_TEXT = (
     "🤖 <b>ApuestaEdge</b>\n"
@@ -79,6 +110,13 @@ def format_pick(pick: dict[str, Any], plan: str = "premium",
     summary = (pick.get("explanation") or {}).get("summary")
     if summary and plan == "premium":
         lines += ["", f"ℹ️ {e(summary)}"]
+    direct_url = bookmaker_url(pick.get("bookmaker"))
+    if direct_url:
+        lines += ["", f'🔗 <a href="{e(direct_url)}">'
+                      f'{e(str(pick.get("bookmaker", "")))}</a> '
+                      "(enlace directo, sin afiliado)"]
+    else:
+        lines += ["", "🔗 Enlace sin afiliación comercial"]
     if plan != "premium":
         lines += ["", "🔒 Desbloquea el stake, la confianza y el análisis "
                       "completo en Premium."]
@@ -206,6 +244,208 @@ def _should_unlink(error: str) -> bool:
                 "bot can't initiate"))
 
 
+# --------------------------------------------------------- reglas configurables
+def pick_event_start_ts(pick: dict[str, Any]) -> float | None:
+    """Convierte ``commence_time`` ISO UTC o ``event_start`` a epoch."""
+    if pick.get("event_start") is not None:
+        try:
+            return float(pick["event_start"])
+        except (TypeError, ValueError):
+            return None
+    raw = str(pick.get("commence_time") or "").strip()
+    if not raw:
+        return None
+    try:
+        if raw.endswith("Z"):
+            raw = raw[:-1] + "+00:00"
+        return dt.datetime.fromisoformat(raw).timestamp()
+    except ValueError:
+        return None
+
+
+def pick_matches_rule(pick: dict[str, Any], rule: dict[str, Any], *,
+                      now: float | None = None) -> bool:
+    """Evalúa si un pick cumple todos los filtros de una regla."""
+    if not rule.get("enabled", True):
+        return False
+    plan = str(rule.get("plan") or "free")
+    plan_min_edge = float(config.PLANS.get(plan, config.PLANS["free"])["min_edge"])
+    edge_min = max(float(rule.get("edge_min", 0.03)), plan_min_edge)
+    if float(pick.get("edge") or 0.0) < edge_min:
+        return False
+
+    odds = float(pick.get("odds") or pick.get("bet_odds") or 0.0)
+    if odds < float(rule.get("odds_min", 1.01)) or odds > float(rule.get("odds_max", 100.0)):
+        return False
+
+    leagues = [x.strip() for x in (rule.get("leagues") or []) if str(x).strip()]
+    if leagues and str(pick.get("league") or "") not in leagues:
+        return False
+
+    markets = [x.strip() for x in (rule.get("markets") or []) if str(x).strip()]
+    pick_market = str(pick.get("market") or "h2h")
+    if markets and pick_market not in markets:
+        return False
+
+    max_mins = rule.get("max_minutes_to_start")
+    if max_mins is not None:
+        start_ts = pick_event_start_ts(pick)
+        if start_ts is None:
+            return False
+        ref_now = time.time() if now is None else float(now)
+        delta_seconds = start_ts - ref_now
+        if delta_seconds <= 0 or delta_seconds > float(max_mins) * 60.0:
+            return False
+
+    return True
+
+
+def format_email_pick(pick: dict[str, Any], rule: dict[str, Any],
+                      plan: str = "premium") -> tuple[str, str]:
+    """Devuelve ``(asunto, cuerpo_texto)`` sin enlaces de afiliado."""
+    event = f"{pick.get('home_team', '')} vs {pick.get('away_team', '')}".strip(" vs")
+    if not event:
+        event = str(pick.get("event") or "")
+    edge_pct = float(pick.get("edge") or 0.0) * 100.0
+    odds = float(pick.get("odds") or pick.get("bet_odds") or 0.0)
+    subject = (f"[ApuestaEdge · {rule.get('name', 'Regla')}] "
+               f"{pick.get('league', '')}: {pick.get('selection_label', '')} "
+               f"@ {odds:.2f} ({edge_pct:+.1f}%)")
+    direct_url = bookmaker_url(pick.get("bookmaker"))
+    link_line = (f"Casa: {pick.get('bookmaker', '')} — {direct_url} "
+                 "(enlace directo, sin código de afiliado)"
+                 if direct_url else
+                 f"Casa: {pick.get('bookmaker', '')} (sin enlace de afiliado)")
+    lines = [
+        f"Regla activa: {rule.get('name', 'Alerta')}",
+        f"Liga: {pick.get('league', '')}",
+        f"Evento: {event}",
+        f"Selección: {pick.get('selection_label', '')}",
+        f"Cuota: {odds:.2f} · Edge: {edge_pct:+.2f}%",
+        f"Prob. modelo: {float(pick.get('model_prob') or 0.0) * 100:.1f}% vs "
+        f"mercado: {float(pick.get('market_prob') or 0.0) * 100:.1f}%",
+        f"Inicio: {pick.get('commence_time') or 'por confirmar'} UTC",
+        link_line,
+    ]
+    kelly = pick.get("kelly") or {}
+    if plan == "premium" and kelly.get("stake_pct"):
+        lines.append(f"Stake Kelly 1/4: {kelly['stake_pct']:.2f}% "
+                     f"({kelly.get('stake_units', 0.0):.2f} u.)")
+    lines += [
+        "",
+        "Gestiona o pausa tus reglas en /alertas.",
+        "+18 · Los pronósticos implican riesgo y los datos pasados no "
+        "garantizan resultados futuros.",
+    ]
+    return subject, "\n".join(lines)
+
+
+def send_email_alert(to_email: str, pick: dict[str, Any],
+                     rule: dict[str, Any], plan: str = "free") -> tuple[bool, str, str]:
+    """Envía alerta por SMTP si está configurado; si no, la registra en bandeja."""
+    subject, body = format_email_pick(pick, rule, plan=plan)
+    if not config.email_enabled():
+        return True, "recorded", "Registrada en tu historial de alertas web"
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = config.SMTP_FROM
+    msg["To"] = to_email
+    msg.set_content(body)
+    try:
+        with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT, timeout=10) as smtp:
+            if config.SMTP_USER and config.SMTP_PASSWORD:
+                smtp.starttls()
+                smtp.login(config.SMTP_USER, config.SMTP_PASSWORD)
+            smtp.send_message(msg)
+        return True, "sent", "Enviada por correo SMTP"
+    except Exception as exc:  # noqa: BLE001
+        return False, "failed", str(exc)
+
+
+async def dispatch_alert_rules(
+    conn, *, matches=None, source: str | None = None,
+    client: httpx.AsyncClient | None = None,
+    now: float | None = None,
+) -> dict[str, int]:
+    """Evalúa las reglas activas y entrega por Email y Telegram sin duplicar.
+
+    Reutiliza el parte de partidos y respeta el retraso de 2 h del plan Free
+    porque pide las recomendaciones de ``free`` y ``premium`` a ``service``.
+    """
+    rules = db.alert_rules_active(conn)
+    if not rules:
+        return {"rules": 0, "sent": 0, "email": 0, "telegram": 0}
+
+    by_plan: dict[str, list[dict]] = {}
+    for plan in {str(r.get("plan") or "free") for r in rules}:
+        res = service.build_recommendations(
+            plan=plan, conn=conn, matches=matches, source=source)
+        by_plan[plan] = list(res.get("picks") or [])
+
+    sent_total = email_sent = tg_sent = 0
+    for rule in rules:
+        plan = str(rule.get("plan") or "free")
+        picks = by_plan.get(plan, [])
+        limit = config.ALERT_MAX_PICKS.get(plan, 1)
+        matched = [p for p in picks if pick_matches_rule(p, rule, now=now)][:limit]
+        for pick in matched:
+            event_name = (f"{pick.get('home_team', '')} vs "
+                          f"{pick.get('away_team', '')}").strip(" vs")
+            start_ts = pick_event_start_ts(pick)
+            match_id = str(pick.get("match_id") or "")
+            selection = str(pick.get("selection") or "")
+
+            if rule.get("channel_email"):
+                if not db.alert_delivery_exists(
+                        conn, rule["id"], "email", match_id, selection):
+                    ok, status, detail = send_email_alert(
+                        rule["email"], pick, rule, plan=plan)
+                    if ok:
+                        db.alert_delivery_record(
+                            conn, rule_id=rule["id"], email=rule["email"],
+                            channel="email", match_id=match_id,
+                            selection=selection,
+                            league=str(pick.get("league") or ""),
+                            event=event_name,
+                            selection_label=str(pick.get("selection_label") or ""),
+                            bookmaker=str(pick.get("bookmaker") or ""),
+                            odds=float(pick.get("odds") or 0.0),
+                            edge=float(pick.get("edge") or 0.0),
+                            event_start=start_ts, status=status, detail=detail)
+                        sent_total += 1
+                        email_sent += 1
+
+            if rule.get("channel_telegram") and rule.get("telegram_chat_id"):
+                if not db.alert_delivery_exists(
+                        conn, rule["id"], "telegram", match_id, selection):
+                    chat_id = str(rule["telegram_chat_id"])
+                    ok, err = await send_message(
+                        chat_id, format_pick(pick, plan), client)
+                    if ok:
+                        db.alert_delivery_record(
+                            conn, rule_id=rule["id"], email=rule["email"],
+                            channel="telegram", match_id=match_id,
+                            selection=selection,
+                            league=str(pick.get("league") or ""),
+                            event=event_name,
+                            selection_label=str(pick.get("selection_label") or ""),
+                            bookmaker=str(pick.get("bookmaker") or ""),
+                            odds=float(pick.get("odds") or 0.0),
+                            edge=float(pick.get("edge") or 0.0),
+                            event_start=start_ts, status="sent",
+                            detail="Enviada por Telegram")
+                        db.alert_mark_sent(
+                            conn, chat_id, match_id, selection,
+                            float(pick.get("edge") or 0.0))
+                        sent_total += 1
+                        tg_sent += 1
+                    elif _should_unlink(err):
+                        db.unlink_telegram(conn, chat_id)
+
+    return {"rules": len(rules), "sent": sent_total,
+            "email": email_sent, "telegram": tg_sent}
+
+
 class TelegramNotifier:
     """Polling de ``getUpdates`` + resumen periódico de picks con valor.
 
@@ -308,6 +548,9 @@ class TelegramNotifier:
                             if _should_unlink(err):
                                 db.unlink_telegram(conn, chat_id)
                                 break  # chat muerto: al siguiente ciclo
+                rules_res = await dispatch_alert_rules(
+                    conn, matches=matches, source=source, client=client)
+                sent += int(rules_res.get("sent") or 0)
             finally:
                 conn.close()
         finally:

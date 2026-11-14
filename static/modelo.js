@@ -4,7 +4,7 @@
 const I18N = {
   es: {
     nav_home: "Inicio", nav_ledger: "Registro de picks",
-    nav_leagues: "Ligas", nav_model: "Modelo", nav_verify: "Verificación",
+    nav_leagues: "Ligas", nav_model: "Modelo", nav_verify: "Verificación", nav_alerts: "Alertas",
     nav_pricing: "Precios",
     eyebrow: "Auditoría del modelo",
     title: "La lógica es pública. Los pesos, no.",
@@ -48,12 +48,12 @@ const I18N = {
     version_changes: "Cambios",
     version_summary: "Resumen",
     note: "Esta página describe la lógica, no promete resultados. El registro público y la página de verificación son la prueba de lo que realmente se publicó.",
-    footer_disclaimer: "<strong>+18 · Juego responsable.</strong> Los pronósticos deportivos implican riesgo. Los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados.",
-    footer_copyright: "ApuestaEdge © 2026 · Cuotas y resultados de eventos reales",
+    footer_disclaimer: "<strong>+18 · Uso responsable. No prometemos ganancias.</strong> Los pronósticos deportivos implican riesgo y los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico independiente con fines informativos; no es un operador de juego, no acepta fondos ni custodia dinero (aviso aplicable en México y demás jurisdicciones).",
+    footer_copyright: "ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Prado · Auditoría pública en /verificacion",
   },
   en: {
     nav_home: "Home", nav_ledger: "Pick ledger",
-    nav_leagues: "Leagues", nav_model: "Model", nav_verify: "Verification",
+    nav_leagues: "Leagues", nav_model: "Model", nav_verify: "Verification", nav_alerts: "Alerts",
     nav_pricing: "Pricing",
     eyebrow: "Model audit",
     title: "The logic is public. The weights are not.",
@@ -97,8 +97,8 @@ const I18N = {
     version_changes: "Changes",
     version_summary: "Summary",
     note: "This page describes the logic, it does not promise results. The public ledger and the verification page are the proof of what was actually published.",
-    footer_disclaimer: "<strong>18+ · Responsible play.</strong> Sports forecasting involves risk. Past data does not guarantee future results. This site provides statistical analysis for information only; it is not financial advice or a guarantee of results.",
-    footer_copyright: "ApuestaEdge © 2026 · Real event odds and results",
+    footer_disclaimer: "<strong>18+ · Responsible use. We do not promise profits.</strong> Sports forecasting involves risk and past data does not guarantee future results. This site provides independent statistical analysis for informational purposes only; it is not a gaming operator, does not accept wagers and does not custody funds (notice applicable in Mexico and other jurisdictions).",
+    footer_copyright: "ApuestaEdge © 2026 · Built and maintained by Carlos Prado · Public audit at /verificacion",
   },
 };
 

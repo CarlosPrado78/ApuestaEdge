@@ -159,8 +159,17 @@ TELEGRAM_BROADCAST_CHAT = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 TELEGRAM_POLL_TIMEOUT = int(os.environ.get("TELEGRAM_POLL_TIMEOUT", "25"))
 ALERT_INTERVAL_SECONDS = int(os.environ.get("ALERT_INTERVAL_SECONDS", "1800"))
 ALERT_MIN_EDGE = float(os.environ.get("ALERT_MIN_EDGE", "0.04"))
-ALERT_MAX_PICKS = {"free": 2, "premium": 6}
+ALERT_MAX_PICKS = {"free": 1, "premium": 6}
+ALERT_MAX_RULES = {"free": 1, "premium": 10}
 ALERT_TIMEOUT = float(os.environ.get("ALERT_TIMEOUT", "15"))
+
+# Correo SMTP opcional para alertas por email. Si no está configurado, las
+# alertas por email quedan registradas en la bandeja auditable de la cuenta.
+SMTP_HOST = os.environ.get("SMTP_HOST", "").strip()
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER = os.environ.get("SMTP_USER", "").strip()
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "").strip()
+SMTP_FROM = os.environ.get("SMTP_FROM", "alertas@apuestaedge.com").strip()
 
 # ------------------------------------------------- libro de registro (ledger)
 # Cada pick publicado se guarda para siempre en una tabla append-only con
@@ -204,6 +213,10 @@ FREE_TIER_QUOTA = {"high": 2, "medium": 2, "low": 1}
 
 def telegram_enabled() -> bool:
     return bool(TELEGRAM_BOT_TOKEN)
+
+
+def email_enabled() -> bool:
+    return bool(SMTP_HOST and SMTP_FROM)
 
 # ------------------------------------------------------------ acceso (auth)
 # El acceso es con email + contraseña (sin dependencias externas de correo).

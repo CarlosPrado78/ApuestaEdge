@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alertas configurables · ApuestaEdge</title>
+<meta name="description" content="Configura reglas de alertas por liga, edge mínimo, rango de cuota, mercado y tiempo hasta el inicio. Recíbelas por Email y Telegram, y pausa o reanuda cuando quieras.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="ledger-page">
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="logo" href="/">⚡ Apuesta<span>Edge</span></a>
+    <nav class="links">
+      <a href="/" data-i18n="nav_home">Inicio</a>
+      <a href="/picks" data-i18n="nav_ledger">Registro de picks</a>
+      <a href="/ligas" data-i18n="nav_leagues">Ligas</a>
+      <a href="/modelo" data-i18n="nav_model">Modelo</a>
+      <a href="/verificacion" data-i18n="nav_verify">Verificación</a>
+      <a href="/alertas" data-i18n="nav_alerts">Alertas</a>
+      <a href="/#precios" data-i18n="nav_pricing">Precios</a>
+    </nav>
+    <div class="account">
+      <button id="lang-toggle" class="btn small ghost" type="button" title="Cambiar idioma / Change language">EN</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="ledger-hero">
+  <div class="wrap">
+    <p class="eyebrow" data-i18n="eyebrow">Alertas operativas</p>
+    <h1 data-i18n="title">Tus reglas, tus filtros, sin ruido.</h1>
+    <p class="lead" data-i18n="intro">Define exactamente qué quieres recibir: liga, edge mínimo, rango de cuota, mercado y margen de tiempo antes del inicio. Cada coincidencia se envía una sola vez por Email o Telegram, con enlace directo a la casa sin código de afiliado, y puedes pausar o reanudar cualquier regla con un clic.</p>
+
+    <div class="stat-strip" id="alerts-summary">
+      <div class="stat">
+        <span class="stat-label" data-i18n="sum_active">Reglas activas</span>
+        <span class="stat-value" id="a-active">—</span>
+        <span class="stat-sub" id="a-limit-sub" data-i18n="loading">Cargando…</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label" data-i18n="sum_plan">Plan y cadencia</span>
+        <span class="stat-value" id="a-plan">—</span>
+        <span class="stat-sub" id="a-delay-sub">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label" data-i18n="sum_channels">Canales</span>
+        <span class="stat-value" id="a-channels">Email · Telegram</span>
+        <span class="stat-sub" id="a-channels-sub">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label" data-i18n="sum_sent">Envíos registrados</span>
+        <span class="stat-value" id="a-deliveries">0</span>
+        <span class="stat-sub" data-i18n="sum_dedupe">Sin duplicados por regla y canal</span>
+      </div>
+    </div>
+    <p class="source-note" id="alerts-affiliate-note" data-i18n="affiliate_note">Transparencia comercial: los enlaces a casas incluidos en las alertas son directos y no llevan códigos de afiliado ni comisiones por clic.</p>
+  </div>
+</section>
+
+<section class="wrap section ledger-section">
+  <div class="panel" id="alerts-auth-box" hidden>
+    <h3 data-i18n="auth_title">Inicia sesión o crea tu cuenta gratuita para guardar reglas</h3>
+    <p class="muted" data-i18n="auth_sub">En el plan Free puedes activar 1 regla (edge ≥ 6%, con el retraso de 2 horas respecto al registro en vivo). Premium desbloquea hasta 10 reglas en tiempo real desde edge ≥ 3%.</p>
+    <form class="alert-auth-form" id="alert-auth-form" autocomplete="on">
+      <input type="email" id="auth-email" placeholder="tu@email.com" required>
+      <input type="password" id="auth-password" placeholder="Contraseña (mín. 8 caracteres)" minlength="8" required>
+      <button class="btn primary" type="submit" id="auth-login-btn" data-i18n="auth_login">Entrar</button>
+      <button class="btn ghost" type="button" id="auth-register-btn" data-i18n="auth_register">Crear cuenta gratis</button>
+    </form>
+    <p class="source-note" id="auth-feedback" hidden></p>
+  </div>
+
+  <div class="grid-2 mt">
+    <div class="panel">
+      <h3 data-i18n="form_title">Nueva regla de alerta</h3>
+      <p class="muted" data-i18n="form_sub">Solo se avisa cuando un pick supera todos los filtros a la vez.</p>
+      <form id="rule-form" class="rule-form" autocomplete="off">
+        <label>
+          <span data-i18n="f_name">Nombre de la regla</span>
+          <input type="text" id="r-name" maxlength="80" placeholder="Ej. Fútbol europeo edge ≥ 5%" required>
+        </label>
+
+        <div class="rule-row-3">
+          <label>
+            <span data-i18n="f_edge">Edge mínimo (%)</span>
+            <input type="number" id="r-edge" min="3" max="50" step="0.5" value="5.0" required>
+          </label>
+          <label>
+            <span data-i18n="f_odds_min">Cuota mínima</span>
+            <input type="number" id="r-odds-min" min="1.01" max="50" step="0.01" value="1.50" required>
+          </label>
+          <label>
+            <span data-i18n="f_odds_max">Cuota máxima</span>
+            <input type="number" id="r-odds-max" min="1.05" max="100" step="0.01" value="3.50" required>
+          </label>
+        </div>
+
+        <div class="rule-row-2">
+          <label>
+            <span data-i18n="f_market">Mercado</span>
+            <select id="r-market">
+              <option value="" data-i18n="m_all">Todos los mercados</option>
+              <option value="h2h" data-i18n="m_h2h">Ganador / 1X2 (h2h)</option>
+              <option value="outright" data-i18n="m_outright">Ganador de torneo (outright)</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="f_time">Tiempo hasta el inicio</span>
+            <select id="r-time">
+              <option value="" data-i18n="t_any">Cualquier margen antes del inicio</option>
+              <option value="30" data-i18n="t_30">≤ 30 minutos</option>
+              <option value="60" data-i18n="t_60">≤ 1 hora</option>
+              <option value="180" data-i18n="t_180">≤ 3 horas</option>
+              <option value="360" data-i18n="t_360">≤ 6 horas</option>
+              <option value="1440" data-i18n="t_1440">≤ 24 horas</option>
+            </select>
+          </label>
+        </div>
+
+        <fieldset class="rule-fieldset">
+          <legend data-i18n="f_leagues">Ligas (vacío = todas las ligas)</legend>
+          <div class="league-chips" id="r-leagues"></div>
+        </fieldset>
+
+        <fieldset class="rule-fieldset">
+          <legend data-i18n="f_channels">Canales de entrega</legend>
+          <div class="channel-checks">
+            <label class="check-inline">
+              <input type="checkbox" id="r-ch-email" checked>
+              <span data-i18n="ch_email">Email (e historial web)</span>
+            </label>
+            <label class="check-inline">
+              <input type="checkbox" id="r-ch-telegram">
+              <span data-i18n="ch_telegram">Telegram instantáneo</span>
+            </label>
+          </div>
+          <p class="small-note muted" id="telegram-hint" data-i18n="tg_hint">Para recibir en Telegram, vincula tu cuenta con el código de la portada.</p>
+        </fieldset>
+
+        <div class="ledger-actions">
+          <button class="btn primary" type="submit" id="r-submit" data-i18n="btn_save">Guardar regla</button>
+          <span class="small-note muted" id="r-feedback"></span>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <div class="section-head">
+        <div>
+          <h3 data-i18n="rules_title">Mis reglas configuradas</h3>
+          <p class="muted" data-i18n="rules_sub">Pausa o reanuda cuando quieras sin borrar la configuración.</p>
+        </div>
+        <button class="btn small ghost" type="button" id="btn-evaluate" data-i18n="btn_evaluate">Comprobar ahora</button>
+      </div>
+      <div id="rules-list" class="rules-list">
+        <p class="muted" data-i18n="rules_empty">Todavía no tienes reglas guardadas.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-head mt">
+    <div>
+      <h2 data-i18n="history_title">Historial de alertas enviadas</h2>
+      <p class="sub" data-i18n="history_sub">Cada envío queda anotado con la regla que lo disparó, el canal, la cuota de entrada y el enlace directo sin afiliado.</p>
+    </div>
+  </div>
+  <div class="panel" id="deliveries-panel">
+    <p class="muted" id="deliveries-empty" data-i18n="deliveries_empty">Todavía no se ha disparado ninguna alerta para tu cuenta.</p>
+    <div class="table-wrap" id="deliveries-table-wrap" hidden>
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th data-i18n="col_date">Fecha</th>
+            <th data-i18n="col_channel">Canal</th>
+            <th data-i18n="col_league">Liga / Evento</th>
+            <th data-i18n="col_pick">Selección</th>
+            <th data-i18n="col_odds">Cuota</th>
+            <th data-i18n="col_edge">Edge</th>
+            <th data-i18n="col_book">Casa (sin afiliado)</th>
+          </tr>
+        </thead>
+        <tbody id="deliveries-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p data-i18n="footer_disclaimer"><strong>+18 · Uso responsable. No prometemos ganancias.</strong> Los pronósticos deportivos implican riesgo y los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico independiente con fines informativos; no es un operador de juego, no acepta fondos ni custodia dinero (aviso aplicable en México y demás jurisdicciones).</p>
+    <p class="muted" data-i18n="footer_copyright">ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Prado · Auditoría pública en /verificacion</p>
+  </div>
+</footer>
+
+<script src="/alertas.js"></script>
+</body>
+</html>

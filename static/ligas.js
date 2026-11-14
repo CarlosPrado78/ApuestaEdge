@@ -6,7 +6,7 @@
 const I18N = {
   es: {
     nav_home: "Inicio", nav_ledger: "Registro de picks",
-    nav_leagues: "Ligas", nav_model: "Modelo", nav_verify: "Verificación",
+    nav_leagues: "Ligas", nav_model: "Modelo", nav_verify: "Verificación", nav_alerts: "Alertas",
     nav_pricing: "Precios",
     eyebrow: "Rendimiento por liga",
     title: "Cada liga con su muestra. Sin cherry-picking.",
@@ -31,12 +31,12 @@ const I18N = {
     no_sig: "Sin significancia estadística",
     p_na: "Sin datos",
     note: "Una liga con p < 0.05 es evidencia estadística, no una garantía: el resultado futuro sigue siendo incierto y el tamaño de muestra importa. Publicamos también las ligas con pérdidas.",
-    footer_disclaimer: "<strong>+18 · Juego responsable.</strong> Los pronósticos deportivos implican riesgo. Los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados.",
-    footer_copyright: "ApuestaEdge © 2026 · Cuotas y resultados de eventos reales",
+    footer_disclaimer: "<strong>+18 · Uso responsable. No prometemos ganancias.</strong> Los pronósticos deportivos implican riesgo y los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico independiente con fines informativos; no es un operador de juego, no acepta fondos ni custodia dinero (aviso aplicable en México y demás jurisdicciones).",
+    footer_copyright: "ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Prado · Auditoría pública en /verificacion",
   },
   en: {
     nav_home: "Home", nav_ledger: "Pick ledger",
-    nav_leagues: "Leagues", nav_model: "Model", nav_verify: "Verification",
+    nav_leagues: "Leagues", nav_model: "Model", nav_verify: "Verification", nav_alerts: "Alerts",
     nav_pricing: "Pricing",
     eyebrow: "Performance by league",
     title: "Every league with its sample. No cherry-picking.",
@@ -61,8 +61,8 @@ const I18N = {
     no_sig: "No statistical significance",
     p_na: "No data",
     note: "A league with p < 0.05 is statistical evidence, not a guarantee: future results remain uncertain and sample size matters. We publish losing leagues too.",
-    footer_disclaimer: "<strong>18+ · Responsible play.</strong> Sports forecasting involves risk. Past data does not guarantee future results. This site provides statistical analysis for information only; it is not financial advice or a guarantee of results.",
-    footer_copyright: "ApuestaEdge © 2026 · Real event odds and results",
+    footer_disclaimer: "<strong>18+ · Responsible use. We do not promise profits.</strong> Sports forecasting involves risk and past data does not guarantee future results. This site provides independent statistical analysis for informational purposes only; it is not a gaming operator, does not accept wagers and does not custody funds (notice applicable in Mexico and other jurisdictions).",
+    footer_copyright: "ApuestaEdge © 2026 · Built and maintained by Carlos Prado · Public audit at /verificacion",
   },
 };
 

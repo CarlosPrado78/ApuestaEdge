@@ -250,3 +250,135 @@ def test_mis_picks_requires_linked_chat():
 def test_reset_alerts_requires_auth(client):
     r = client.post("/api/telegram/reset-alerts", json={"email": "x@y.com"})
     assert r.status_code == 401
+
+
+# --------------------------------------------------- reglas configurables (/alertas)
+def test_pick_matches_rule_filters_league_edge_odds_market_and_time():
+    pick = _sample_pick("premium")
+    pick["market"] = "h2h"
+    pick["event_start"] = 2000.0
+    base_rule = {
+        "enabled": True, "plan": "premium",
+        "leagues": ["Premier League · Inglaterra"],
+        "edge_min": 0.05, "odds_min": 2.0, "odds_max": 3.0,
+        "markets": ["h2h"], "max_minutes_to_start": 30,
+    }
+    assert notifier.pick_matches_rule(pick, base_rule, now=1000.0) is True
+    # Liga distinta -> no coincide
+    assert notifier.pick_matches_rule(
+        pick, {**base_rule, "leagues": ["LaLiga · España"]}, now=1000.0) is False
+    # Rango de cuota fuera -> no coincide
+    assert notifier.pick_matches_rule(
+        pick, {**base_rule, "odds_max": 2.20}, now=1000.0) is False
+    # Mercado fuera -> no coincide
+    assert notifier.pick_matches_rule(
+        pick, {**base_rule, "markets": ["outright"]}, now=1000.0) is False
+    # Demasiado lejos del inicio (> 30 min = 1800 s) -> no coincide
+    assert notifier.pick_matches_rule(
+        pick, base_rule, now=100.0) is False
+    # Regla pausada -> no coincide
+    assert notifier.pick_matches_rule(
+        pick, {**base_rule, "enabled": False}, now=1000.0) is False
+
+
+def test_alert_rules_crud_pause_resume_and_plan_limits(client):
+    email = "rules_user@test.com"
+    client.post("/api/auth/register",
+                json={"email": email, "password": "secret123"})
+    token = client.post("/api/auth/login",
+                        json={"email": email, "password": "secret123"}).json()["token"]
+
+    # Free: edge_min se ajusta al mínimo del plan (6%) y permite máx 1 regla.
+    r1 = client.post("/api/alerts/rules", headers=_auth(token), json={
+        "name": "Mi regla Free",
+        "leagues": ["LaLiga · España"],
+        "edge_min": 0.04,
+        "odds_min": 1.50,
+        "odds_max": 3.20,
+        "markets": ["h2h"],
+        "max_minutes_to_start": 180,
+        "channel_email": True,
+        "channel_telegram": False,
+    })
+    assert r1.status_code == 200
+    rule = r1.json()["rule"]
+    assert rule["edge_min"] == pytest.approx(0.06)
+    assert rule["enabled"] is True
+
+    # Segunda regla en Free -> 403
+    r2 = client.post("/api/alerts/rules", headers=_auth(token), json={
+        "name": "Segunda regla", "edge_min": 0.06,
+        "odds_min": 1.5, "odds_max": 3.0,
+    })
+    assert r2.status_code == 403
+
+    # Pausar y reanudar
+    paused = client.patch(f"/api/alerts/rules/{rule['id']}",
+                          headers=_auth(token), json={"enabled": False})
+    assert paused.status_code == 200 and paused.json()["rule"]["enabled"] is False
+    resumed = client.patch(f"/api/alerts/rules/{rule['id']}",
+                           headers=_auth(token), json={"enabled": True})
+    assert resumed.status_code == 200 and resumed.json()["rule"]["enabled"] is True
+
+    # Eliminar
+    deleted = client.delete(f"/api/alerts/rules/{rule['id']}", headers=_auth(token))
+    assert deleted.status_code == 200
+    listed = client.get("/api/alerts/rules", headers=_auth(token)).json()
+    assert listed["rules"] == []
+
+
+def test_alert_rules_dispatch_dedupe_and_non_affiliate_links(monkeypatch):
+    import asyncio
+    conn = db.connect()
+    try:
+        email = "dispatch@test.com"
+        db.create_user(conn, email, plan="premium")
+        code = db.ensure_link_code(conn, email)
+        db.link_telegram(conn, code, "chat-rule-1")
+        rule = db.alert_rule_create(
+            conn, email, name="Premier ≥ 5%",
+            leagues=["Premier League · Inglaterra"],
+            edge_min=0.05, odds_min=1.80, odds_max=3.20,
+            markets=["h2h"], max_minutes_to_start=None,
+            channel_email=True, channel_telegram=True)
+
+        pick = _sample_pick("premium")
+        pick["selection"] = "home"
+        pick["market"] = "h2h"
+        monkeypatch.setattr(notifier.service, "build_recommendations",
+                            lambda **kw: {"picks": [pick]})
+
+        tg_messages = []
+
+        async def fake_send(chat_id, text, client=None):
+            tg_messages.append((chat_id, text))
+            return True, ""
+
+        monkeypatch.setattr(notifier, "send_message", fake_send)
+
+        first = asyncio.run(notifier.dispatch_alert_rules(conn))
+        assert first["sent"] == 2
+        assert first["email"] == 1 and first["telegram"] == 1
+        assert len(tg_messages) == 1
+        assert "sin afiliado" in tg_messages[0][1]
+        assert "https://www.888sport.com" in tg_messages[0][1]
+
+        # Segunda pasada: dedupe por (regla, canal, partido, selección)
+        second = asyncio.run(notifier.dispatch_alert_rules(conn))
+        assert second["sent"] == 0
+
+        deliveries = db.alert_deliveries_for_user(conn, email)
+        assert len(deliveries) == 2
+        assert {d["channel"] for d in deliveries} == {"email", "telegram"}
+        assert rule["id"] == deliveries[0]["rule_id"]
+    finally:
+        conn.close()
+
+
+def test_alerts_page_is_public_and_clean(client):
+    page = client.get("/alertas")
+    assert page.status_code == 200
+    assert "/alertas.js" in page.text
+    assert "sin código de afiliado" in page.text
+    assert "The Odds API" not in page.text
+    assert "ODDS_API_KEY" not in page.text

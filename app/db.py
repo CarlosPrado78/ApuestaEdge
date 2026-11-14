@@ -175,6 +175,46 @@ CREATE TABLE IF NOT EXISTS model_versions (
     summary TEXT NOT NULL,
     changes TEXT
 );
+
+CREATE TABLE IF NOT EXISTS alert_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    leagues TEXT NOT NULL DEFAULT '',
+    edge_min REAL NOT NULL DEFAULT 0.04,
+    odds_min REAL NOT NULL DEFAULT 1.01,
+    odds_max REAL NOT NULL DEFAULT 10.0,
+    markets TEXT NOT NULL DEFAULT '',
+    max_minutes_to_start INTEGER,
+    channel_email INTEGER NOT NULL DEFAULT 1,
+    channel_telegram INTEGER NOT NULL DEFAULT 0,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_alert_rules_email ON alert_rules(email);
+
+CREATE TABLE IF NOT EXISTS alert_deliveries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rule_id INTEGER NOT NULL,
+    email TEXT NOT NULL,
+    channel TEXT NOT NULL,
+    match_id TEXT NOT NULL,
+    selection TEXT NOT NULL,
+    league TEXT NOT NULL,
+    event TEXT NOT NULL,
+    selection_label TEXT NOT NULL,
+    bookmaker TEXT NOT NULL,
+    odds REAL NOT NULL,
+    edge REAL NOT NULL,
+    event_start REAL,
+    status TEXT NOT NULL,
+    detail TEXT,
+    sent_at REAL NOT NULL,
+    UNIQUE(rule_id, channel, match_id, selection)
+);
+CREATE INDEX IF NOT EXISTS idx_alert_deliveries_email
+    ON alert_deliveries(email, sent_at DESC);
 """
 
 # Equivalente para PostgreSQL (mismas tablas y columnas).
@@ -305,6 +345,46 @@ CREATE TABLE IF NOT EXISTS model_versions (
     summary TEXT NOT NULL,
     changes TEXT
 );
+
+CREATE TABLE IF NOT EXISTS alert_rules (
+    id BIGSERIAL PRIMARY KEY,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    leagues TEXT NOT NULL DEFAULT '',
+    edge_min DOUBLE PRECISION NOT NULL DEFAULT 0.04,
+    odds_min DOUBLE PRECISION NOT NULL DEFAULT 1.01,
+    odds_max DOUBLE PRECISION NOT NULL DEFAULT 10.0,
+    markets TEXT NOT NULL DEFAULT '',
+    max_minutes_to_start INTEGER,
+    channel_email INTEGER NOT NULL DEFAULT 1,
+    channel_telegram INTEGER NOT NULL DEFAULT 0,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at DOUBLE PRECISION NOT NULL,
+    updated_at DOUBLE PRECISION NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_alert_rules_email ON alert_rules(email);
+
+CREATE TABLE IF NOT EXISTS alert_deliveries (
+    id BIGSERIAL PRIMARY KEY,
+    rule_id BIGINT NOT NULL,
+    email TEXT NOT NULL,
+    channel TEXT NOT NULL,
+    match_id TEXT NOT NULL,
+    selection TEXT NOT NULL,
+    league TEXT NOT NULL,
+    event TEXT NOT NULL,
+    selection_label TEXT NOT NULL,
+    bookmaker TEXT NOT NULL,
+    odds DOUBLE PRECISION NOT NULL,
+    edge DOUBLE PRECISION NOT NULL,
+    event_start DOUBLE PRECISION,
+    status TEXT NOT NULL,
+    detail TEXT,
+    sent_at DOUBLE PRECISION NOT NULL,
+    UNIQUE(rule_id, channel, match_id, selection)
+);
+CREATE INDEX IF NOT EXISTS idx_alert_deliveries_email
+    ON alert_deliveries(email, sent_at DESC);
 """
 
 # Columnas añadidas con el tiempo (migración ligera para BD ya creadas).
@@ -1056,3 +1136,167 @@ def clear_history(conn) -> int:
     cur = conn.execute("DELETE FROM history")
     conn.commit()
     return cur.rowcount or 0
+
+
+# ------------------------------------------------------ reglas de alertas
+_LIST_SEP = "||"
+
+
+def _pack_list(items: list[str] | None) -> str:
+    if not items:
+        return ""
+    cleaned = [str(x).strip() for x in items if str(x).strip()]
+    return _LIST_SEP.join(dict.fromkeys(cleaned))
+
+
+def _unpack_list(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    return [x.strip() for x in str(raw).split(_LIST_SEP) if x.strip()]
+
+
+def _format_rule(row) -> dict:
+    d = dict(row)
+    return {
+        "id": int(d["id"]),
+        "email": str(d["email"]),
+        "name": str(d["name"]),
+        "leagues": _unpack_list(d.get("leagues")),
+        "edge_min": float(d["edge_min"]),
+        "odds_min": float(d["odds_min"]),
+        "odds_max": float(d["odds_max"]),
+        "markets": _unpack_list(d.get("markets")),
+        "max_minutes_to_start": (int(d["max_minutes_to_start"])
+                                 if d.get("max_minutes_to_start") is not None
+                                 else None),
+        "channel_email": bool(d.get("channel_email")),
+        "channel_telegram": bool(d.get("channel_telegram")),
+        "enabled": bool(d.get("enabled")),
+        "created_at": float(d["created_at"]),
+        "updated_at": float(d["updated_at"]),
+    }
+
+
+def alert_rules_for_user(conn, email: str) -> list[dict]:
+    email = _normalize_email(email)
+    rows = conn.execute(
+        "SELECT * FROM alert_rules WHERE email=? ORDER BY id ASC",
+        (email,)).fetchall()
+    return [_format_rule(r) for r in rows]
+
+
+def alert_rules_active(conn) -> list[dict]:
+    """Reglas activas con el plan y el chat de Telegram de su cuenta."""
+    rows = conn.execute(
+        "SELECT r.*, u.plan, u.telegram_chat_id "
+        "FROM alert_rules r "
+        "JOIN users u ON u.email = r.email "
+        "WHERE r.enabled = 1 "
+        "ORDER BY r.id ASC").fetchall()
+    out = []
+    for r in rows:
+        item = _format_rule(r)
+        raw = dict(r)
+        item["plan"] = str(raw.get("plan") or "free")
+        item["telegram_chat_id"] = raw.get("telegram_chat_id")
+        out.append(item)
+    return out
+
+
+def alert_rule_create(conn, email: str, *, name: str,
+                      leagues: list[str] | None = None,
+                      edge_min: float = 0.04,
+                      odds_min: float = 1.01,
+                      odds_max: float = 10.0,
+                      markets: list[str] | None = None,
+                      max_minutes_to_start: int | None = None,
+                      channel_email: bool = True,
+                      channel_telegram: bool = False,
+                      enabled: bool = True) -> dict:
+    email = _normalize_email(email)
+    now = time.time()
+    conn.execute(
+        "INSERT INTO alert_rules "
+        "(email, name, leagues, edge_min, odds_min, odds_max, markets, "
+        "max_minutes_to_start, channel_email, channel_telegram, enabled, "
+        "created_at, updated_at) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (email, name.strip(), _pack_list(leagues), float(edge_min),
+         float(odds_min), float(odds_max), _pack_list(markets),
+         int(max_minutes_to_start) if max_minutes_to_start is not None else None,
+         1 if channel_email else 0, 1 if channel_telegram else 0,
+         1 if enabled else 0, now, now))
+    conn.commit()
+    row = conn.execute(
+        "SELECT * FROM alert_rules WHERE email=? ORDER BY id DESC LIMIT 1",
+        (email,)).fetchone()
+    return _format_rule(row)
+
+
+def alert_rule_set_enabled(conn, email: str, rule_id: int,
+                           enabled: bool) -> dict | None:
+    email = _normalize_email(email)
+    now = time.time()
+    cur = conn.execute(
+        "UPDATE alert_rules SET enabled=?, updated_at=? WHERE id=? AND email=?",
+        (1 if enabled else 0, now, int(rule_id), email))
+    conn.commit()
+    if not cur.rowcount:
+        return None
+    row = conn.execute(
+        "SELECT * FROM alert_rules WHERE id=? AND email=?",
+        (int(rule_id), email)).fetchone()
+    return _format_rule(row) if row else None
+
+
+def alert_rule_delete(conn, email: str, rule_id: int) -> bool:
+    email = _normalize_email(email)
+    cur = conn.execute(
+        "DELETE FROM alert_rules WHERE id=? AND email=?",
+        (int(rule_id), email))
+    conn.commit()
+    return bool(cur.rowcount)
+
+
+def alert_delivery_exists(conn, rule_id: int, channel: str,
+                          match_id: str, selection: str) -> bool:
+    row = conn.execute(
+        "SELECT 1 FROM alert_deliveries "
+        "WHERE rule_id=? AND channel=? AND match_id=? AND selection=?",
+        (int(rule_id), str(channel), str(match_id), str(selection))).fetchone()
+    return row is not None
+
+
+def alert_delivery_record(conn, *, rule_id: int, email: str, channel: str,
+                          match_id: str, selection: str, league: str,
+                          event: str, selection_label: str, bookmaker: str,
+                          odds: float, edge: float,
+                          event_start: float | None = None,
+                          status: str = "sent",
+                          detail: str | None = None) -> bool:
+    """Guarda un envío de alerta (idempotente por regla+canal+partido+pick)."""
+    try:
+        conn.execute(
+            "INSERT INTO alert_deliveries "
+            "(rule_id, email, channel, match_id, selection, league, event, "
+            "selection_label, bookmaker, odds, edge, event_start, status, "
+            "detail, sent_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (int(rule_id), _normalize_email(email), str(channel),
+             str(match_id), str(selection), str(league), str(event),
+             str(selection_label), str(bookmaker), float(odds), float(edge),
+             float(event_start) if event_start is not None else None,
+             str(status), detail, time.time()))
+        conn.commit()
+        return True
+    except INTEGRITY_ERRORS:
+        conn.rollback()
+        return False
+
+
+def alert_deliveries_for_user(conn, email: str, limit: int = 50) -> list[dict]:
+    email = _normalize_email(email)
+    rows = conn.execute(
+        "SELECT * FROM alert_deliveries WHERE email=? "
+        "ORDER BY sent_at DESC, id DESC LIMIT ?",
+        (email, int(limit))).fetchall()
+    return [dict(r) for r in rows]

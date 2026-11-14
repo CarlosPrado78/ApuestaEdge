@@ -4,7 +4,7 @@ const I18N = {
     login: "Iniciar sesión", logout: "Salir", nav_picks: "Picks de hoy",
     nav_perf: "Rendimiento", nav_why: "Por qué funciona", nav_pricing: "Precios",
     nav_ledger: "Registro completo", nav_leagues: "Ligas",
-    nav_model: "Modelo", nav_verify: "Verificación",
+    nav_model: "Modelo", nav_verify: "Verificación", nav_alerts: "Alertas",
     hero_eyebrow: "Registro público desde el 13 nov 2026",
     hero_title: "Publicamos <em>cada</em> pick, incluidas las pérdidas.",
     hero_lead: "Cada pick se publica antes del evento, se asienta con el marcador real y queda en un registro que no se puede editar. Sin resultados inventados: si todavía no hay picks cerrados, verás 0.",
@@ -184,8 +184,8 @@ const I18N = {
     subscription_title: "💳 Tu suscripción",
     update_status: "Actualizar estado",
     manage_subscription: "Gestionar suscripción",
-    footer_disclaimer: "+18 · Juego responsable. Apostar conlleva riesgo de perder dinero. Este sitio ofrece análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados. Ningún modelo acierta siempre: jugamos para tener ventaja a largo plazo, no certezas por partido.",
-    footer_copyright: "ApuestaEdge © 2026 · Cuotas y resultados de eventos reales",
+    footer_disclaimer: "<strong>+18 · Uso responsable. No prometemos ganancias.</strong> Los pronósticos deportivos implican riesgo y los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico independiente con fines informativos; no es un operador de juego, no acepta fondos ni custodia dinero (aviso aplicable en México y demás jurisdicciones).",
+    footer_copyright: "ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Prado · Auditoría pública en /verificacion",
     email_placeholder: "tu@correo.com",
     pw_placeholder: "Contraseña (mín. 8 caracteres)",
     loading_data: "Cargando datos…",
@@ -202,7 +202,7 @@ const I18N = {
     login: "Sign in", logout: "Sign out", nav_picks: "Today's picks",
     nav_perf: "Performance", nav_why: "Why it works", nav_pricing: "Pricing",
     nav_ledger: "Full ledger", nav_leagues: "Leagues",
-    nav_model: "Model", nav_verify: "Verification",
+    nav_model: "Model", nav_verify: "Verification", nav_alerts: "Alerts",
     hero_eyebrow: "Public ledger since 13 Nov 2026",
     hero_title: "We publish <em>every</em> pick, including the losses.",
     hero_lead: "Every pick is published before the event, settles from the real score and stays in a ledger that cannot be edited. No invented results: if there are no settled picks yet, you will see 0.",
@@ -382,8 +382,8 @@ const I18N = {
     subscription_title: "💳 Your subscription",
     update_status: "Update status",
     manage_subscription: "Manage subscription",
-    footer_disclaimer: "+18 · Responsible gambling. Betting carries risk of losing money. This site offers statistical analysis for informational purposes; it is not financial advice or a guarantee of results. No model is always right: we play for long-term edge, not per-match certainty.",
-    footer_copyright: "ApuestaEdge © 2026 · Real event odds and results",
+    footer_disclaimer: "<strong>18+ · Responsible use. We do not promise profits.</strong> Sports forecasting involves risk and past data does not guarantee future results. This site provides independent statistical analysis for informational purposes only; it is not a gaming operator, does not accept wagers and does not custody funds (notice applicable in Mexico and other jurisdictions).",
+    footer_copyright: "ApuestaEdge © 2026 · Built and maintained by Carlos Prado · Public audit at /verificacion",
     email_placeholder: "you@email.com",
     pw_placeholder: "Password (min. 8 characters)",
     loading_data: "Loading data…",
@@ -412,7 +412,10 @@ function applyLang(lang) {
   document.querySelectorAll("[data-i18n]").forEach((el) => {
     const key = el.getAttribute("data-i18n");
     const val = t(key);
-    if (val && val !== key) el.textContent = val;
+    if (val && val !== key) {
+      if (val.includes("<")) el.innerHTML = val;
+      else el.textContent = val;
+    }
   });
   // Update hero title (contains HTML)
   const heroTitle = document.querySelector("h1");

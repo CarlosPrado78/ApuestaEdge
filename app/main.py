@@ -891,6 +891,204 @@ async def telegram_broadcast_test(request: Request) -> dict:
     return {"ok": True, "chat_id": config.TELEGRAM_BROADCAST_CHAT}
 
 
+# --------------------------------------------------- reglas de alertas (/alertas)
+DEFAULT_ALERT_LEAGUES = (
+    "Premier League · Inglaterra",
+    "LaLiga · España",
+    "Serie A · Italia",
+    "Bundesliga · Alemania",
+    "Ligue 1 · Francia",
+    "Liga MX · México",
+    "NBA · USA",
+    "NFL · USA",
+    "NCAAF · USA",
+    "MLB · USA",
+    "NHL · USA",
+    "ATP Tour",
+    "WTA Tour",
+    "Boxeo",
+)
+
+
+class AlertRuleIn(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    leagues: list[str] = Field(default_factory=list, max_length=25)
+    edge_min: float = Field(default=0.04, ge=0.03, le=0.50)
+    odds_min: float = Field(default=1.40, ge=1.01, le=50.0)
+    odds_max: float = Field(default=4.00, ge=1.02, le=100.0)
+    markets: list[str] = Field(default_factory=list, max_length=4)
+    max_minutes_to_start: int | None = Field(default=None, ge=5, le=10080)
+    channel_email: bool = True
+    channel_telegram: bool = False
+
+
+class AlertRuleToggleIn(BaseModel):
+    enabled: bool
+
+
+def _available_alert_leagues(conn) -> list[str]:
+    known = set(DEFAULT_ALERT_LEAGUES)
+    for row in db.ledger_rows(conn, "picks"):
+        if row.get("league"):
+            known.add(str(row["league"]))
+    for m in (_CACHE.get("matches") or []):
+        if m.get("league"):
+            known.add(str(m["league"]))
+    return sorted(known)
+
+
+@app.get("/api/alerts/rules")
+def alert_rules_list(request: Request) -> dict:
+    """Estado de alertas del usuario, sus reglas y su historial de envíos."""
+    user = auth.user_from_request(request)
+    conn = db.connect()
+    try:
+        leagues = _available_alert_leagues(conn)
+        if not user:
+            return {
+                "authenticated": False,
+                "plan": "free",
+                "max_rules": config.ALERT_MAX_RULES["free"],
+                "min_edge_allowed": config.PLANS["free"]["min_edge"],
+                "free_delay_seconds": service.release_delay_seconds("free"),
+                "rules": [],
+                "deliveries": [],
+                "leagues": leagues,
+                "channels": {
+                    "email_smtp": config.email_enabled(),
+                    "telegram_configured": config.telegram_enabled(),
+                    "telegram_linked": False,
+                },
+            }
+        plan = str(user.get("plan") or "free")
+        rules = db.alert_rules_for_user(conn, user["email"])
+        deliveries = db.alert_deliveries_for_user(conn, user["email"], limit=40)
+        for d in deliveries:
+            d["bookmaker_url"] = notifier.bookmaker_url(d.get("bookmaker"))
+        return {
+            "authenticated": True,
+            "email": user["email"],
+            "plan": plan,
+            "max_rules": config.ALERT_MAX_RULES.get(plan, 1),
+            "min_edge_allowed": config.PLANS.get(
+                plan, config.PLANS["free"])["min_edge"],
+            "free_delay_seconds": service.release_delay_seconds(plan),
+            "rules": rules,
+            "deliveries": deliveries,
+            "leagues": leagues,
+            "channels": {
+                "email_smtp": config.email_enabled(),
+                "telegram_configured": config.telegram_enabled(),
+                "telegram_linked": bool(user.get("telegram_chat_id")),
+            },
+        }
+    finally:
+        conn.close()
+
+
+@app.post("/api/alerts/rules")
+async def alert_rule_create(payload: AlertRuleIn, request: Request) -> dict:
+    user = auth.user_from_request(request)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Inicia sesión para guardar reglas de alertas.")
+    if payload.odds_min > payload.odds_max:
+        raise HTTPException(
+            status_code=422,
+            detail="La cuota mínima no puede superar a la cuota máxima.")
+    if not (payload.channel_email or payload.channel_telegram):
+        raise HTTPException(
+            status_code=422,
+            detail="Selecciona al menos un canal (Email o Telegram).")
+    valid_markets = {"h2h", "outright"}
+    markets = [m for m in payload.markets if m in valid_markets]
+    plan = str(user.get("plan") or "free")
+    max_rules = config.ALERT_MAX_RULES.get(plan, 1)
+    min_edge_plan = float(
+        config.PLANS.get(plan, config.PLANS["free"])["min_edge"])
+    effective_edge = max(float(payload.edge_min), min_edge_plan)
+
+    conn = db.connect()
+    try:
+        existing = db.alert_rules_for_user(conn, user["email"])
+        if len(existing) >= max_rules:
+            raise HTTPException(
+                status_code=403,
+                detail=(f"Tu plan ({plan.capitalize()}) permite hasta "
+                        f"{max_rules} regla(s). Elimina una o pasa a Premium."))
+        rule = db.alert_rule_create(
+            conn, user["email"],
+            name=payload.name,
+            leagues=payload.leagues,
+            edge_min=effective_edge,
+            odds_min=payload.odds_min,
+            odds_max=payload.odds_max,
+            markets=markets,
+            max_minutes_to_start=payload.max_minutes_to_start,
+            channel_email=payload.channel_email,
+            channel_telegram=payload.channel_telegram,
+            enabled=True,
+        )
+        matches, source = _get_matches()
+        dispatched = await notifier.dispatch_alert_rules(
+            conn, matches=matches, source=source)
+        return {"ok": True, "rule": rule, "dispatched": dispatched}
+    finally:
+        conn.close()
+
+
+@app.patch("/api/alerts/rules/{rule_id}")
+def alert_rule_toggle(rule_id: int, payload: AlertRuleToggleIn,
+                      request: Request) -> dict:
+    user = auth.user_from_request(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Inicia sesión.")
+    conn = db.connect()
+    try:
+        updated = db.alert_rule_set_enabled(
+            conn, user["email"], rule_id, payload.enabled)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Regla no encontrada.")
+        return {"ok": True, "rule": updated}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/alerts/rules/{rule_id}")
+def alert_rule_remove(rule_id: int, request: Request) -> dict:
+    user = auth.user_from_request(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Inicia sesión.")
+    conn = db.connect()
+    try:
+        removed = db.alert_rule_delete(conn, user["email"], rule_id)
+        if not removed:
+            raise HTTPException(status_code=404, detail="Regla no encontrada.")
+        return {"ok": True, "deleted": rule_id}
+    finally:
+        conn.close()
+
+
+@app.post("/api/alerts/evaluate")
+async def alert_rules_evaluate(request: Request) -> dict:
+    """Evalúa las reglas activas sobre el parte en caché (sin gastar créditos)."""
+    user = auth.user_from_request(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Inicia sesión.")
+    conn = db.connect()
+    try:
+        matches, source = _get_matches()
+        res = await notifier.dispatch_alert_rules(
+            conn, matches=matches, source=source)
+        deliveries = db.alert_deliveries_for_user(conn, user["email"], limit=40)
+        for d in deliveries:
+            d["bookmaker_url"] = notifier.bookmaker_url(d.get("bookmaker"))
+        return {"ok": True, "dispatched": res, "deliveries": deliveries}
+    finally:
+        conn.close()
+
+
 # ------------------------------------------------------------ registro (ledger)
 def _day_ts(value: str | None, *, end: bool = False) -> float | None:
     """``YYYY-MM-DD`` -> epoch UTC (fin de día incluido si ``end``)."""
@@ -1114,6 +1312,13 @@ def leagues_page() -> FileResponse:
 def model_page() -> FileResponse:
     """Auditoría del modelo y historial de versiones."""
     return FileResponse(config.BASE_DIR / "static" / "modelo.html",
+                        media_type="text/html")
+
+
+@app.get("/alertas", include_in_schema=False)
+def alerts_page() -> FileResponse:
+    """Reglas configurables de alertas (liga, edge, cuota, mercado, tiempo)."""
+    return FileResponse(config.BASE_DIR / "static" / "alertas.html",
                         media_type="text/html")
 
 

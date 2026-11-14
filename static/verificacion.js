@@ -8,7 +8,7 @@ const I18N = {
   es: {
     nav_home: "Inicio", nav_ledger: "Registro de picks",
     nav_leagues: "Ligas", nav_model: "Modelo",
-    nav_verify: "Verificación", nav_pricing: "Precios",
+    nav_verify: "Verificación", nav_alerts: "Alertas", nav_pricing: "Precios",
     eyebrow: "Verificación · registro append-only",
     title: "No tienes que creernos. Verifícalo.",
     intro: "Cada pick publicado queda encadenado al anterior con SHA-256. Si alguien edita, borra o reordena una fila, la cadena deja de cuadrar. Aquí ves el estado en vivo y puedes descargar el paquete completo para recalcularlo en tu máquina, sin depender de nosotros.",
@@ -56,13 +56,13 @@ const I18N = {
     l2: "Habría que comparar el ancla con una copia externa (red social, archivo, testigo) para detectar una reescritura completa y coordinada. El anclaje externo está en el roadmap.",
     l3: "Que un resultado sea justo: se asienta con el marcador oficial de la fuente de datos.",
     back_ledger: "← Volver al registro completo de picks",
-    footer_disclaimer: "<strong>+18 · Juego responsable.</strong> Los pronósticos deportivos implican riesgo. Los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados.",
-    footer_copyright: "ApuestaEdge © 2026 · Cuotas y resultados de eventos reales",
+    footer_disclaimer: "<strong>+18 · Uso responsable. No prometemos ganancias.</strong> Los pronósticos deportivos implican riesgo y los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico independiente con fines informativos; no es un operador de juego, no acepta fondos ni custodia dinero (aviso aplicable en México y demás jurisdicciones).",
+    footer_copyright: "ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Prado · Auditoría pública en /verificacion",
   },
   en: {
     nav_home: "Home", nav_ledger: "Pick ledger",
     nav_leagues: "Leagues", nav_model: "Model",
-    nav_verify: "Verification", nav_pricing: "Pricing",
+    nav_verify: "Verification", nav_alerts: "Alerts", nav_pricing: "Pricing",
     eyebrow: "Verification · append-only ledger",
     title: "You don't have to believe us. Verify it.",
     intro: "Every published pick is chained to the previous one with SHA-256. If anyone edits, deletes or reorders a row, the chain breaks. Here you see the live state and can download the full package to recompute it on your own machine, without trusting us.",
@@ -110,8 +110,8 @@ const I18N = {
     l2: "You would need to compare the anchor with an external copy (social post, archive, witness) to detect a full coordinated rewrite. External timestamping is on the roadmap.",
     l3: "That a result is fair: it settles from the official score of the data source.",
     back_ledger: "← Back to the full pick ledger",
-    footer_disclaimer: "<strong>18+ · Responsible play.</strong> Sports forecasting involves risk. Past data does not guarantee future results. This site provides statistical analysis for information only; it is not financial advice or a guarantee of results.",
-    footer_copyright: "ApuestaEdge © 2026 · Real event odds and results",
+    footer_disclaimer: "<strong>18+ · Responsible use. We do not promise profits.</strong> Sports forecasting involves risk and past data does not guarantee future results. This site provides independent statistical analysis for informational purposes only; it is not a gaming operator, does not accept wagers and does not custody funds (notice applicable in Mexico and other jurisdictions).",
+    footer_copyright: "ApuestaEdge © 2026 · Built and maintained by Carlos Prado · Public audit at /verificacion",
   },
 };
 

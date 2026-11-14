@@ -235,6 +235,10 @@ def evaluate_match(match: dict, bankroll: float | None = None, lang: str = "es")
 _FREE_DELAY_SECONDS = 2 * 3600  # 2 horas
 
 
+def release_delay_seconds(plan: str = "free") -> int:
+    return 0 if plan == "premium" else _FREE_DELAY_SECONDS
+
+
 def _free_released_ids(conn, now: float | None = None) -> set[str]:
     """Eventos ya publicados en el registro hace al menos 2 h."""
     now = time.time() if now is None else now

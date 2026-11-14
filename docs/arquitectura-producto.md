@@ -236,18 +236,18 @@ compara con su CSV. Cada cambio de modelo: fila nueva en `model_versions` y nota
 
 | # | Entregable | Por qué |
 |---|---|---|
-| 1 | Tabla `picks` + `pick_results` append-only, con hash chain | Es el producto |
-| 2 | Eliminar el historial simulado de producción; seed solo para tests | Riesgo reputacional/legal |
-| 3 | Job de cierre: cuota de cierre + CLV + resultado automáticos | Sin esto el CLV es ficción |
+| 1 | ✅ Tabla `picks` + `pick_closings` + `pick_results` append-only, con hash chain | Es el producto |
+| 2 | ✅ Eliminar el historial simulado de producción; seed solo para tests | Riesgo reputacional/legal |
+| 3 | ✅ Job de cierre: cuota de cierre + CLV + resultado automáticos | Sin esto el CLV es ficción |
 | 4 | ✅ `/picks`: tabla, 5 filtros, resumen con pérdidas en rojo, CSV, copiar pick | La prueba |
-| 5 | `/` con 3 métricas reales del ledger + contador de pérdidas | La promesa |
+| 5 | ✅ `/` con métricas reales del ledger + contador de pérdidas | La promesa |
 | 6 | ✅ `/modelo` (edge, Kelly 1/4, CLV, binomial, "pesos no públicos") + versiones | Credibilidad |
 | 7 | ✅ `/verificacion` con hash cabeza diario, verificador en navegador y paquete JSON independiente | Diferenciador barato |
-| 8 | Stripe $29 + trial 7 días sin tarjeta + Free 1 pick/día + histórico 7 días | Ingreso |
-| 9 | Alertas con reglas (liga, edge, cuota, mercado, tiempo) en Email + Telegram, pausar/reanudar | Diferenciación |
-| 10 | Bugfixes: edge filtrado en `/api/matches`, auth en `broadcast-test`, delay Free en alertas, caché en `send_digest`, `/mis_picks` con registro | Seguridad y coherencia |
-| 11 | Legal: descargo global, aviso MX, identidad real, "no prometemos ganancias" | Cumplimiento |
-| 12 | UI: dark/gris, verde/rojo/azul, tabla legible en móvil | Percepción de seriedad |
+| 8 | ✅ Stripe $29 + trial 7 días sin tarjeta + Free 1 pick/día + histórico 7 días | Ingreso |
+| 9 | ✅ Alertas con reglas (liga, edge, cuota, mercado, tiempo) en Email + Telegram, pausar/reanudar | Diferenciación |
+| 10 | ✅ Bugfixes: edge filtrado en `/api/matches`, auth en `broadcast-test`, delay Free en alertas, caché en `send_digest`, `/mis_picks` con registro | Seguridad y coherencia |
+| 11 | ✅ Legal: descargo global, aviso MX, identidad real, "no prometemos ganancias" | Cumplimiento |
+| 12 | ✅ UI: dark/gris, verde/rojo/azul, tabla legible en móvil | Percepción de seriedad |
 
 ### Después del lanzamiento (P1, semanas 2–4)
 

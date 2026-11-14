@@ -80,6 +80,10 @@ incluye aviso de juego responsable (+18) y explícitamente dice lo que el modelo
   comprobación en el navegador con Web Crypto y un verificador independiente
   de Python (solo biblioteca estándar) que recalcula la cadena desde el
   paquete JSON, sin confiar en el servidor.
+- **Alertas configurables (`/alertas`)**: reglas por liga, edge mínimo, rango
+  de cuota, mercado y tiempo máximo hasta el inicio; entrega por Email y
+  Telegram sin duplicados, con enlace directo a la casa (sin código de
+  afiliado), interruptor pausar/reanudar y retraso de 2 h aplicado al plan Free.
 
 ## Instalación
 
@@ -410,7 +414,7 @@ apuesta_edge/
   docs/              # arquitectura de producto y decisiones editoriales
   data/              # ratings, cuotas demo, historial, SQLite
   scripts/generate_demo_history.py
-  tests/             # 155 tests (motor, servicio, API, ledger, auth, cobros, alertas y 9 deportes)
+  tests/             # 163 tests (motor, servicio, API, ledger, auth, cobros, alertas y 9 deportes)
 ```
 
 ## Tests
