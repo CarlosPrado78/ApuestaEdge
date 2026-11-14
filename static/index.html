@@ -212,6 +212,228 @@
     </div>
   </div>
 </section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- MOCKUP VISUAL: 10 ATRIBUTOS DE FOSO COMPETITIVO (datos demo)    -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="foso" class="section band">
+  <div class="wrap">
+    <h2 data-i18n="foso_title">Foso competitivo — 10 atributos verificables</h2>
+    <p class="sub" data-i18n="foso_sub">Cada bloque es auditable por un visitante sin acceso al backend. Los datos mostrados son de ejemplo (demo) hasta que el registro tenga picks reales.</p>
+
+    <!-- ATRIBUTO 1: Hash criptográfico por pick -->
+    <div class="foso-block">
+      <div class="foso-header">
+        <span class="foso-num">1</span>
+        <h3 data-i18n="f1_title">Hash criptográfico por pick</h3>
+        <span class="demo-badge">Demo</span>
+      </div>
+      <div class="foso-card">
+        <div class="pick-mock">
+          <div class="pick-mock-row"><strong>Evento:</strong> Lakers vs Celtics</div>
+          <div class="pick-mock-row"><strong>Cuota:</strong> 1.85 · <strong>Edge:</strong> +4.2%</div>
+          <div class="pick-mock-hash">
+            <span class="hash-label" data-i18n="f1_hash_label">Hash:</span>
+            <code class="hash-value">a3f9c2e1...c1d2</code>
+            <button class="btn small primary" data-i18n="f1_verify">Verificar</button>
+            <a class="btn small ghost" href="https://opentimestamps.org" target="_blank" rel="noopener noreferrer" data-i18n="f1_ots">OpenTimestamps</a>
+          </div>
+        </div>
+        <p class="small-note muted" data-i18n="f1_note">Demo: hash de ejemplo. La verificación estará operativa en el lanzamiento.</p>
+      </div>
+    </div>
+
+    <!-- ATRIBUTO 2: Fuente de línea de cierre -->
+    <div class="foso-block">
+      <div class="foso-header">
+        <span class="foso-num">2</span>
+        <h3 data-i18n="f2_title">Fuente de línea de cierre</h3>
+      </div>
+      <div class="foso-card">
+        <div class="closing-source-badge">
+          <span class="badge info">ℹ</span>
+          <span data-i18n="f2_copy">CLV calculado contra la línea de cierre de Pinnacle (configurable).</span>
+        </div>
+        <p class="small-note muted" data-i18n="f2_tooltip">CLV = (cuota_entrada / cuota_cierre − 1) × 100. Cuota de entrada → Cuota de cierre → CLV. Fuente configurable sin romper el histórico.</p>
+      </div>
+    </div>
+
+    <!-- ATRIBUTO 3: Umbral binomial N≥200 -->
+    <div class="foso-block">
+      <div class="foso-header">
+        <span class="foso-num">3</span>
+        <h3 data-i18n="f3_title">Umbral de significancia estadística N≥200</h3>
+      </div>
+      <div class="foso-card">
+        <p class="muted" data-i18n="f3_copy">El test de significancia estadística se activa cuando la liga acumula 200 picks cerrados. Antes de eso publicamos conteo y CLV, pero no afirmamos significancia.</p>
+        <div class="league-progress-row">
+          <span class="league-name">Fútbol</span>
+          <div class="league-progress"><div class="league-progress-bar" style="width:6%"></div></div>
+          <span class="progress-text">12/200 picks</span>
+        </div>
+        <div class="league-progress-row">
+          <span class="league-name">Baloncesto</span>
+          <div class="league-progress"><div class="league-progress-bar" style="width:4%"></div></div>
+          <span class="progress-text">8/200 picks</span>
+        </div>
+        <div class="league-progress-row">
+          <span class="league-name">Tenis</span>
+          <div class="league-progress"><div class="league-progress-bar" style="width:2.5%"></div></div>
+          <span class="progress-text">5/200 picks</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ATRIBUTO 4: Límite de suscriptores -->
+    <div class="foso-block">
+      <div class="foso-header">
+        <span class="foso-num">4</span>
+        <h3 data-i18n="f4_title">Límite de suscriptores por liga</h3>
+        <span class="demo-badge">Demo</span>
+      </div>
+      <div class="foso-card">
+        <p class="muted" data-i18n="f4_copy">Limitamos el plan Premium a 50 suscriptores por liga porque si demasiados usuarios siguen el mismo pick, la línea se mueve y el edge real se erosiona. Cuando se llena, abrimos lista de espera.</p>
+        <div class="caps-mock">
+          <div class="cap-mock-row"><strong>Fútbol:</strong> 12/50 · <strong>Baloncesto:</strong> 8/50 · <strong>Tenis:</strong> 5/50</div>
+          <button class="btn small ghost" data-i18n="f4_waitlist">Unirme a lista de espera</button>
+        </div>
+        <p class="small-note muted" data-i18n="f4_note">Demo: contadores de ejemplo.</p>
+      </div>
+    </div>
+
+    <!-- ATRIBUTO 5: Edge realizado vs. publicado -->
+    <div class="foso-block">
+      <div class="foso-header">
+        <span class="foso-num">5</span>
+        <h3 data-i18n="f5_title">Edge realizado vs. edge publicado</h3>
+        <span class="demo-badge">Demo</span>
+      </div>
+      <div class="foso-card">
+        <div class="table-wrap">
+          <table class="ledger-table">
+            <thead>
+              <tr><th>Pick</th><th>Edge publicado</th><th>Edge al cierre</th><th>Diferencia</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Lakers vs Celtics</td><td>+4.2%</td><td>+3.1%</td><td class="neg">-1.1%</td></tr>
+              <tr><td>Real Madrid vs Barcelona</td><td>+5.8%</td><td>+6.2%</td><td class="pos">+0.4%</td></tr>
+              <tr><td>Chiefs vs Eagles</td><td>+3.5%</td><td>+2.9%</td><td class="neg">-0.6%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="small-note muted" data-i18n="f5_note">Demo: datos de ejemplo. Verde = realizado mayor. Rojo = realizado menor.</p>
+      </div>
+    </div>
+
+    <!-- ATRIBUTO 6: Simulación Monte Carlo -->
+    <div class="foso-block">
+      <div class="foso-header">
+        <span class="foso-num">6</span>
+        <h3 data-i18n="f6_title">Riesgo de la estrategia — Simulación Monte Carlo</h3>
+        <span class="demo-badge">Demo</span>
+      </div>
+      <div class="foso-card">
+        <p class="muted" data-i18n="f6_copy">Si nos hubieras seguido durante 500 picks con bankroll de 100 unidades y Kelly 1/4, en el 10% de los escenarios peores habrías terminado con X unidades; en el escenario mediano, con Y; en el 10% mejor, con Z.</p>
+        <div class="mc-cards">
+          <div class="mc-card">
+            <span class="mc-label" data-i18n="f6_p10">Peor 10%</span>
+            <span class="mc-value">4.14</span>
+            <span class="mc-sub">unidades</span>
+          </div>
+          <div class="mc-card">
+            <span class="mc-label" data-i18n="f6_p50">Mediana</span>
+            <span class="mc-value">8.51</span>
+            <span class="mc-sub">unidades</span>
+          </div>
+          <div class="mc-card">
+            <span class="mc-label" data-i18n="f6_p90">Mejor 10%</span>
+            <span class="mc-value">17.80</span>
+            <span class="mc-sub">unidades</span>
+          </div>
+        </div>
+        <p class="small-note muted" data-i18n="f6_note">Demo: simulación con datos de ejemplo.</p>
+      </div>
+    </div>
+
+    <!-- ATRIBUTO 7: Equipo -->
+    <div class="foso-block">
+      <div class="foso-header">
+        <span class="foso-num">7</span>
+        <h3 data-i18n="f7_title">Quién está detrás</h3>
+      </div>
+      <div class="foso-card">
+        <div class="team-mock">
+          <div class="team-avatar">CP</div>
+          <div>
+            <h4>Carlos Prado</h4>
+            <p class="muted" data-i18n="f7_role">Desarrollador y responsable del modelo</p>
+            <p class="muted" data-i18n="f7_bio">Construye ApuestaEdge porque está cansado de pronósticos sin prueba. El código, el registro y la metodología son públicos y auditables.</p>
+            <div class="team-links">
+              <a class="btn small ghost" href="https://github.com/CarlosPrado78" target="_blank" rel="noopener noreferrer">GitHub</a>
+              <a class="btn small ghost" href="https://twitter.com" target="_blank" rel="noopener noreferrer">Twitter</a>
+              <a class="btn small ghost" href="https://linkedin.com" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ATRIBUTO 8: Changelog del modelo -->
+    <div class="foso-block">
+      <div class="foso-header">
+        <span class="foso-num">8</span>
+        <h3 data-i18n="f8_title">Changelog del modelo</h3>
+        <span class="demo-badge">Demo</span>
+      </div>
+      <div class="foso-card">
+        <div class="changelog-entry">
+          <span class="changelog-date">13 nov 2026</span>
+          <span class="changelog-version">v0.1</span>
+          <p class="changelog-desc" data-i18n="f8_entry">Lanzamiento del esqueleto visual. Modelo inicial con edge ≥ 3% y Kelly 1/4.</p>
+        </div>
+        <p class="small-note muted" data-i18n="f8_note">Demo: changelog de ejemplo.</p>
+      </div>
+    </div>
+
+    <!-- ATRIBUTO 9: Comunidad -->
+    <div class="foso-block">
+      <div class="foso-header">
+        <span class="foso-num">9</span>
+        <h3 data-i18n="f9_title">Comunidad</h3>
+        <span class="demo-badge">En construcción</span>
+      </div>
+      <div class="foso-card">
+        <p class="muted" data-i18n="f9_copy">Únete a la comunidad en Telegram. Discute picks, reporta errores y propone mejoras.</p>
+        <a class="btn primary" href="https://t.me/apuestaedge" target="_blank" rel="noopener noreferrer" data-i18n="f9_cta">Unirse a la comunidad (Telegram)</a>
+        <p class="small-note muted" data-i18n="f9_note">En construcción: el grupo se abrirá en el lanzamiento.</p>
+      </div>
+    </div>
+
+    <!-- ATRIBUTO 10: Impacto de mercado -->
+    <div class="foso-block">
+      <div class="foso-header">
+        <span class="foso-num">10</span>
+        <h3 data-i18n="f10_title">Impacto de mercado</h3>
+        <span class="demo-badge">Demo</span>
+      </div>
+      <div class="foso-card">
+        <div class="impact-mock">
+          <span class="impact-number">+0.8%</span>
+          <span class="impact-label" data-i18n="f10_label">Movimiento promedio de línea post-anuncio (30 min)</span>
+        </div>
+        <p class="muted" data-i18n="f10_copy">Esto mide cuánto se mueve la línea después de publicar un pick, porque si demasiados suscriptores lo siguen, el edge se erosiona. Ningún competidor publica esta métrica.</p>
+        <div class="impact-chart-mock">
+          <div class="chart-bar" style="height:20%"><span>t=0</span></div>
+          <div class="chart-bar" style="height:25%"><span>5min</span></div>
+          <div class="chart-bar" style="height:30%"><span>15min</span></div>
+          <div class="chart-bar" style="height:35%"><span>30min</span></div>
+        </div>
+        <p class="small-note muted" data-i18n="f10_note">Demo: métrica con datos de ejemplo.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
 </main>
 
 <footer class="footer">
