@@ -269,8 +269,8 @@ function renderAnchor() {
   text.innerHTML = esc(fill("anchor_line", {
     day: anchor.day, hash: short(anchor.head_hash) + "…",
     rows: Number(anchor.picks_count || 0),
-  })) + ` · <span class="ots-status ${isLocal ? "pending" : "ok"}">${esc(otsLabel)}</span>` +
-    (isLocal ? "" : ` · <a href="/api/ledger/anchors/${encodeURIComponent(anchor.day)}.ots">${esc(state.lang === "en" ? "Download .ots ↗" : "Descargar .ots ↗")}</a>`);
+  })) + ` · <span class="ots-status pending">${esc(otsLabel)}</span>` +
+    ` · <a href="/api/ledger/anchors/${encodeURIComponent(anchor.day)}.ots">${esc(state.lang === "en" ? "Download .ots ↗" : "Descargar .ots ↗")}</a>`;
   dot.classList.add("ok");
   panel.hidden = false;
 }
