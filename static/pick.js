@@ -243,6 +243,7 @@ async function verifyPickHashes() {
     if (computed !== p.verification_hash) {
       box.classList.add("bad");
       box.textContent = t("verify_bad");
+      reportVerification(false);
       return;
     }
   }
@@ -261,11 +262,26 @@ async function verifyPickHashes() {
     if (computed !== expected) {
       box.classList.add("bad");
       box.textContent = t("verify_bad");
+      reportVerification(false);
       return;
     }
   }
   box.classList.add("ok");
   box.textContent = t("verify_ok");
+  reportVerification(true);
+}
+
+/* Avisa al servidor de que se completó una verificación en este navegador
+   (solo métrica de uso; la prueba criptográfica ocurre en cliente). */
+function reportVerification(ok) {
+  try {
+    fetch("/api/verify/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ok, scope: "pick" }),
+      keepalive: true,
+    }).catch(() => { /* métrica best-effort */ });
+  } catch { /* sin red: no interrumpe la verificación */ }
 }
 
 function applyLang(lang) {

@@ -349,6 +349,14 @@ async function runVerification() {
   }
 
   const ok = !failure && anchorOk && !headsMismatch;
+  // Métrica de uso: avisa al servidor de que este navegador completó la
+  // verificación (la prueba criptográfica ocurre íntegramente en cliente).
+  fetch("/api/verify/report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ok, scope: "ledger" }),
+    keepalive: true,
+  }).catch(() => { /* métrica best-effort */ });
   TABLES.forEach((table) => {
     const dot = document.querySelector(
       `.chain-card[data-chain="${table}"] [data-dot]`);

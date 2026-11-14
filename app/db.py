@@ -835,6 +835,43 @@ def kv_get(key: str) -> tuple[str, float] | None:
         conn.close()
 
 
+def kv_increment(key: str, delta: int = 1) -> int:
+    """Incrementa un contador entero en ``kv`` (atómico) y devuelve el total.
+
+    Se usa para medir verificaciones de hash hechas en el navegador.
+    """
+    conn = connect()
+    try:
+        conn.execute(
+            "INSERT INTO kv (key, value, updated_at) VALUES (?,?,?) "
+            "ON CONFLICT(key) DO UPDATE SET "
+            "value = CAST(CAST(value AS INTEGER) + ? AS TEXT), "
+            "updated_at = excluded.updated_at",
+            (key, str(delta), time.time(), delta))
+        conn.commit()
+        row = conn.execute(
+            "SELECT value FROM kv WHERE key = ?", (key,)).fetchone()
+        return int(str(row["value"])) if row else 0
+    finally:
+        conn.close()
+
+
+def kv_counter(key: str) -> int:
+    """Lee un contador entero de ``kv`` (0 si no existe)."""
+    conn = connect()
+    try:
+        row = conn.execute(
+            "SELECT value FROM kv WHERE key = ?", (key,)).fetchone()
+        if row is None:
+            return 0
+        try:
+            return int(str(row["value"]))
+        except (TypeError, ValueError):
+            return 0
+    finally:
+        conn.close()
+
+
 # ------------------------------------------------------- beta cerrada (cupo)
 BETA_CAP_KEY = "beta_max_users"
 

@@ -308,14 +308,21 @@ def health() -> dict:
     conn = db.connect()
     try:
         beta = db.beta_status(conn)
+        # Picks cerrados (con resultado asentado) y verificaciones de hash
+        # hechas en el navegador (contador reportado por los clientes).
+        picks_cerrados = conn.execute(
+            "SELECT COUNT(*) AS n FROM pick_results").fetchone()["n"]
     finally:
         conn.close()
+    verificaciones = db.kv_counter("verify_count")
     return {"status": "ok", "matches": len(matches), "source": source,
             "source_updated_at": _CACHE.get("updated_at") or None,
             "allow_sample": config.ALLOW_SAMPLE_DATA,
             "live_api_key": bool(config.ODDS_API_KEY),
     "triggers_ok": _check_triggers(),
             "beta": beta,
+            "picks_cerrados": int(picks_cerrados),
+            "verificaciones_hash": verificaciones,
             "odds_api": dict(providers.LAST_DIAG),
             "billing": "stripe" if billing.stripe_enabled() else "demo",
             "premium_locked": billing.stripe_enabled(),
@@ -1566,6 +1573,26 @@ def subscriber_caps_list() -> dict:
                 "default_cap": config.PREMIUM_SUBSCRIBER_CAP_PER_LEAGUE}
     finally:
         conn.close()
+
+
+class VerifyReportIn(BaseModel):
+    """Resultado de una verificación de hash hecha en el navegador."""
+    ok: bool = Field(default=True)
+    scope: str = Field(default="pick", max_length=20)
+
+
+@app.post("/api/verify/report")
+def verify_report(payload: VerifyReportIn) -> dict:
+    """Registra una verificación de hash realizada en el navegador del usuario.
+
+    La verificación ocurre en cliente (``crypto.subtle``), así que el servidor
+    solo recibe el aviso. Es una métrica de uso del foso, no una prueba
+    criptográfica: la prueba sigue siendo el recálculo en cada navegador.
+    """
+    total = db.kv_increment("verify_count")
+    ok_total = (db.kv_increment("verify_ok_count") if payload.ok
+                else db.kv_counter("verify_ok_count"))
+    return {"ok": True, "total": total, "ok_total": ok_total}
 
 
 @app.get("/api/picks/{pick_id}/verify")
