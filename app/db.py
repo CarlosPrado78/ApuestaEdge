@@ -836,22 +836,33 @@ def kv_get(key: str) -> tuple[str, float] | None:
 
 
 def kv_increment(key: str, delta: int = 1) -> int:
-    """Incrementa un contador entero en ``kv`` (atómico) y devuelve el total.
+    """Incrementa un contador entero en ``kv`` y devuelve el nuevo total.
 
-    Se usa para medir verificaciones de hash hechas en el navegador.
+    Se usa para medir verificaciones de hash hechas en el navegador. El
+    valor se calcula en Python y se escribe con el mismo upsert simple que
+    :func:`kv_set` (patrón ya probado en PostgreSQL y SQLite): no es
+    atómico bajo concurrencia, pero es una métrica de uso, no un asiento
+    del registro. Si dos verificaciones llegan a la vez, puede perderse
+    un incremento; nunca un error.
     """
     conn = connect()
     try:
-        conn.execute(
-            "INSERT INTO kv (key, value, updated_at) VALUES (?,?,?) "
-            "ON CONFLICT(key) DO UPDATE SET "
-            "value = CAST(CAST(value AS INTEGER) + ? AS TEXT), "
-            "updated_at = excluded.updated_at",
-            (key, str(delta), time.time(), delta))
-        conn.commit()
         row = conn.execute(
             "SELECT value FROM kv WHERE key = ?", (key,)).fetchone()
-        return int(str(row["value"])) if row else 0
+        current = 0
+        if row is not None:
+            try:
+                current = int(str(row["value"]))
+            except (TypeError, ValueError):
+                current = 0
+        total = current + delta
+        conn.execute(
+            "INSERT INTO kv (key, value, updated_at) VALUES (?,?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value, "
+            "updated_at = excluded.updated_at",
+            (key, str(total), time.time()))
+        conn.commit()
+        return total
     finally:
         conn.close()
 
