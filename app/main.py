@@ -1321,6 +1321,28 @@ def ledger_leagues() -> dict:
         conn.close()
 
 
+@app.get("/api/leagues/progress")
+def leagues_progress() -> dict:
+    """Progreso por liga hacia N≥200 picks cerrados (para verificación)."""
+    conn = db.connect()
+    try:
+        data = ledger.by_league(conn)
+        data.pop("_total_picks", None)
+        out = {}
+        for league, info in data.items():
+            sample = int(info.get("sample", 0))
+            out[league] = {
+                "picks_cerrados": sample,
+                "progreso": round(sample / config.SIGNIFICANCE_MIN_SAMPLE, 4),
+                "p_valor": (info.get("binomial_p_value")
+                            if sample >= config.SIGNIFICANCE_MIN_SAMPLE else None),
+                "significativo": bool(info.get("significant", False)),
+            }
+        return {"min_sample": config.SIGNIFICANCE_MIN_SAMPLE, "leagues": out}
+    finally:
+        conn.close()
+
+
 @app.get("/api/ledger/versions")
 def ledger_versions() -> dict:
     conn = db.connect()
@@ -1368,6 +1390,31 @@ def subscriber_caps_list() -> dict:
     try:
         return {"caps": db.subscriber_cap_list(conn),
                 "default_cap": config.PREMIUM_SUBSCRIBER_CAP_PER_LEAGUE}
+    finally:
+        conn.close()
+
+
+@app.get("/api/picks/{pick_id}/verify")
+def pick_verify_endpoint(pick_id: int) -> dict:
+    """Endpoint público de verificación de un pick (sin autenticación)."""
+    conn = db.connect()
+    try:
+        raw = ledger.pick_detail(conn, pick_id)
+        if not raw:
+            raise HTTPException(status_code=404, detail="Pick no encontrado.")
+        pub = _pick_public(raw)
+        pub["string_canonico"] = raw.get("pick_canonical")
+        pub["hash_esperado"] = raw.get("row_hash")
+        pub["recibo_ots"] = None
+        anc = db.ledger_anchor_latest(conn)
+        if anc:
+            pub["recibo_ots"] = {
+                "day": anc["day"],
+                "head_hash": anc["head_hash"],
+                "ots_proof": anc.get("ots_proof"),
+                "ots_calendar": anc.get("ots_calendar"),
+            }
+        return pub
     finally:
         conn.close()
 
