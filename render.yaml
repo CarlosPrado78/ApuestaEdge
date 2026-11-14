@@ -6,7 +6,7 @@ services:
     runtime: python
     autoDeploy: true
     # Render instala requirements.txt y arranca con esto:
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && echo 'build-$(date +%s)'
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
