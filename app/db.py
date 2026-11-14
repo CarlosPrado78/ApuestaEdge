@@ -696,7 +696,7 @@ def _migrate_postgres(conn: _PostgresConnection) -> None:
     conn.execute("""CREATE OR REPLACE FUNCTION prevent_modify_append_only()
         RETURNS TRIGGER AS $$
         BEGIN
-            RAISE EXCEPTION 'Table % is append-only: % not allowed', TG_TABLE_NAME, TG_OP;
+            RAISE EXCEPTION 'Table %% is append-only: %% not allowed', TG_TABLE_NAME, TG_OP;
         END;
         $$ LANGUAGE plpgsql;""")
     for table in ("picks", "pick_closings", "pick_results"):
