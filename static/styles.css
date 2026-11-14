@@ -273,6 +273,9 @@ em{color:var(--brand);font-style:normal}
 .league-progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--brand));border-radius:999px}
 .league-progress-label{margin:4px 0 0;font-size:.7rem;color:#6f7d97}
 .league-retention{margin:2px 0 0;font-size:.7rem;color:var(--accent)}
+.caps-grid{display:grid;gap:12px;margin-top:12px}
+.cap-row{display:grid;gap:6px}
+.cap-head{display:flex;justify-content:space-between;gap:10px;font-size:.85rem}
 
 /* ----------------------------------------------------- verificación */
 .verify-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-bottom:16px}

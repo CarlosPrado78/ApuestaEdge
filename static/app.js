@@ -182,6 +182,9 @@ const I18N = {
     step3_text: "y recibe cada valor nuevo al instante; cuando quieras más, Premium desbloquea el análisis completo.",
     plans_title: "Planes",
     plans_sub: "Empieza gratis. Premium desbloquea todos los valores, el stake exacto y el análisis completo. 7 días de prueba sin tarjeta, $29/mes después; cancela cuando quieras.",
+    caps_title: "Límite de suscriptores por estrategia",
+    caps_sub: "Limitamos el plan Premium a un número fijo de suscriptores por liga/mercado porque si demasiados usuarios siguen el mismo pick, la línea se mueve y el edge real se erosiona. Cuando se llena, abrimos lista de espera.",
+    caps_empty: "Sin contadores configurados todavía. Se inicializan con el primer pick publicado por liga.",
     creating: "Crear cuenta",
     already_have_account: "¿Ya tienes cuenta? Usa Iniciar sesión arriba a la derecha.",
     telegram_title: "📣 Alertas por Telegram",
@@ -380,6 +383,9 @@ const I18N = {
     step3_text: "and receive every new value instantly; when you want more, Premium unlocks full analysis.",
     plans_title: "Plans",
     plans_sub: "Start free. Premium unlocks all values, exact stake and full analysis. 7-day trial without a card, then $29/month; cancel anytime.",
+    caps_title: "Subscriber cap per strategy",
+    caps_sub: "We limit the Premium plan to a fixed number of subscribers per league/market because if too many users follow the same pick, the line moves and the real edge erodes. When it fills, we open a waitlist.",
+    caps_empty: "No counters configured yet. They are initialized with the first pick published per league.",
     creating: "Create account",
     already_have_account: "Already have an account? Use Sign in at the top right.",
     telegram_title: "📣 Telegram alerts",
@@ -954,6 +960,26 @@ async function loadImpact() {
       <div class="metric"><span class="metric-label">Mov. 15 min</span><span class="metric-value">${fmt(g && g.avg_move_15min_pct)}</span><span class="metric-sub">vs. entrada</span></div>
       <div class="metric"><span class="metric-label">Mov. 30 min</span><span class="metric-value">${fmt(g && g.avg_move_30min_pct)}</span><span class="metric-sub">Fuente: ${esc(data.closing_line_source)}</span></div>
     `;
+  } catch { /* ignora */ }
+}
+
+async function loadCaps() {
+  try {
+    const resp = await fetch('/api/subscriber-caps');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const box = $('#subscriber-caps');
+    if (!box) return;
+    const caps = data.caps || [];
+    if (!caps.length) { box.innerHTML = `<p class="muted">${esc(t('caps_empty'))}</p>`; return; }
+    box.innerHTML = caps.map((c) => {
+      const pct = c.cap ? Math.min(100, (c.occupied / c.cap) * 100) : 0;
+      const full = c.cap && c.occupied >= c.cap;
+      return `<div class="cap-row">
+        <div class="cap-head"><strong>${esc(c.league)}</strong><span>${c.occupied} / ${c.cap} ${full ? '· lista de espera' : '· disponibles'}</span></div>
+        <div class="league-progress"><div class="league-progress-bar" style="width:${pct.toFixed(1)}%"></div></div>
+      </div>`;
+    }).join('');
   } catch { /* ignora */ }
 }
 
