@@ -3,9 +3,20 @@ const I18N = {
   es: {
     login: "Iniciar sesión", logout: "Salir", nav_picks: "Picks de hoy",
     nav_perf: "Rendimiento", nav_why: "Por qué funciona", nav_pricing: "Precios",
-    hero_eyebrow: "Estadística, no promesas imposibles",
-    hero_title: "Te decimos <em>qué</em>, <em>quién</em>, <em>cuándo</em> y <em>cuánto</em> poner en juego —<br>con el porqué calculado, no supuesto.",
-    hero_cta_picks: "Ver picks de hoy", hero_cta_why: "¿Por qué ApuestaEdge?",
+    nav_ledger: "Registro completo",
+    hero_eyebrow: "Registro público desde el 13 nov 2026",
+    hero_title: "Publicamos <em>cada</em> pick, incluidas las pérdidas.",
+    hero_lead: "Cada pick se publica antes del evento, se asienta con el marcador real y queda en un registro que no se puede editar. Sin resultados inventados: si todavía no hay picks cerrados, verás 0.",
+    hero_cta_picks: "Ver registro completo de picks", hero_cta_why: "Probar 7 días gratis",
+    hero_roi: "ROI acumulado", hero_clv: "CLV medio", hero_dd: "Drawdown máximo",
+    hero_losses: "Pérdidas publicadas", hero_bets: "Picks publicados",
+    hero_honesty: "No prometemos ganancias. Publicamos el resultado completo, gane o pierda.",
+    hero_insufficient: "muestra insuficiente (n = {n})",
+    sub_closed: "{n} cerrados", sub_wins: "{n} ganadas",
+    ledger_open_zero: "Registro abierto el 13 nov 2026 · 0 picks cerrados todavía. Publicamos cada evento antes de que empiece; los resultados aparecerán aquí con el marcador real.",
+    ledger_small: "{total} picks publicados · {n} cerrados. Con menos de 30 picks cerrados no mostramos porcentajes: serían una promesa, no una medición.",
+    ledger_ok: "Calculado sobre {n} picks cerrados. Los pendientes no cuentan.",
+    settled_word: "cerrados", equity_empty: "Aún no hay picks cerrados: la curva aparecerá con el primer resultado.",
     picks_title: "Recomendaciones de hoy", chip_all: "Todos",
     bankroll: "Bankroll", login_title: "Entrar en ApuestaEdge",
     login_help: "Accede con tu email y contraseña.",
@@ -27,7 +38,6 @@ const I18N = {
     already_exists: "Ya existe una cuenta con ese correo. Inicia sesión.",
     account_created: "Cuenta creada.",
     picks_loading: "Calculando valor esperado…",
-    hero_roi: "ROI histórico", hero_hit: "Acierto", hero_clv: "CLV medio", hero_sig: "Significancia estadística", hero_bets: "Picks auditados",
     wrong_creds: "Correo o contraseña incorrectos.",
     short_pw: "La contraseña debe tener al menos 8 caracteres.",
     already_exists: "Ya existe una cuenta con ese correo. Inicia sesión.",
@@ -85,8 +95,6 @@ const I18N = {
     equity_close: "Cierre actual",
     units_word: "unidades",
     equity_stakes: "sobre stakes de 0.5–2.5% del bankroll.",
-    tg_soon_1: "Próximamente aquí: crea un bot con <b>@BotFather</b> y define ",
-    tg_soon_2: " en el servidor para recibir cada pick con valor en tu Telegram.",
     tg_linked: "Vinculado",
     tg_receive: "recibirás picks",
     tg_min_edge: "con edge",
@@ -104,7 +112,8 @@ const I18N = {
     edge_label: "Edge", ev_label: "Valor esperado", confidence_label: "Confianza",
     why_trust: "Ver análisis",
     no_picks_short: "Sin picks con valor ahora mismo.",
-    no_picks_detail: "Esperar a que el mercado ofrezca ventaja es parte del método: no apostar también es una decisión estadística.",
+    no_picks_detail: "Esperar a que el mercado ofrezca ventaja es parte del método: no entrar también es una decisión estadística.",
+    free_delay_empty: "El plan Free recibe cada pick 2 h después de publicarse en el registro. Ahora mismo no hay ninguno liberado: vuelve más tarde o consulta el registro público.",
     delayed_note: "Desbloquea 20 picks con edge ≥ 3%, stake Kelly, confianza y backtest completos en Premium.",
     locked_odds_full: "🔒 cuota y casa en Premium",
     unlock_analysis: "Desbloquear análisis →",
@@ -119,8 +128,8 @@ const I18N = {
     roi_label: "ROI",
     hit_rate_label: "Acierto",
     breakeven_label: "breakeven",
-    demo_mode: "Modo demostración: partidos y cuotas de ejemplo. Añade ODDS_API_KEY al entorno para datos en vivo.",
-    live_odds: "✅ Cuotas en vivo (The Odds API), actualizadas cada ~2 h.",
+    demo_mode: "Modo demostración: partidos y cuotas de ejemplo.",
+    live_odds: "✅ Cuotas en vivo, actualizadas cada pocas horas.",
     live_cached: "⏳ Datos en vivo del último parte guardado; la API no responde ahora mismo.",
     no_live_data: "⚠️ Sin datos en vivo ahora mismo. No mostramos eventos inventados: vuelve en unos minutos.",
     matches_on_radar: "partidos en el radar",
@@ -140,9 +149,10 @@ const I18N = {
     perf_title: "Rendimiento auditable",
     perf_sub: "Historial completo de picks (ganados y perdidos). Publicamos lo bueno y lo malo: sin track record verificable no hay confianza posible.",
     perf_equity: "Curva de equity (unidades acumuladas)",
-    perf_by_sport: "Por deporte",
-    th_sport: "Deporte", th_picks: "Picks", th_hit: "Acierto",
-    perf_footnote: "p < 0.05 → la ventaja es estadísticamente significativa al 95%.",
+    perf_by_league: "Por liga",
+    th_league: "Liga", th_picks: "Picks", th_hit: "Acierto",
+    perf_footnote: "p < 0.05 → la ventaja es estadísticamente significativa al 95%. Con menos de 30 picks cerrados por liga no se reporta p-valor.",
+    perf_link: "Ver el registro completo, pick por pick, con filtros y CSV →",
     why_title: "¿Por qué ApuestaEdge?",
     why_sub: "Lo que recibes, en concreto — sin humo:",
     benefit1_title: "🎯 Solo entradas con ventaja",
@@ -174,7 +184,7 @@ const I18N = {
     update_status: "Actualizar estado",
     manage_subscription: "Gestionar suscripción",
     footer_disclaimer: "+18 · Juego responsable. Apostar conlleva riesgo de perder dinero. Este sitio ofrece análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados. Ningún modelo acierta siempre: jugamos para tener ventaja a largo plazo, no certezas por partido.",
-    footer_copyright: "ApuestaEdge © 2026 · Datos de partidos y cuotas: The Odds API (solo eventos reales)",
+    footer_copyright: "ApuestaEdge © 2026 · Cuotas y resultados de eventos reales",
     email_placeholder: "tu@correo.com",
     pw_placeholder: "Contraseña (mín. 8 caracteres)",
     loading_data: "Cargando datos…",
@@ -190,9 +200,20 @@ const I18N = {
   en: {
     login: "Sign in", logout: "Sign out", nav_picks: "Today's picks",
     nav_perf: "Performance", nav_why: "Why it works", nav_pricing: "Pricing",
-    hero_eyebrow: "Statistics, not impossible promises",
-    hero_title: "We tell you <em>what</em>, <em>who</em>, <em>when</em> and <em>how much</em> to put at stake —<br>with the why calculated, not assumed.",
-    hero_cta_picks: "View today's picks", hero_cta_why: "Why ApuestaEdge?",
+    nav_ledger: "Full ledger",
+    hero_eyebrow: "Public ledger since 13 Nov 2026",
+    hero_title: "We publish <em>every</em> pick, including the losses.",
+    hero_lead: "Every pick is published before the event, settles from the real score and stays in a ledger that cannot be edited. No invented results: if there are no settled picks yet, you will see 0.",
+    hero_cta_picks: "View the full pick ledger", hero_cta_why: "Try 7 days free",
+    hero_roi: "Cumulative ROI", hero_clv: "Average CLV", hero_dd: "Max drawdown",
+    hero_losses: "Published losses", hero_bets: "Published picks",
+    hero_honesty: "We don't promise profits. We publish the full result, win or lose.",
+    hero_insufficient: "insufficient sample (n = {n})",
+    sub_closed: "{n} settled", sub_wins: "{n} won",
+    ledger_open_zero: "Ledger opened 13 Nov 2026 · 0 settled picks yet. Every event is published before it starts; results will appear here from the real score.",
+    ledger_small: "{total} picks published · {n} settled. With fewer than 30 settled picks we do not show percentages: they would be a promise, not a measurement.",
+    ledger_ok: "Calculated over {n} settled picks. Pending picks do not count.",
+    settled_word: "settled", equity_empty: "No settled picks yet: the curve will appear with the first result.",
     picks_title: "Today's recommendations", chip_all: "All",
     bankroll: "Bankroll", login_title: "Sign in to ApuestaEdge",
     login_help: "Sign in with your email and password.",
@@ -214,7 +235,6 @@ const I18N = {
     already_exists: "An account with this email already exists. Sign in.",
     account_created: "Account created.",
     picks_loading: "Calculating expected value…",
-    hero_roi: "Historical ROI", hero_hit: "Hit rate", hero_clv: "Avg CLV", hero_sig: "Statistical significance", hero_bets: "Audited picks",
     wrong_creds: "Wrong email or password.",
     short_pw: "Password must be at least 8 characters.",
     already_exists: "An account with this email already exists. Sign in.",
@@ -272,8 +292,6 @@ const I18N = {
     equity_close: "Current close",
     units_word: "units",
     equity_stakes: "on stakes of 0.5–2.5% of bankroll.",
-    tg_soon_1: "Coming soon: create a bot with <b>@BotFather</b> and set ",
-    tg_soon_2: " on the server to receive every value pick in your Telegram.",
     tg_linked: "Linked",
     tg_receive: "you'll receive picks",
     tg_min_edge: "with edge",
@@ -291,7 +309,8 @@ const I18N = {
     edge_label: "Edge", ev_label: "Expected value", confidence_label: "Confidence",
     why_trust: "View analysis",
     no_picks_short: "No value picks right now.",
-    no_picks_detail: "Waiting for the market to offer an edge is part of the method: not betting is also a statistical decision.",
+    no_picks_detail: "Waiting for the market to offer an edge is part of the method: sitting one out is also a statistical decision.",
+    free_delay_empty: "The Free plan receives every pick 2 h after it is published to the ledger. None has been released yet: check back later or browse the public ledger.",
     delayed_note: "Unlock 20 picks with edge ≥ 3%, Kelly stake, confidence and full backtest in Premium.",
     locked_odds_full: "🔒 odds and bookmaker in Premium",
     unlock_analysis: "Unlock analysis →",
@@ -306,8 +325,8 @@ const I18N = {
     roi_label: "ROI",
     hit_rate_label: "Hit rate",
     breakeven_label: "breakeven",
-    demo_mode: "Demo mode: sample matches and odds. Add ODDS_API_KEY to the environment for live data.",
-    live_odds: "✅ Live odds (The Odds API), refreshed every ~2 hours.",
+    demo_mode: "Demo mode: sample matches and odds.",
+    live_odds: "✅ Live odds, refreshed every few hours.",
     live_cached: "⏳ Live data from the last saved snapshot; the API is not responding right now.",
     no_live_data: "⚠️ No live data right now. We don't show invented events: check back in a few minutes.",
     matches_on_radar: "matches on the radar",
@@ -327,9 +346,10 @@ const I18N = {
     perf_title: "Auditable performance",
     perf_sub: "Full pick history (wins and losses). We publish the good and the bad: without a verifiable track record there is no trust.",
     perf_equity: "Equity curve (cumulative units)",
-    perf_by_sport: "By sport",
-    th_sport: "Sport", th_picks: "Picks", th_hit: "Hit rate",
-    perf_footnote: "p < 0.05 → the edge is statistically significant at 95%.",
+    perf_by_league: "By league",
+    th_league: "League", th_picks: "Picks", th_hit: "Hit rate",
+    perf_footnote: "p < 0.05 → the edge is statistically significant at 95%. With fewer than 30 settled picks per league, no p-value is reported.",
+    perf_link: "See the full ledger, pick by pick, with filters and CSV →",
     why_title: "Why ApuestaEdge?",
     why_sub: "What you get, concretely — no hype:",
     benefit1_title: "🎯 Only entries with an edge",
@@ -361,7 +381,7 @@ const I18N = {
     update_status: "Update status",
     manage_subscription: "Manage subscription",
     footer_disclaimer: "+18 · Responsible gambling. Betting carries risk of losing money. This site offers statistical analysis for informational purposes; it is not financial advice or a guarantee of results. No model is always right: we play for long-term edge, not per-match certainty.",
-    footer_copyright: "ApuestaEdge © 2026 · Match & odds data: The Odds API (real events only)",
+    footer_copyright: "ApuestaEdge © 2026 · Real event odds and results",
     email_placeholder: "you@email.com",
     pw_placeholder: "Password (min. 8 characters)",
     loading_data: "Loading data…",
@@ -410,7 +430,8 @@ function applyLang(lang) {
   // Re-render dynamic sections in the new language.
   if (typeof loadPicks === "function" && state && state.plan) loadPicks();
   if (typeof loadPlans === "function" && state && state.plans) loadPlans();
-  if (typeof loadPerformance === "function" && state && state.plans) { loadPerformance(); loadStats(); }
+  // El registro público no depende de los planes: se repinta siempre.
+  if (typeof loadPerformance === "function") { loadPerformance(); loadStats(); }
   if (typeof loadTelegram === "function" && state && state.plans) loadTelegram();
   if (typeof loadSubscription === "function" && state && state.plans) loadSubscription();
   // Update login dialog text based on mode
@@ -685,8 +706,11 @@ async function loadPicks() {
       $("#picks-sub").innerHTML =
         `<b>${label}</b> · ${t("min_edge_label")} ${pct(data.min_edge, 0)} · ` +
         `${data.models_scanned} ${t("matches_analyzed")} · ${data.value_candidates} ${t("with_value")}`;
-      box.innerHTML = '<p class="muted">' + t('no_picks_short') + ' ' +
-        t('no_picks_detail') + '</p>';
+      box.innerHTML = data.release_delay_seconds
+        ? '<p class="muted">' + t('free_delay_empty') +
+          ' <a href="/picks">' + t('nav_ledger') + ' →</a></p>'
+        : '<p class="muted">' + t('no_picks_short') + ' ' +
+          t('no_picks_detail') + '</p>';
       return;
     }
     $("#picks-sub").innerHTML =
@@ -777,56 +801,113 @@ function card(p) {
 }
 
 /* ------------------------------------------------------------ rendimiento */
+function fill(template, vars) {
+  let out = String(template);
+  Object.entries(vars || {}).forEach(([k, v]) => {
+    out = out.split(`{${k}}`).join(String(v));
+  });
+  return out;
+}
+
+function renderHero(s) {
+  const set = (sel, text, cls) => {
+    const el = $(sel);
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove("pos", "neg");
+    if (cls) el.classList.add(cls);
+  };
+  const roiOk = s.sample >= 30;
+  const clvOk = s.clv_sample >= 30;
+  set("#hs-roi", roiOk ? spct(s.roi_pct) : "—",
+      roiOk ? (s.roi_pct >= 0 ? "pos" : "neg") : "");
+  set("#hs-clv", clvOk ? spct(s.avg_clv_pct) : "—",
+      clvOk ? (s.avg_clv_pct >= 0 ? "pos" : "neg") : "");
+  set("#hs-dd", s.sample ? `${num(s.max_drawdown_units)} u.` : "—", "");
+  set("#hs-losses", String(s.losses || 0), "neg");
+  set("#hs-bets", String(s.picks_total || 0), "");
+  const sub = (sel, text) => { const el = $(sel); if (el) el.textContent = text; };
+  sub("#hs-roi-sub", roiOk ? t("roi_sub") : fill(t("hero_insufficient"), { n: s.sample }));
+  sub("#hs-clv-sub", clvOk ? t("entry_vs_close")
+      : fill(t("hero_insufficient"), { n: s.clv_sample || 0 }));
+  sub("#hs-dd-sub", s.sample ? t("drawdown_sub") : t("no_data"));
+  sub("#hs-losses-sub", fill(t("sub_wins"), { n: s.wins || 0 }));
+  sub("#hs-bets-sub", fill(t("sub_closed"), { n: s.sample || 0 }));
+}
+
 async function loadStats() {
   try {
-    const [perf, health] = await Promise.all([
-      api("/api/performance"), api("/api/health")]);
-    if (perf.bets) {
-      $("#hs-roi").textContent = spct(perf.roi_pct);
-      $("#hs-hit").textContent = num(perf.hit_rate_pct, 1) + "%";
-      $("#hs-clv").textContent = spct(perf.avg_clv_pct);
-      $("#hs-p").textContent = num(perf.binomial_p_value, 3);
-      $("#hs-bets").textContent = String(perf.bets);
-    }
+    const [s, health] = await Promise.all([
+      api("/api/ledger/summary"), api("/api/health")]);
+    renderHero(s);
     const src = health.source;
     const note = src === "live" ? t("live_odds")
       : src === "live_cached" ? t("live_cached")
       : src === "unavailable" ? t("no_live_data")
       : t("demo_mode");
+    let ledger;
+    if (!s.picks_total) ledger = t("ledger_open_zero");
+    else if (s.sample < 30) ledger = fill(t("ledger_small"), {
+      total: s.picks_total, n: s.sample,
+    });
+    else ledger = fill(t("ledger_ok"), { n: s.sample });
     $("#source-note").textContent =
-      note + ` · ${health.matches} ${t("matches_on_radar")}`;
+      `${ledger} · ${note} · ${health.matches} ${t("matches_on_radar")}`;
   } catch { /* silencioso: el hero sigue siendo legible */ }
 }
 
 async function loadPerformance() {
   try {
-    const [all, by] = await Promise.all([
-      api("/api/performance"), api("/api/performance/by-sport")]);
-    if (all.bets) {
-      $("#metrics").innerHTML = [
-        ["ROI / yield", spct(all.roi_pct), t("roi_sub")],
-        [t("hit_rate_table"), num(all.hit_rate_pct, 1) + "%", `${t("breakeven_table")} ${num(all.breakeven_hit_pct, 1)}%`],
-        ["Profit factor", num(all.profit_factor), t("pf_sub")],
-        [t("clv_avg"), spct(all.avg_clv_pct), t("entry_vs_close")],
-        [t("drawdown_label"), num(all.max_drawdown_units) + " u.", t("drawdown_sub")],
-        ["Test binomial", "p = " + num(all.binomial_p_value, 3),
-          all.binomial_p_value < 0.05 ? t("signif_yes") : t("signif_no")],
-        [t("audited_label"), String(all.bets), `${all.wins} ${t("won_word")}`],
-        [t("avg_odds_label"), num(all.avg_odds), t("avg_odds_sub")],
-      ].map(([l, v, s]) => `<div class="metric"><b>${v}</b><label>${l}</label><small>${s}</small></div>`).join("");
-      drawEquity(all.equity_curve || []);
-    }
-    const rows = Object.entries(by.by_sport || {}).map(([sport, s]) => `
-      <tr><td>${icon(sport)} ${esc(SPORT_NAME(sport) || sport)}</td><td>${s.bets}</td>
-      <td>${num(s.hit_rate_pct, 1)}%</td>
-      <td class="${s.roi_pct >= 0 ? "pos" : ""}">${spct(s.roi_pct)}</td>
-      <td>${spct(s.avg_clv_pct)}</td><td>${num(s.binomial_p_value, 3)}</td></tr>`).join("");
-    $("#sport-table tbody").innerHTML = rows || `<tr><td colspan="6">${t("no_data")}</td></tr>`;
+    const [s, by] = await Promise.all([
+      api("/api/ledger/summary"), api("/api/ledger/leagues")]);
+    const roiOk = s.sample >= 30;
+    const clvOk = s.clv_sample >= 30;
+    const insufficient = fill(t("hero_insufficient"), { n: s.sample });
+    const smallClv = fill(t("hero_insufficient"), { n: s.clv_sample || 0 });
+    $("#metrics").innerHTML = [
+      ["ROI / yield", roiOk ? spct(s.roi_pct) : "—",
+        roiOk ? t("roi_sub") : insufficient],
+      [t("hit_rate_table"), roiOk ? num(s.hit_rate_pct, 1) + "%" : "—",
+        `${t("breakeven_table")} ${roiOk ? num(s.breakeven_hit_pct, 1) + "%" : "—"}`],
+      [t("clv_avg"), clvOk ? spct(s.avg_clv_pct) : "—",
+        clvOk ? t("entry_vs_close") : smallClv],
+      [t("drawdown_label"), s.sample ? num(s.max_drawdown_units) + " u." : "—",
+        t("drawdown_sub")],
+      [t("hero_losses"), String(s.losses || 0),
+        fill(t("sub_wins"), { n: s.wins || 0 })],
+      [t("hero_bets"), String(s.picks_total || 0),
+        fill(t("sub_closed"), { n: s.sample || 0 })],
+      ["Test binomial", roiOk ? "p = " + num(s.binomial_p_value, 3) : "—",
+        roiOk ? (s.binomial_p_value < 0.05 ? t("signif_yes") : t("signif_no")) : t("no_data")],
+      [t("avg_odds_label"), s.sample ? num(s.avg_odds) : "—", t("avg_odds_sub")],
+    ].map(([label, value, note]) =>
+      `<div class="metric"><b>${value}</b><label>${label}</label><small>${note}</small></div>`).join("");
+    drawEquity(s.equity_curve || []);
+
+    const leagues = Object.entries(by.leagues || {});
+    const significant = leagues.filter(([, row]) => row.significant);
+    const best = significant.length
+      ? significant.reduce((a, b) => (b[1].avg_clv_pct > a[1].avg_clv_pct ? b : a))[0]
+      : null;
+    const rows = leagues.map(([league, row]) => {
+      const ok = row.sample >= 30;
+      const star = league === best ? ' <span class="badge edge" title="mejor liga">★</span>' : "";
+      return `<tr><td>${esc(league)}${star}</td><td>${row.picks}</td>
+        <td>${ok ? num(row.hit_rate_pct, 1) + "%" : "—"}</td>
+        <td class="${ok ? (row.roi_pct >= 0 ? "pos" : "neg") : ""}">${ok ? spct(row.roi_pct) : "—"}</td>
+        <td class="${ok ? (row.avg_clv_pct >= 0 ? "pos" : "neg") : ""}">${ok ? spct(row.avg_clv_pct) : "—"}</td>
+        <td>${ok ? num(row.binomial_p_value, 3) : "—"}</td></tr>`;
+    }).join("");
+    $("#sport-table tbody").innerHTML = rows ||
+      `<tr><td colspan="6">${t("equity_empty")}</td></tr>`;
   } catch { /* la sección queda con su mensaje de carga */ }
 }
 
 function drawEquity(curve) {
-  if (!curve.length) return;
+  if (!curve || !curve.length) {
+    $("#equity").innerHTML = `<p class="muted">${t("equity_empty")}</p>`;
+    return;
+  }
   const w = 560, h = 170, pad = 12;
   const min = Math.min(0, ...curve), max = Math.max(0, ...curve);
   const span = max - min || 1;
@@ -842,7 +923,7 @@ function drawEquity(curve) {
       <polyline points="${pts}" fill="none" stroke="#38e07b" stroke-width="2.5"
                 stroke-linejoin="round" stroke-linecap="round"/>
     </svg>
-    <p class="footnote">${t("equity_close")}: <b class="pos">${last >= 0 ? "+" : ""}${num(last)} ${t("units_word")}</b>
+    <p class="footnote">${t("equity_close")}: <b class="${last >= 0 ? "pos" : "neg"}">${last >= 0 ? "+" : ""}${num(last)} ${t("units_word")}</b>
       ${t("equity_stakes")}</p>`;
 }
 
@@ -987,13 +1068,20 @@ $("#subscribe-form").addEventListener("submit", async (e) => {
 async function loadTelegram() {
   const box = $("#tg-body");
   if (!box) return;
+  const panel = $("#tg-panel");
   try {
     const tg = await api("/api/telegram");
     if (!tg.configured) {
-      box.innerHTML = t("tg_soon_1") +
-        `<code>TELEGRAM_BOT_TOKEN</code> ${t("tg_soon_2")}`;
+      // Sin bot configurado no se anuncia la función: un beneficio que no
+      // existe no se muestra como "próximamente".
+      if (panel) panel.hidden = true;
+      const benefit = $("#benefit-telegram");
+      if (benefit) benefit.hidden = true;
       return;
     }
+    if (panel) panel.hidden = false;
+    const benefit = $("#benefit-telegram");
+    if (benefit) benefit.hidden = false;
     if (tg.linked) {
       box.innerHTML = `✅ <b>${t("tg_linked")}</b> · ${t("plan_word")} <b>${esc(tg.plan)}</b> · ${t("tg_receive")} ` +
         `${t("tg_min_edge")} ≥ ${pct(tg.min_edge, 0)} ${t("tg_every")} ${Math.round(tg.interval_seconds / 60)} min ` +

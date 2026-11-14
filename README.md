@@ -62,6 +62,12 @@ incluye aviso de juego responsable (+18) y explícitamente dice lo que el modelo
   gancho de Premium.
 - **Rendimiento auditable**: ROI, acierto vs breakeven, profit factor, CLV,
   drawdown y **test binomial** por deporte, con curva de equity.
+- **Registro público de picks (`/picks`)**: cada pick se publica **antes** del
+  evento en una tabla append-only con cadena de hashes SHA-256, se asienta con
+  el marcador real y no se puede editar ni borrar. Tabla con filtros, resumen
+  (ROI, acierto, CLV, pérdidas) y export CSV. Con menos de 30 picks cerrados se
+  muestra «muestra insuficiente (n=X)» en lugar de porcentajes que parezcan una
+  promesa. Detalle técnico abajo.
 
 ## Instalación
 
@@ -125,6 +131,28 @@ El panel indica en el encabezado si está en modo **demo**, **en vivo** o
 | `APUESTAEDGE_DB` | `data/apuesta_edge.db` | Ruta de la base SQLite |
 | `DATABASE_URL` | vacía | PostgreSQL (Neon/Supabase/Render): persistencia real |
 | `PASSWORD_MIN_LENGTH` | `8` | Longitud mínima de la contraseña |
+| `ADMIN_TOKEN` | vacía | Bearer para `broadcast-test` y ancla manual (sin él: 403) |
+| `MODEL_VERSION` | `elo-1.0` | Versión del modelo que se anota en cada pick |
+| `LEDGER_MIN_EDGE` | `0.03` | Edge mínimo para publicar en el registro |
+| `LEDGER_PUBLISH_INTERVAL` | `900` | Segundos entre ciclos del registro |
+| `LEDGER_CLOSE_WINDOW` | `900` | Ventana antes del inicio para congelar la cuota de cierre |
+| `LEDGER_SETTLE_WINDOW` | `259200` | Días hacia atrás para buscar marcadores (3 días) |
+
+### Registro público (ledger)
+
+- Tres cadenas independientes (`picks`, `pick_closings`, `pick_results`) con
+  `prev_hash`/`row_hash` SHA-256; se anclan juntas una vez al día en
+  `ledger_anchors`. Cualquier edición o borrado rompe la verificación.
+- Solo publica con datos reales (`source == "live"`): en demo el registro queda
+  vacío a propósito. Sin `ODDS_API_KEY` tampoco corre el ciclo de fondo.
+- `capture_closings` congela la cuota de cierre y calcula el CLV automático;
+  `settle` asienta el resultado con el marcador real (outrights quedan
+  pendientes).
+- El plan **Free ve cada pick 2 h después** de su publicación: la liberación se
+  calcula contra `picks.created_at` (no hay caché en memoria). En demo se
+  muestra la muestra sin retraso.
+- El CSV incluye `prev_hash` y `row_hash` para inspección; incluye BOM para
+  Excel.
 
 ## API
 
@@ -133,12 +161,17 @@ El panel indica en el encabezado si está en modo **demo**, **en vivo** o
 | GET | `/api/health` | Estado y fuente de datos (demo / vivo) |
 | GET | `/api/matches?sport=` | Partidos + probabilidades modelo y mercado |
 | GET | `/api/recommendations?plan=&sport=&min_edge=&bankroll=` | Picks rankeados con explicación |
-| GET | `/api/performance?sport=` | ROI, CLV, drawdown, p-value |
+| GET | `/api/performance?sport=` | ROI, CLV, drawdown, p-value (historial; la home usa el ledger) |
 | GET | `/api/performance/by-sport` | Métricas por deporte |
+| GET | `/api/ledger/summary` | Resumen del registro público (ROI, CLV, drawdown, pérdidas) |
+| GET | `/api/ledger/picks` | Registro filtrable (`league`, fechas, `edge_min`, `market`, `result`); `format=csv` |
+| GET | `/api/ledger/leagues` | Métricas por liga + p-valor y «mejor liga» solo con n≥30 |
+| GET | `/api/ledger/verify` | Recalcula las tres cadenas de hashes |
+| GET | `/api/ledger/versions` | Versión del modelo e historial |
 | GET | `/api/methodology` | Pipeline y límites (API: la web no muestra ya esa sección) |
 | GET | `/api/plans` | Planes, features y modo de cobro |
-| POST | `/api/subscribe` | Registro `{email, plan}` → token de sesión |
-| POST | `/api/auth/login` | `{email}` → token (demo, sin contraseña) |
+| POST | `/api/subscribe` | Registro `{email, password}` → token de sesión |
+| POST | `/api/auth/login` | `{email, password}` → token (PBKDF2) |
 | GET | `/api/auth/me` | Sesión y plan del token actual |
 | POST | `/api/billing/checkout` | Inicia el pago Premium (Stripe) |
 | POST | `/api/billing/confirm` | Verifica la sesión de Stripe al volver del pago y activa Premium |
@@ -147,7 +180,7 @@ El panel indica en el encabezado si está en modo **demo**, **en vivo** o
 | POST | `/api/billing/portal` | Portal del cliente Stripe (cancelar, cambiar tarjeta) |
 | GET | `/api/telegram` | Estado de alertas + código de vinculación |
 | POST | `/api/telegram/reset-alerts` | Reenviar picks ya notificados |
-| POST | `/api/telegram/broadcast-test` | Mensaje de prueba al chat admin |
+| POST | `/api/telegram/broadcast-test` | Mensaje de prueba al chat admin (requiere `ADMIN_TOKEN`) |
 
 Documentación interactiva: <http://localhost:8000/docs>
 
@@ -177,8 +210,9 @@ Flujo del usuario:
 
 Comandos del bot: `/start <codigo>`, `/mis_picks`, `/status`, `/stop`.
 
-Sin `TELEGRAM_BOT_TOKEN` el sistema está inerte: la web no cambia (el panel
-indica que las alertas están "próximamente").
+Sin `TELEGRAM_BOT_TOKEN` el sistema está inerte y el panel de Telegram se
+oculta (no se anuncia algo que no existe). `/mis_picks` exige un chat
+vinculado: sin vínculo no hay a quién aplicar plan, límite ni retraso Free.
 
 ### Plan y bloqueo (importante para monetizar)
 
@@ -351,7 +385,8 @@ apuesta_edge/
     providers.py     # The Odds API + dataset demo + ratings Elo
     service.py       # pipeline: modelo → mercado → edge → Kelly → pick
     explain.py       # explicación en español de cada recomendación
-    db.py            # SQLite/PostgreSQL: historial, usuarios/sesiones y suscriptores
+    db.py            # SQLite/PostgreSQL: ledger, usuarios/sesiones y suscriptores
+    ledger.py        # registro append-only: cadenas de hashes, CLV, asentado, ancla
     engine/
       devig.py       # desvigado (potencias / proporcional) y CLV
       elo.py         # ratings Elo + ventaja de localía
@@ -359,10 +394,11 @@ apuesta_edge/
       kelly.py       # Kelly fraccional y tope de riesgo
       ev.py          # valor esperado y confianza (bayesiana/normal)
       backtest.py    # ROI, drawdown, profit factor, test binomial
-  static/            # panel web (index.html, styles.css, app.js)
+  static/            # web: index.html + app.js, picks.html + ledger.js, estilos
+  docs/              # arquitectura de producto y decisiones editoriales
   data/              # ratings, cuotas demo, historial, SQLite
   scripts/generate_demo_history.py
-  tests/             # 92 tests (motor, servicio, API, auth, cobros, alertas y 9 deportes)
+  tests/             # 150 tests (motor, servicio, API, ledger, auth, cobros, alertas y 9 deportes)
 ```
 
 ## Tests
@@ -373,7 +409,8 @@ cd apuesta_edge && python -m pytest
 
 Cubren el motor estadístico (proporciones, calibración de Poisson/Elo, Kelly,
 EV, binomial), el pipeline (solo EV>0, tope de stake, gating Free/Premium) y la
-API completa.
+API completa y el registro público (cadenas de hashes, manipulación
+detectada, CLV, asentado, CSV y retraso del plan Free).
 
 ## Roadmap
 

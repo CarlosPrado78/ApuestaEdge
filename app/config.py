@@ -158,6 +158,22 @@ ALERT_MIN_EDGE = float(os.environ.get("ALERT_MIN_EDGE", "0.04"))
 ALERT_MAX_PICKS = {"free": 2, "premium": 6}
 ALERT_TIMEOUT = float(os.environ.get("ALERT_TIMEOUT", "15"))
 
+# ------------------------------------------------- libro de registro (ledger)
+# Cada pick publicado se guarda para siempre en una tabla append-only con
+# cadena de hashes. Es la base del track record verificable.
+LEDGER_MIN_EDGE = float(os.environ.get("LEDGER_MIN_EDGE", "0.03"))
+LEDGER_PUBLISH_INTERVAL = int(os.environ.get("LEDGER_PUBLISH_INTERVAL", "900"))
+# Ventana antes del inicio en la que se congela la cuota de cierre.
+LEDGER_CLOSE_WINDOW = int(os.environ.get("LEDGER_CLOSE_WINDOW", "900"))
+# Margen tras el inicio antes de dejar de buscar resultado.
+LEDGER_SETTLE_WINDOW = int(os.environ.get("LEDGER_SETTLE_WINDOW", str(3 * 86400)))
+MODEL_VERSION = os.environ.get("MODEL_VERSION", "elo-1.0")
+
+# Token de administración para acciones internas (p. ej. enviar un mensaje
+# de prueba a Telegram con /api/telegram/broadcast-test). Sin él, esas rutas
+# quedan deshabilitadas: nunca abiertas al público.
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "").strip()
+
 
 # Demanda por deporte (para la curaduría del plan Free).
 # High: el deporte estrella (más seguido y apostado).

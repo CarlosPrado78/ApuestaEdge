@@ -142,6 +142,48 @@ def test_send_message_without_token_fails_cleanly(monkeypatch):
     assert ok is False and "no configurado" in err
 
 
+def test_send_digest_uses_one_market_fetch_per_cycle(monkeypatch):
+    """Con N suscriptores se pide el parte UNA vez, no N (créditos)."""
+    import asyncio
+
+    monkeypatch.setattr(config, "TELEGRAM_BOT_TOKEN", "1:x")
+    conn = db.connect()
+    try:
+        for i, email in enumerate(("uno@test.com", "dos@test.com")):
+            db.create_user(conn, email)
+            code = db.ensure_link_code(conn, email)
+            db.link_telegram(conn, code, f"chat{i}")
+    finally:
+        conn.close()
+
+    calls = {"provider": 0, "sent": 0}
+
+    def provider():
+        calls["provider"] += 1
+        return [], "unavailable"
+
+    pick = {"match_id": "m1", "selection": "home", "sport": "soccer",
+            "league": "NBA · USA", "home_team": "A", "away_team": "B",
+            "selection_label": "A gana", "odds": 2.0, "bookmaker": "x",
+            "edge": 0.06, "ev": 0.1, "confidence": 0.8,
+            "model_prob": 0.55, "market_prob": 0.5, "commence_time": "2026-11-15T00:00:00Z",
+            "explanation": {"summary": "ok"}}
+    monkeypatch.setattr(notifier.service, "build_recommendations",
+                        lambda **kw: {"picks": [pick]})
+
+    async def fake_send(chat_id, text, client=None):
+        calls["sent"] += 1
+        return True, ""
+
+    monkeypatch.setattr(notifier, "send_message", fake_send)
+    sent = asyncio.run(
+        notifier.TelegramNotifier(matches_provider=provider).send_digest())
+
+    assert calls["provider"] == 1  # un solo parte para los dos suscriptores
+    assert sent == 2 and calls["sent"] == 2
+
+
+
 # --------------------------------------------------------------- API
 def test_telegram_status_anonymous(client):
     body = client.get("/api/telegram").json()
@@ -175,8 +217,34 @@ def test_telegram_deep_link_with_username(client, monkeypatch):
     assert body["link_code"] in body["deep_link"]
 
 
-def test_broadcast_test_requires_configuration(client):
-    assert client.post("/api/telegram/broadcast-test").status_code == 400
+def test_broadcast_test_is_closed_without_admin_token(client):
+    # Sin ADMIN_TOKEN la ruta queda deshabilitada para todo el mundo.
+    assert client.post("/api/telegram/broadcast-test").status_code == 403
+
+
+def test_broadcast_test_rejects_wrong_token(client, monkeypatch):
+    monkeypatch.setattr(config, "ADMIN_TOKEN", "s3cret-admin")
+    assert client.post("/api/telegram/broadcast-test").status_code == 401
+    assert client.post("/api/telegram/broadcast-test",
+                       headers={"Authorization": "Bearer nope"}).status_code == 401
+
+
+def test_broadcast_test_with_admin_token_needs_telegram(client, monkeypatch):
+    monkeypatch.setattr(config, "ADMIN_TOKEN", "s3cret-admin")
+    monkeypatch.setattr(config, "TELEGRAM_BOT_TOKEN", "")
+    r = client.post("/api/telegram/broadcast-test",
+                    headers={"Authorization": "Bearer s3cret-admin"})
+    assert r.status_code == 400
+
+
+def test_mis_picks_requires_linked_chat():
+    update = {"update_id": 1, "message": {"chat": {"id": 424242},
+                                          "text": "/mis_picks"}}
+    replies = notifier.process_update(update)
+    assert len(replies) == 1
+    chat_id, text = replies[0]
+    assert chat_id == "424242"
+    assert "vinculado" in text and "/start" in text
 
 
 def test_reset_alerts_requires_auth(client):

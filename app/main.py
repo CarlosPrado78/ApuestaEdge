@@ -13,15 +13,16 @@ import asyncio
 import datetime as dt
 import json
 import os
+import secrets
 import time
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import (auth, billing, config, db, explain, notifier, providers,
+from . import (auth, billing, config, db, explain, ledger, notifier, providers,
                service)
 
 
@@ -30,20 +31,41 @@ async def lifespan(_app: FastAPI):
     """Arranque: historial demo + bot de Telegram (si hay token)."""
     conn = db.connect()
     try:
-        seeded = db.seed_history(conn)
-        if seeded:
-            print(f"[apuesta_edge] historial demo cargado: {seeded} picks")
+        if config.ALLOW_SAMPLE_DATA:
+            # Solo en desarrollo/tests: nunca en producción.
+            seeded = db.seed_history(conn)
+            if seeded:
+                print(f"[apuesta_edge] historial demo cargado: {seeded} picks")
+        else:
+            removed = db.clear_history(conn)
+            if removed:
+                print(f"[apuesta_edge] historial simulado eliminado: "
+                      f"{removed} filas (el registro real manda)")
+        db.seed_model_version(
+            conn, config.MODEL_VERSION,
+            "Modelo Elo + Poisson con de-vig Shin y Kelly fraccional 1/4.",
+            changes="Versión inicial del registro público.")
     finally:
         conn.close()
 
     tasks: list[asyncio.Task] = []
     if config.telegram_enabled():
-        tg = notifier.TelegramNotifier()
+        # Comparte la caché de partidos con la web: el ciclo de alertas y los
+        # comandos del bot no gastan créditos de la API por suscriptor.
+        tg = notifier.TelegramNotifier(matches_provider=_get_matches)
         tasks.append(asyncio.create_task(tg.run()))
         tasks.append(asyncio.create_task(notifier.alert_loop(tg)))
         print(f"[apuesta_edge] alertas Telegram activas "
               f"(cada {config.ALERT_INTERVAL_SECONDS}s, "
               f"edge ≥ {config.ALERT_MIN_EDGE:.0%})")
+    if config.ODDS_API_KEY:
+        # Registro público: publica picks antes del evento, congela cierres,
+        # asienta resultados y ancla la cadena una vez al día.
+        tasks.append(asyncio.create_task(
+            ledger.run_loop(matches_provider=_get_matches)))
+        print(f"[apuesta_edge] registro activo "
+              f"(cada {config.LEDGER_PUBLISH_INTERVAL}s, "
+              f"edge ≥ {config.LEDGER_MIN_EDGE:.0%})")
     try:
         yield
     finally:
@@ -178,13 +200,19 @@ def health() -> dict:
 
 
 @app.get("/api/matches")
-def matches(sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball|boxing|baseball|hockey|formula1|motogp|horseracing"),
+def matches(request: Request,
+            sport: str | None = Query(None, description="soccer|basketball|tennis|americanfootball|boxing|baseball|hockey|formula1|motogp|horseracing"),
             lang: str = Query("es", pattern="^(es|en)$")) -> dict:
     all_matches, source = _get_matches()
-    data = service.matches_overview(all_matches, lang=lang)
+    # El edge es el veredicto del modelo (contenido Premium). Se oculta a
+    # quien no tenga sesión Premium para no regalarlo fuera de los picks.
+    include_edge = auth.is_premium(request)
+    data = service.matches_overview(all_matches, lang=lang,
+                                    include_edge=include_edge)
     if sport:
         data = [m for m in data if m["sport"] == sport]
-    return {"source": source, "count": len(data), "matches": data}
+    return {"source": source, "count": len(data), "edge_visible": include_edge,
+            "matches": data}
 
 
 @app.get("/api/recommendations")
@@ -828,9 +856,28 @@ def telegram_reset(payload: TelegramResetIn, request: Request) -> dict:
     return {"ok": True, "cleared": cleared}
 
 
+def require_admin(request: Request) -> None:
+    """Autoriza acciones internas con ``Authorization: Bearer $ADMIN_TOKEN``.
+
+    Sin ADMIN_TOKEN configurado la ruta no existe para nadie (403): un
+    endpoint de administración jamás debe quedar abierto por omisión.
+    """
+    token = config.ADMIN_TOKEN
+    if not token:
+        raise HTTPException(
+            status_code=403,
+            detail="Acción de administración deshabilitada (falta ADMIN_TOKEN).")
+    header = request.headers.get("authorization", "")
+    scheme, _, value = header.partition(" ")
+    if scheme.lower() != "bearer" or not secrets.compare_digest(
+            value.strip(), token):
+        raise HTTPException(status_code=401, detail="No autorizado.")
+
+
 @app.post("/api/telegram/broadcast-test")
-async def telegram_broadcast_test() -> dict:
-    """Mensaje de prueba al chat de difusión (solo si TELEGRAM_CHAT_ID)."""
+async def telegram_broadcast_test(request: Request) -> dict:
+    """Mensaje de prueba al chat de difusión (solo admin con ADMIN_TOKEN)."""
+    require_admin(request)
     if not config.telegram_enabled():
         raise HTTPException(status_code=400, detail="TELEGRAM_BOT_TOKEN no configurado.")
     if not config.TELEGRAM_BROADCAST_CHAT:
@@ -842,6 +889,182 @@ async def telegram_broadcast_test() -> dict:
     if not ok:
         raise HTTPException(status_code=502, detail=f"Telegram: {err}")
     return {"ok": True, "chat_id": config.TELEGRAM_BROADCAST_CHAT}
+
+
+# ------------------------------------------------------------ registro (ledger)
+def _day_ts(value: str | None, *, end: bool = False) -> float | None:
+    """``YYYY-MM-DD`` -> epoch UTC (fin de día incluido si ``end``)."""
+    if not value:
+        return None
+    try:
+        day = dt.datetime.strptime(value, "%Y-%m-%d").replace(
+            tzinfo=dt.timezone.utc)
+    except ValueError as exc:
+        raise HTTPException(status_code=422,
+                            detail="Fecha inválida: usa YYYY-MM-DD.") from exc
+    if end:
+        return (day + dt.timedelta(days=1)).timestamp() - 1.0
+    return day.timestamp()
+
+
+def _pick_public(row: dict) -> dict:
+    """Fila de la BD -> JSON público (sin perder hashes ni precisión)."""
+    return {
+        "id": row["id"],
+        "created_at": row["created_at"],
+        "event_start": row["event_start"],
+        "sport": row["sport"],
+        "sport_key": row.get("sport_key"),
+        "league": row["league"],
+        "event": row["event"],
+        "market": row["market"],
+        "selection": row["selection"],
+        "selection_label": row["selection_label"],
+        "bookmaker": row["bookmaker"],
+        "bet_odds": round(float(row["bet_odds"]), 4),
+        "edge": round(float(row["edge"]), 5),
+        "edge_pct": round(float(row["edge"]) * 100.0, 2),
+        "model_prob": round(float(row["model_prob"]), 4),
+        "market_prob": round(float(row["market_prob"]), 4),
+        "closing_odds": (round(float(row["closing_odds"]), 4)
+                         if row.get("closing_odds") is not None else None),
+        "clv_pct": (round(float(row["clv_pct"]), 3)
+                    if row.get("clv_pct") is not None else None),
+        "stake_units": round(float(row["stake_units"]), 3),
+        "result": row.get("result") or "pending",
+        "profit_units": (round(float(row["profit_units"]), 3)
+                         if row.get("profit_units") is not None else None),
+        "settled_at": row.get("settled_at"),
+        "prev_hash": row["prev_hash"],
+        "row_hash": row["row_hash"],
+    }
+
+
+LEDGER_CSV_COLUMNS = (
+    "id", "created_at", "event_start", "sport", "league", "event", "market",
+    "selection", "selection_label", "bookmaker", "bet_odds", "edge_pct",
+    "closing_odds", "clv_pct", "stake_units", "result", "profit_units",
+    "prev_hash", "row_hash",
+)
+
+
+@app.get("/api/ledger/summary")
+def ledger_summary() -> dict:
+    """Métricas públicas: solo picks asentados; los pendientes van aparte."""
+    conn = db.connect()
+    try:
+        out = ledger.summary(conn)
+        out["anchor"] = db.ledger_anchor_latest(conn)
+        out["model_version"] = config.MODEL_VERSION
+        out["min_edge"] = config.LEDGER_MIN_EDGE
+        return out
+    finally:
+        conn.close()
+
+
+@app.get("/api/ledger/picks")
+def ledger_picks(
+    league: str | None = None,
+    sport: str | None = None,
+    edge_min: float | None = Query(None, ge=0.0, le=0.5),
+    edge_max: float | None = Query(None, ge=0.0, le=0.5),
+    market: str | None = Query(None, pattern="^(h2h|outright)$"),
+    result: str | None = Query(None, pattern="^(won|lost|push|void|pending)$"),
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = Query(50, ge=1, le=5000),
+    offset: int = Query(0, ge=0),
+    format: str = Query("json", pattern="^(json|csv)$"),
+):
+    """Registro completo, filtrable y exportable a CSV (con hashes)."""
+    conn = db.connect()
+    try:
+        rows, total = db.ledger_pick_rows(
+            conn, league=league, sport=sport, edge_min=edge_min,
+            edge_max=edge_max, market=market, result=result,
+            date_from=_day_ts(date_from), date_to=_day_ts(date_to, end=True),
+            limit=limit, offset=offset)
+        data = [_pick_public(r) for r in rows]
+        if format == "csv":
+            import csv as _csv
+            import io as _io
+            from fastapi.responses import Response
+            buf = _io.StringIO()
+            writer = _csv.DictWriter(buf, fieldnames=LEDGER_CSV_COLUMNS,
+                                     extrasaction="ignore")
+            writer.writeheader()
+            for row in data:
+                out = dict(row)
+                for key in ("created_at", "event_start", "settled_at"):
+                    if out.get(key):
+                        out[key] = dt.datetime.fromtimestamp(
+                            float(out[key]), dt.timezone.utc).isoformat()
+                writer.writerow(out)
+            filename = "apuestaedge-picks.csv"
+            return Response(
+                content="\ufeff" + buf.getvalue(),
+                media_type="text/csv; charset=utf-8",
+                headers={"Content-Disposition":
+                         f'attachment; filename="{filename}"'})
+        return {"total": total, "count": len(data), "picks": data}
+    finally:
+        conn.close()
+
+
+@app.get("/api/ledger/verify")
+def ledger_verify() -> dict:
+    """Recalcula las cadenas de hashes: cualquiera puede comprobar el CSV."""
+    conn = db.connect()
+    try:
+        report = ledger.verify(conn)
+        report["anchor"] = db.ledger_anchor_latest(conn)
+        return report
+    finally:
+        conn.close()
+
+
+@app.get("/api/ledger/leagues")
+def ledger_leagues() -> dict:
+    conn = db.connect()
+    try:
+        data = ledger.by_league(conn)
+        total_picks = data.pop("_total_picks")
+        return {"total_picks": total_picks, "leagues": data}
+    finally:
+        conn.close()
+
+
+@app.get("/api/ledger/versions")
+def ledger_versions() -> dict:
+    conn = db.connect()
+    try:
+        return {"current": config.MODEL_VERSION,
+                "versions": db.model_versions_list(conn)}
+    finally:
+        conn.close()
+
+
+@app.post("/api/ledger/anchor")
+def ledger_publish_anchor(request: Request) -> dict:
+    """Fuerza la publicación del ancla de hoy (solo admin)."""
+    require_admin(request)
+    conn = db.connect()
+    try:
+        day = time.strftime("%Y-%m-%d", time.gmtime())
+        saved = ledger.anchor(conn, day=day)
+        return {"ok": True, "anchor": saved}
+    finally:
+        conn.close()
+
+
+# --------------------------------------------------------------- páginas
+# URLs limpias para las páginas públicas: StaticFiles sirve /picks.html,
+# pero el enlace que se comparte es /picks.
+@app.get("/picks", include_in_schema=False)
+def picks_page() -> FileResponse:
+    """Registro completo de picks (tabla, filtros y CSV)."""
+    return FileResponse(config.BASE_DIR / "static" / "picks.html",
+                        media_type="text/html")
 
 
 # Estático al final: las rutas /api/* tienen prioridad.

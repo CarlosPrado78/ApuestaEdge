@@ -13,8 +13,8 @@
     <a class="logo" href="/">⚡ Apuesta<span>Edge</span></a>
     <nav class="links">
       <a href="#picks" data-i18n="nav_picks">Picks de hoy</a>
+      <a href="/picks" data-i18n="nav_ledger">Registro completo</a>
       <a href="#rendimiento" data-i18n="nav_perf">Rendimiento</a>
-      <a href="#beneficios" data-i18n="nav_why">Por qué funciona</a>
       <a href="#precios" data-i18n="nav_pricing">Precios</a>
     </nav>
     <div class="account" id="account-box">
@@ -49,20 +49,22 @@
 
 <section class="hero">
   <div class="wrap">
-    <p class="eyebrow" data-i18n="hero_eyebrow">Estadística, no promesas imposibles</p>
-    <h1>Te decimos <em>qué</em>, <em>quién</em>, <em>cuándo</em> y <em>cuánto</em> poner en juego —<br>con el porqué calculado, no supuesto.</h1>
+    <p class="eyebrow" data-i18n="hero_eyebrow">Registro público desde el 13 nov 2026</p>
+    <h1 data-i18n="hero_title">Publicamos <em>cada</em> pick, incluidas las pérdidas.</h1>
+    <p class="lead" data-i18n="hero_lead">Cada pick se publica antes del evento, se asienta con el marcador real y queda en un registro que no se puede editar. Sin resultados inventados: si todavía no hay picks cerrados, verás 0.</p>
     <div class="hero-cta">
-      <a class="btn primary" href="#picks" data-i18n="hero_cta_picks">Ver picks de hoy</a>
-      <a class="btn ghost" href="#beneficios" data-i18n="hero_cta_why">¿Por qué ApuestaEdge?</a>
+      <a class="btn primary" href="/picks" data-i18n="hero_cta_picks">Ver registro completo de picks</a>
+      <a class="btn ghost" href="#precios" data-i18n="hero_cta_why">Probar 7 días gratis</a>
     </div>
     <div class="stat-strip" id="hero-stats">
-      <div class="stat"><span class="num" id="hs-roi">—</span><label data-i18n="hero_roi">ROI histórico</label></div>
-      <div class="stat"><span class="num" id="hs-hit">—</span><label data-i18n="hero_hit">Acierto</label></div>
-      <div class="stat"><span class="num" id="hs-clv">—</span><label data-i18n="hero_clv">CLV medio</label></div>
-      <div class="stat"><span class="num" id="hs-p">—</span><label data-i18n="hero_sig">Significancia estadística</label></div>
-      <div class="stat"><span class="num" id="hs-bets">—</span><label data-i18n="hero_bets">Picks auditados</label></div>
+      <div class="stat"><span class="num" id="hs-roi">—</span><label data-i18n="hero_roi">ROI acumulado</label><small id="hs-roi-sub"></small></div>
+      <div class="stat"><span class="num" id="hs-clv">—</span><label data-i18n="hero_clv">CLV medio</label><small id="hs-clv-sub"></small></div>
+      <div class="stat"><span class="num" id="hs-dd">—</span><label data-i18n="hero_dd">Drawdown máximo</label><small id="hs-dd-sub"></small></div>
+      <div class="stat"><span class="num neg" id="hs-losses">0</span><label data-i18n="hero_losses">Pérdidas publicadas</label><small id="hs-losses-sub"></small></div>
+      <div class="stat"><span class="num" id="hs-bets">0</span><label data-i18n="hero_bets">Picks publicados</label><small id="hs-bets-sub"></small></div>
     </div>
     <p class="source-note" id="source-note" data-i18n="loading_data">Cargando datos…</p>
+    <p class="honesty" data-i18n="hero_honesty">No prometemos ganancias. Publicamos el resultado completo, gane o pierda.</p>
   </div>
 </section>
 
@@ -96,7 +98,7 @@
 <section id="rendimiento" class="section band">
   <div class="wrap">
     <h2 data-i18n="perf_title">Rendimiento auditable</h2>
-    <p class="sub" data-i18n="perf_sub">Historial completo de picks (ganados y perdidos). Publicamos lo bueno y lo malo: sin track record verificable no hay confianza posible.</p>
+    <p class="sub" data-i18n="perf_sub">Métricas calculadas solo sobre picks ya cerrados del registro público. Publicamos lo bueno y lo malo: sin resultados verificables no hay confianza posible.</p>
     <div class="metrics" id="metrics"><p class="muted">Cargando métricas…</p></div>
     <div class="grid-2">
       <div class="panel">
@@ -104,14 +106,15 @@
         <div id="equity" class="chart"></div>
       </div>
       <div class="panel">
-        <h3 data-i18n="perf_by_sport">Por deporte</h3>
+        <h3 data-i18n="perf_by_league">Por liga</h3>
         <table class="table" id="sport-table">
-          <thead><tr><th data-i18n="th_sport">Deporte</th><th data-i18n="th_picks">Picks</th><th data-i18n="th_hit">Acierto</th><th>ROI</th><th>CLV</th><th>p</th></tr></thead>
+          <thead><tr><th data-i18n="th_league">Liga</th><th data-i18n="th_picks">Picks</th><th data-i18n="th_hit">Acierto</th><th>ROI</th><th>CLV</th><th>p</th></tr></thead>
           <tbody></tbody>
         </table>
-        <p class="footnote" data-i18n="perf_footnote">p &lt; 0.05 → la ventaja es estadísticamente significativa al 95%.</p>
+        <p class="footnote" data-i18n="perf_footnote">p &lt; 0.05 → la ventaja es estadísticamente significativa al 95%. Con menos de 30 picks cerrados por liga no se reporta p-valor.</p>
       </div>
     </div>
+    <p class="footnote"><a href="/picks" data-i18n="perf_link">Ver el registro completo, pick por pick, con filtros y CSV →</a></p>
   </div>
 </section>
 
@@ -178,7 +181,7 @@
       </div>
     </div>
 
-    <div class="panel tg-panel">
+    <div class="panel tg-panel" id="tg-panel" hidden>
       <h3 data-i18n="telegram_title">📣 Alertas por Telegram</h3>
       <div id="tg-body" class="muted" data-i18n="checking">Comprobando estado…</div>
     </div>
@@ -189,7 +192,7 @@
 <footer class="footer">
   <div class="wrap">
     <p data-i18n="footer_disclaimer"><strong>+18 · Juego responsable.</strong> Apostar conlleva riesgo de perder dinero. Este sitio ofrece análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados. Ningún modelo acierta siempre: jugamos para tener ventaja a largo plazo, no certezas por partido.</p>
-    <p class="muted" data-i18n="footer_copyright">ApuestaEdge © 2026 · Datos de partidos y cuotas: The Odds API (solo eventos reales)</p>
+    <p class="muted" data-i18n="footer_copyright">ApuestaEdge © 2026 · Cuotas y resultados de eventos reales</p>
   </div>
 </footer>
 

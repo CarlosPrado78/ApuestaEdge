@@ -104,6 +104,77 @@ CREATE TABLE IF NOT EXISTS kv (
     value TEXT NOT NULL,
     updated_at REAL NOT NULL
 );
+
+-- ------------------------------------------------------------- ledger
+-- Registro público append-only. Nunca se actualiza ni se borra una fila:
+-- cada pick, cierre y resultado se AÑADE con el hash de la fila anterior.
+CREATE TABLE IF NOT EXISTS picks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pick_key TEXT UNIQUE NOT NULL,
+    event_id TEXT NOT NULL,
+    sport_key TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    event_start REAL,
+    sport TEXT NOT NULL,
+    league TEXT NOT NULL,
+    event TEXT NOT NULL,
+    market TEXT NOT NULL,
+    selection TEXT NOT NULL,
+    selection_label TEXT NOT NULL,
+    bookmaker TEXT NOT NULL,
+    bet_odds REAL NOT NULL,
+    model_prob REAL NOT NULL,
+    market_prob REAL NOT NULL,
+    edge REAL NOT NULL,
+    stake_units REAL NOT NULL,
+    model_version TEXT NOT NULL,
+    source TEXT NOT NULL,
+    prev_hash TEXT NOT NULL,
+    row_hash TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_picks_created ON picks(created_at);
+CREATE INDEX IF NOT EXISTS idx_picks_event ON picks(event_start);
+CREATE INDEX IF NOT EXISTS idx_picks_league ON picks(league);
+
+CREATE TABLE IF NOT EXISTS pick_closings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pick_id INTEGER UNIQUE NOT NULL,
+    closing_odds REAL NOT NULL,
+    closing_at REAL NOT NULL,
+    clv_pct REAL NOT NULL,
+    prev_hash TEXT NOT NULL,
+    row_hash TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pick_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pick_id INTEGER UNIQUE NOT NULL,
+    result TEXT NOT NULL,
+    profit_units REAL NOT NULL,
+    settled_at REAL NOT NULL,
+    prev_hash TEXT NOT NULL,
+    row_hash TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ledger_anchors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    day TEXT UNIQUE NOT NULL,
+    picks_head TEXT NOT NULL,
+    picks_count INTEGER NOT NULL,
+    closings_head TEXT NOT NULL,
+    closings_count INTEGER NOT NULL,
+    results_head TEXT NOT NULL,
+    results_count INTEGER NOT NULL,
+    head_hash TEXT NOT NULL,
+    published_at REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS model_versions (
+    version TEXT PRIMARY KEY,
+    released_at REAL NOT NULL,
+    summary TEXT NOT NULL,
+    changes TEXT
+);
 """
 
 # Equivalente para PostgreSQL (mismas tablas y columnas).
@@ -164,6 +235,75 @@ CREATE TABLE IF NOT EXISTS kv (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
     updated_at DOUBLE PRECISION NOT NULL
+);
+
+-- ------------------------------------------------------------- ledger
+CREATE TABLE IF NOT EXISTS picks (
+    id BIGSERIAL PRIMARY KEY,
+    pick_key TEXT UNIQUE NOT NULL,
+    event_id TEXT NOT NULL,
+    sport_key TEXT NOT NULL,
+    created_at DOUBLE PRECISION NOT NULL,
+    event_start DOUBLE PRECISION,
+    sport TEXT NOT NULL,
+    league TEXT NOT NULL,
+    event TEXT NOT NULL,
+    market TEXT NOT NULL,
+    selection TEXT NOT NULL,
+    selection_label TEXT NOT NULL,
+    bookmaker TEXT NOT NULL,
+    bet_odds DOUBLE PRECISION NOT NULL,
+    model_prob DOUBLE PRECISION NOT NULL,
+    market_prob DOUBLE PRECISION NOT NULL,
+    edge DOUBLE PRECISION NOT NULL,
+    stake_units DOUBLE PRECISION NOT NULL,
+    model_version TEXT NOT NULL,
+    source TEXT NOT NULL,
+    prev_hash TEXT NOT NULL,
+    row_hash TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_picks_created ON picks(created_at);
+CREATE INDEX IF NOT EXISTS idx_picks_event ON picks(event_start);
+CREATE INDEX IF NOT EXISTS idx_picks_league ON picks(league);
+
+CREATE TABLE IF NOT EXISTS pick_closings (
+    id BIGSERIAL PRIMARY KEY,
+    pick_id BIGINT UNIQUE NOT NULL,
+    closing_odds DOUBLE PRECISION NOT NULL,
+    closing_at DOUBLE PRECISION NOT NULL,
+    clv_pct DOUBLE PRECISION NOT NULL,
+    prev_hash TEXT NOT NULL,
+    row_hash TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pick_results (
+    id BIGSERIAL PRIMARY KEY,
+    pick_id BIGINT UNIQUE NOT NULL,
+    result TEXT NOT NULL,
+    profit_units DOUBLE PRECISION NOT NULL,
+    settled_at DOUBLE PRECISION NOT NULL,
+    prev_hash TEXT NOT NULL,
+    row_hash TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ledger_anchors (
+    id BIGSERIAL PRIMARY KEY,
+    day TEXT UNIQUE NOT NULL,
+    picks_head TEXT NOT NULL,
+    picks_count INTEGER NOT NULL,
+    closings_head TEXT NOT NULL,
+    closings_count INTEGER NOT NULL,
+    results_head TEXT NOT NULL,
+    results_count INTEGER NOT NULL,
+    head_hash TEXT NOT NULL,
+    published_at DOUBLE PRECISION NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS model_versions (
+    version TEXT PRIMARY KEY,
+    released_at DOUBLE PRECISION NOT NULL,
+    summary TEXT NOT NULL,
+    changes TEXT
 );
 """
 
@@ -676,5 +816,235 @@ def purge_login_tokens(conn, older_than: float | None = None) -> int:
     """Limpia enlaces caducados (mantenimiento)."""
     cur = conn.execute("DELETE FROM login_tokens WHERE expires_at < ?",
                        (older_than or time.time(),))
+    conn.commit()
+    return cur.rowcount or 0
+
+
+# ---------------------------------------------------------------------------
+# Ledger append-only: picks, cierres, resultados y anclas diarias.
+# Los nombres de tabla son constantes internas (nunca entrada del usuario).
+# ---------------------------------------------------------------------------
+_LEDGER_TABLES = frozenset({"picks", "pick_closings", "pick_results"})
+
+# Filtros de resultado aceptados por ``ledger_pick_rows``.
+_RESULT_FILTERS = {"won", "lost", "push", "void", "pending"}
+
+
+def ledger_last_hash(conn, table: str) -> str:
+    """Hash de la última fila de la cadena (cadena vacía si no hay filas)."""
+    if table not in _LEDGER_TABLES:
+        raise ValueError(f"tabla de ledger desconocida: {table}")
+    row = conn.execute(
+        f"SELECT row_hash FROM {table} ORDER BY id DESC LIMIT 1").fetchone()
+    return str(row["row_hash"]) if row else ""
+
+
+def ledger_insert(conn, table: str, values: dict) -> bool:
+    """Añade una fila. ``False`` si ya existía (idempotente por clave única).
+
+    Nunca hace UPDATE ni DELETE: si la fila existe, se ignora el intento.
+    """
+    if table not in _LEDGER_TABLES:
+        raise ValueError(f"tabla de ledger desconocida: {table}")
+    columns = list(values)
+    sql = (f"INSERT INTO {table} ({', '.join(columns)}) "
+           f"VALUES ({', '.join('?' for _ in columns)})")
+    try:
+        conn.execute(sql, tuple(values[c] for c in columns))
+        conn.commit()
+        return True
+    except INTEGRITY_ERRORS:
+        conn.rollback()
+        return False
+
+
+def ledger_rows(conn, table: str) -> list[dict]:
+    """Todas las filas en orden de inserción (para verificar la cadena)."""
+    if table not in _LEDGER_TABLES:
+        raise ValueError(f"tabla de ledger desconocida: {table}")
+    rows = conn.execute(f"SELECT * FROM {table} ORDER BY id ASC").fetchall()
+    return [dict(r) for r in rows]
+
+
+def ledger_released_match_ids(conn, before_ts: float) -> set[str]:
+    """``match_id`` publicados en el registro antes de ``before_ts`` (epoch).
+
+    Es la base del retraso del plan Free: lo que no está publicado (o es más
+    reciente) no se sirve. No hay caché en memoria que pueda desincronizarse.
+    """
+    rows = conn.execute(
+        "SELECT event_id FROM picks WHERE created_at <= ?",
+        (float(before_ts),)).fetchall()
+    return {str(row["event_id"]) for row in rows}
+
+
+def ledger_pick_rows(conn, *, league: str | None = None,
+                     sport: str | None = None,
+                     edge_min: float | None = None,
+                     edge_max: float | None = None,
+                     market: str | None = None,
+                     result: str | None = None,
+                     date_from: float | None = None,
+                     date_to: float | None = None,
+                     limit: int = 100, offset: int = 0) -> tuple[list[dict], int]:
+    """Picks con su cierre y resultado, filtrados y paginados.
+
+    Devuelve ``(filas, total)``. El total es el de la vista filtrada, para
+    paginar sin engañar al usuario.
+    """
+    where, params = [], []
+    if league:
+        where.append("p.league = ?")
+        params.append(league)
+    if sport:
+        where.append("p.sport = ?")
+        params.append(sport)
+    if edge_min is not None:
+        where.append("p.edge >= ?")
+        params.append(float(edge_min))
+    if edge_max is not None:
+        where.append("p.edge <= ?")
+        params.append(float(edge_max))
+    if market:
+        where.append("p.market = ?")
+        params.append(market)
+    if date_from is not None:
+        where.append("p.event_start >= ?")
+        params.append(float(date_from))
+    if date_to is not None:
+        where.append("p.event_start <= ?")
+        params.append(float(date_to))
+    if result in _RESULT_FILTERS:
+        if result == "pending":
+            where.append("r.id IS NULL")
+        else:
+            where.append("r.result = ?")
+            params.append(result)
+
+    base = ("FROM picks p "
+            "LEFT JOIN pick_closings c ON c.pick_id = p.id "
+            "LEFT JOIN pick_results r ON r.pick_id = p.id")
+    clause = f" WHERE {' AND '.join(where)}" if where else ""
+    total_row = conn.execute(f"SELECT COUNT(*) AS n {base}{clause}",
+                             tuple(params)).fetchone()
+    rows = conn.execute(
+        "SELECT p.*, c.closing_odds, c.closing_at, c.clv_pct, "
+        "r.result, r.profit_units, r.settled_at "
+        f"{base}{clause} ORDER BY p.event_start DESC, p.id DESC "
+        "LIMIT ? OFFSET ?",
+        tuple(params) + (int(limit), int(offset))).fetchall()
+    return [dict(r) for r in rows], int(total_row["n"])
+
+
+def ledger_pending_closings(conn, *, until_ts: float,
+                            after_ts: float) -> list[dict]:
+    """Picks sin cierre cuyo evento empieza dentro de la ventana."""
+    rows = conn.execute(
+        "SELECT p.* FROM picks p "
+        "LEFT JOIN pick_closings c ON c.pick_id = p.id "
+        "WHERE c.id IS NULL AND p.event_start IS NOT NULL "
+        "AND p.event_start <= ? AND p.event_start >= ? "
+        "ORDER BY p.event_start ASC",
+        (float(until_ts), float(after_ts))).fetchall()
+    return [dict(r) for r in rows]
+
+
+def ledger_pending_results(conn, *, before_ts: float,
+                           after_ts: float) -> list[dict]:
+    """Picks sin resultado cuyo evento ya empezó (y no es demasiado viejo)."""
+    rows = conn.execute(
+        "SELECT p.* FROM picks p "
+        "LEFT JOIN pick_results r ON r.pick_id = p.id "
+        "WHERE r.id IS NULL AND p.event_start IS NOT NULL "
+        "AND p.event_start <= ? AND p.event_start >= ? "
+        "ORDER BY p.event_start ASC",
+        (float(before_ts), float(after_ts))).fetchall()
+    return [dict(r) for r in rows]
+
+
+def ledger_settled(conn) -> list[dict]:
+    """Picks con resultado, ordenados por asentamiento (para ROI/drawdown)."""
+    rows = conn.execute(
+        "SELECT p.*, c.closing_odds, c.clv_pct, r.result, r.profit_units, "
+        "r.settled_at FROM picks p "
+        "JOIN pick_results r ON r.pick_id = p.id "
+        "LEFT JOIN pick_closings c ON c.pick_id = p.id "
+        "ORDER BY r.settled_at ASC, r.id ASC").fetchall()
+    return [dict(r) for r in rows]
+
+
+def ledger_counts(conn) -> dict:
+    """Número de filas de cada cadena y último hash (para el ancla diaria)."""
+    out = {}
+    for table, prefix in (("picks", "picks"), ("pick_closings", "closings"),
+                          ("pick_results", "results")):
+        row = conn.execute(
+            f"SELECT COUNT(*) AS n, "
+            f"(SELECT row_hash FROM {table} ORDER BY id DESC LIMIT 1) AS head "
+            f"FROM {table}").fetchone()
+        out[f"{prefix}_count"] = int(row["n"])
+        out[f"{prefix}_head"] = str(row["head"] or "")
+    return out
+
+
+def ledger_anchor_save(conn, values: dict) -> bool:
+    """Publica el ancla del día. Idempotente: un día, un ancla."""
+    try:
+        conn.execute(
+            "INSERT INTO ledger_anchors (day, picks_head, picks_count, "
+            "closings_head, closings_count, results_head, results_count, "
+            "head_hash, published_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (values["day"], values["picks_head"], values["picks_count"],
+             values["closings_head"], values["closings_count"],
+             values["results_head"], values["results_count"],
+             values["head_hash"], values["published_at"]))
+        conn.commit()
+        return True
+    except INTEGRITY_ERRORS:
+        conn.rollback()
+        return False
+
+
+def ledger_anchor_latest(conn) -> dict | None:
+    row = conn.execute(
+        "SELECT * FROM ledger_anchors ORDER BY day DESC LIMIT 1").fetchone()
+    return dict(row) if row else None
+
+
+def ledger_anchor_on(conn, day: str) -> dict | None:
+    row = conn.execute("SELECT * FROM ledger_anchors WHERE day=?",
+                       (day,)).fetchone()
+    return dict(row) if row else None
+
+
+def model_versions_list(conn) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM model_versions ORDER BY released_at DESC").fetchall()
+    return [dict(r) for r in rows]
+
+
+def seed_model_version(conn, version: str, summary: str,
+                       released_at: float | None = None,
+                       changes: str | None = None) -> bool:
+    """Registra una versión del modelo (idempotente)."""
+    try:
+        conn.execute(
+            "INSERT INTO model_versions (version, released_at, summary, changes) "
+            "VALUES (?,?,?,?) ON CONFLICT (version) DO NOTHING",
+            (version, released_at or time.time(), summary, changes))
+        conn.commit()
+        return True
+    except INTEGRITY_ERRORS:
+        conn.rollback()
+        return False
+
+
+def clear_history(conn) -> int:
+    """Vacía el historial de backtest/demostración.
+
+    La producción solo puede mostrar el registro real (tabla ``picks``):
+    mientras existan las filas simuladas, cualquier ROI es una invención.
+    """
+    cur = conn.execute("DELETE FROM history")
     conn.commit()
     return cur.rowcount or 0

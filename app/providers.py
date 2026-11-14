@@ -288,3 +288,49 @@ def fetch_live_matches() -> tuple[list[dict] | None, str]:
 def get_matches() -> tuple[list[dict], str]:
     """Compatibilidad: lo mismo que fetch_live_matches."""
     return fetch_live_matches()
+
+
+def fetch_scores(sport_key: str, days_from: int = 3) -> dict[str, dict]:
+    """Marcadores finales de un deporte: ``{event_id: {home, away, completed}}``.
+
+    Se usa para asentar los picks con el resultado real. Si la API falla se
+    devuelve ``{}`` y el pick sigue pendiente: nunca se inventa un resultado.
+    """
+    if not config.ODDS_API_KEY or not sport_key:
+        return {}
+    try:
+        with httpx.Client(base_url="https://api.the-odds-api.com/v4",
+                          timeout=config.ODDS_API_TIMEOUT) as client:
+            resp = client.get(f"/sports/{sport_key}/scores/",
+                              params={"apiKey": config.ODDS_API_KEY,
+                                      "daysFrom": int(days_from),
+                                      "dateFormat": "iso"})
+            _track_quota(resp)
+            if resp.status_code != 200:
+                log.warning("The Odds API scores %s -> HTTP %s",
+                            sport_key, resp.status_code)
+                return {}
+            out: dict[str, dict] = {}
+            for ev in resp.json():
+                home, away = ev.get("home_team"), ev.get("away_team")
+                values = {}
+                for item in ev.get("scores") or []:
+                    try:
+                        values[str(item.get("name"))] = int(
+                            float(item.get("score")))
+                    except (TypeError, ValueError):
+                        continue
+                # La API devuelve el nombre del equipo; si viniera como
+                # "Home"/"Away", se usa el orden (local, visitante).
+                h = values.get(home)
+                a = values.get(away)
+                if (h is None or a is None) and len(values) >= 2:
+                    ordered = list(values.values())
+                    h = ordered[0] if h is None else h
+                    a = ordered[1] if a is None else a
+                out[str(ev.get("id"))] = {"home": h, "away": a,
+                                          "completed": bool(ev.get("completed"))}
+            return out
+    except httpx.HTTPError as exc:
+        log.warning("The Odds API scores %s: %s", sport_key, exc)
+        return {}

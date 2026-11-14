@@ -12,7 +12,6 @@ Pipeline para cada partido:
 
 from __future__ import annotations
 
-import copy
 import statistics
 import time
 from typing import Any
@@ -230,40 +229,16 @@ def evaluate_match(match: dict, bankroll: float | None = None, lang: str = "es")
     return out
 
 
-# Caché en memoria de picks para el plan Free (retraso de 2 h).
-# Clave: filtro de deporte (o "all"). Valor: (timestamp, picks).
-_FREE_PICKS_CACHE: dict[str, tuple[float, list[dict]]] = {}
+# Retraso del plan Free: ve un pick 2 h después de que se publique en el
+# registro público. La fecha de publicación (`picks.created_at`) es la única
+# fuente de verdad: no hay caché en memoria ni "primera generación".
 _FREE_DELAY_SECONDS = 2 * 3600  # 2 horas
 
 
-def _cache_key(sport: str | None) -> str:
-    return sport or "all"
-
-
-def _get_cached_free_picks(sport_key: str) -> tuple[list[dict] | None, bool]:
-    """Devuelve (picks, is_delayed) si hay caché válido.
-
-    - is_delayed=True si los picks tienen más de 2 h (son "viejos").
-    - is_delayed=False si son recientes (primera generación).
-    """
-    entry = _FREE_PICKS_CACHE.get(sport_key)
-    if entry is None:
-        return None, False
-    ts, picks = entry
-    age = time.time() - ts
-    # Dentro de las 2 h: devolver los mismos (marcados como delayed).
-    # Después de 2 h: caché caducada, hay que regenerar.
-    if age < _FREE_DELAY_SECONDS:
-        return copy.deepcopy(picks), True
-    return None, False
-
-
-def _clear_picks_cache() -> None:
-    _FREE_PICKS_CACHE.clear()
-
-
-def _store_free_picks(sport_key: str, picks: list[dict]) -> None:
-    _FREE_PICKS_CACHE[sport_key] = (time.time(), copy.deepcopy(picks))
+def _free_released_ids(conn, now: float | None = None) -> set[str]:
+    """Eventos ya publicados en el registro hace al menos 2 h."""
+    now = time.time() if now is None else now
+    return db.ledger_released_match_ids(conn, now - _FREE_DELAY_SECONDS)
 
 
 def _rank(candidates: list[dict]) -> list[dict]:
@@ -271,6 +246,48 @@ def _rank(candidates: list[dict]) -> list[dict]:
     for c in candidates:
         c["score"] = round(c["edge"] * (0.5 + 0.5 * c["confidence"]), 5)
     return sorted(candidates, key=lambda c: c["score"], reverse=True)
+
+
+def _iso_ts(value) -> float | None:
+    if not value:
+        return None
+    try:
+        import datetime as dt
+        return dt.datetime.fromisoformat(
+            str(value).replace("Z", "+00:00")).timestamp()
+    except (ValueError, TypeError):
+        return None
+
+
+def candidates_for_ledger(matches: list[dict], min_edge: float | None = None,
+                          bankroll: float | None = None, lang: str = "es",
+                          now: float | None = None) -> list[dict]:
+    """Mejor selección por evento para el registro público.
+
+    A diferencia de ``build_recommendations`` (que sirve una cuota según el
+    plan), aquí se publica **todo** lo que supera el umbral del registro:
+    es el track record completo, no la selección comercial del día.
+    Solo entran eventos que aún no han empezado.
+    """
+    min_edge = config.LEDGER_MIN_EDGE if min_edge is None else min_edge
+    now = time.time() if now is None else now
+    best: dict[str, tuple[float, dict]] = {}
+    for match in matches:
+        if match.get("sport_group") in config.HIDDEN_SPORTS:
+            continue
+        start = _iso_ts(match.get("commence_time"))
+        if start is None or start <= now + 60:
+            continue
+        for cand in evaluate_match(match, bankroll=bankroll, lang=lang):
+            if cand["edge"] < min_edge or cand["ev"] <= 0:
+                continue
+            cand.setdefault("league_raw", match.get("league", ""))
+            score = cand["edge"] * (0.5 + 0.5 * cand["confidence"])
+            current = best.get(cand["match_id"])
+            if current is None or score > current[0]:
+                best[cand["match_id"]] = (score, cand)
+    ranked = sorted(best.values(), key=lambda item: item[0], reverse=True)
+    return [cand for _score, cand in ranked]
 
 
 def _select_free_picks(ranked: list[dict], max_picks: int) -> list[dict]:
@@ -382,33 +399,24 @@ def build_recommendations(plan: str = "free", sport: str | None = None,
         picks: list[dict] = []
         is_delayed = False
 
-        cache_key = f"{_cache_key(sport)}:{lang}"
-        use_cache = (plan == "free")
-
-        if use_cache:
-            cached, is_delayed = _get_cached_free_picks(cache_key)
-            if cached is not None:
-                picks = cached
-            else:
-                deduped: list[dict] = []
-                seen2: set[str] = set()
-                for c in ranked:
-                    if c["match_id"] in seen2:
-                        continue
-                    seen2.add(c["match_id"])
-                    deduped.append(c)
-                picks = _select_free_picks(deduped, max_picks)
-                _store_free_picks(cache_key, picks)
-                is_delayed = False
-        elif plan == "free":
-            deduped = []
-            seen2 = set()
+        if plan == "free":
+            # Retraso real de 2 h anclado al registro público: el plan Free
+            # solo recibe eventos que ya llevan publicado ese tiempo. En
+            # demostración (sin datos reales) no hay registro y se muestra la
+            # muestra tal cual; en producción, registro vacío = 0 picks.
+            real_source = source in ("live", "live_cached")
+            released = _free_released_ids(conn) if real_source else None
+            deduped: list[dict] = []
+            seen2: set[str] = set()
             for c in ranked:
                 if c["match_id"] in seen2:
+                    continue
+                if released is not None and c["match_id"] not in released:
                     continue
                 seen2.add(c["match_id"])
                 deduped.append(c)
             picks = _select_free_picks(deduped, max_picks)
+            is_delayed = bool(picks) and released is not None
         else:
             for c in ranked:
                 if c["match_id"] in seen:
@@ -459,6 +467,10 @@ def build_recommendations(plan: str = "free", sport: str | None = None,
             "models_scanned": len(matches),
             "value_candidates": len(candidates),
             "count": len(picks),
+            # El plan Free se libera 2 h después de la publicación real.
+            "release_delay_seconds": (
+                _FREE_DELAY_SECONDS
+                if plan == "free" and source in ("live", "live_cached") else 0),
             "picks": picks,
         }
     finally:
@@ -466,8 +478,14 @@ def build_recommendations(plan: str = "free", sport: str | None = None,
             conn.close()
 
 
-def matches_overview(matches: list[dict] | None = None, lang: str = "es") -> list[dict]:
-    """Partidos con probabilidades de modelo y de mercado (sin filtro de valor)."""
+def matches_overview(matches: list[dict] | None = None, lang: str = "es",
+                     include_edge: bool = True) -> list[dict]:
+    """Partidos con probabilidades de modelo y de mercado (sin filtro de valor).
+
+    ``include_edge=False`` oculta el edge por selección: es el veredicto del
+    modelo y forma parte del plan Premium. Sin este interruptor, cualquiera
+    podía leer el edge de todos los partidos sin cuenta ni suscripción.
+    """
     if matches is None:
         matches, _src = providers.get_matches()
     out = []
@@ -481,9 +499,12 @@ def matches_overview(matches: list[dict] | None = None, lang: str = "es") -> lis
                       if sel in bm.get("odds", {})}
             if offers:
                 b, o = devig.best_odds(offers)
-                best[sel] = {"bookmaker": b, "odds": o,
-                             "edge": round(model_probs.get(sel, 0) - cons[sel], 4)
-                             if cons.get(sel) is not None else None}
+                offer = {"bookmaker": b, "odds": o}
+                if include_edge:
+                    offer["edge"] = (
+                        round(model_probs.get(sel, 0) - cons[sel], 4)
+                        if cons.get(sel) is not None else None)
+                best[sel] = offer
         out.append({
             "id": m["id"], "sport": m["sport_group"],
             "sport_key": m.get("sport_key"),

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro completo de picks · ApuestaEdge</title>
+<meta name="description" content="Registro público de picks: cada fila se publica antes del evento, no se puede editar y se puede verificar con una cadena de hashes. Ganadas y perdidas.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="ledger-page">
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="logo" href="/">⚡ Apuesta<span>Edge</span></a>
+    <nav class="links">
+      <a href="/" data-i18n="nav_home">Inicio</a>
+      <a href="/picks" data-i18n="nav_ledger">Registro de picks</a>
+      <a href="/#precios" data-i18n="nav_pricing">Precios</a>
+    </nav>
+    <div class="account">
+      <button id="lang-toggle" class="btn small ghost" type="button" title="Cambiar idioma / Change language">EN</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="ledger-hero">
+  <div class="wrap">
+    <p class="eyebrow" data-i18n="eyebrow">Registro público · append-only</p>
+    <h1 data-i18n="title">Cada pick, incluido cada fallo.</h1>
+    <p class="lead" data-i18n="intro">Cada fila se escribe antes de que empiece el evento y no se puede editar ni borrar. Los resultados se asientan con el marcador real. Sin ejemplos, sin resultados inventados: si aún no hay picks cerrados, verás 0.</p>
+
+    <div class="stat-strip" id="ledger-summary">
+      <div class="stat"><span class="num" id="s-roi">—</span><label data-i18n="sum_roi">ROI acumulado</label><small id="s-roi-sub"></small></div>
+      <div class="stat"><span class="num" id="s-hit">—</span><label data-i18n="sum_hit">Acierto</label><small id="s-hit-sub"></small></div>
+      <div class="stat"><span class="num" id="s-clv">—</span><label data-i18n="sum_clv">CLV medio</label><small id="s-clv-sub"></small></div>
+      <div class="stat"><span class="num" id="s-picks">0</span><label data-i18n="sum_picks">Picks publicados</label><small id="s-picks-sub"></small></div>
+      <div class="stat"><span class="num neg" id="s-losses">0</span><label data-i18n="sum_losses">Pérdidas publicadas</label><small id="s-losses-sub"></small></div>
+    </div>
+    <p class="source-note" id="ledger-note" role="status"></p>
+  </div>
+</section>
+
+<section class="wrap section ledger-section">
+  <div class="section-head">
+    <div>
+      <h2 data-i18n="table_title">Registro de picks</h2>
+      <p class="sub" id="ledger-count" data-i18n="loading">Cargando registro…</p>
+    </div>
+    <div class="ledger-actions">
+      <a class="btn ghost" id="export-csv" href="/api/ledger/picks?format=csv" data-i18n="export_csv">Descargar CSV</a>
+    </div>
+  </div>
+
+  <form class="filters" id="ledger-filters" autocomplete="off">
+    <label><span data-i18n="f_league">Liga</span>
+      <select id="f-league"><option value="" data-i18n="f_all">Todas</option></select>
+    </label>
+    <label><span data-i18n="f_from">Desde</span>
+      <input type="date" id="f-from">
+    </label>
+    <label><span data-i18n="f_to">Hasta</span>
+      <input type="date" id="f-to">
+    </label>
+    <label><span data-i18n="f_edge">Edge mínimo</span>
+      <select id="f-edge">
+        <option value="" data-i18n="f_any">Cualquiera</option>
+        <option value="0.03">≥ 3%</option>
+        <option value="0.05">≥ 5%</option>
+        <option value="0.08">≥ 8%</option>
+        <option value="0.10">≥ 10%</option>
+      </select>
+    </label>
+    <label><span data-i18n="f_market">Mercado</span>
+      <select id="f-market">
+        <option value="" data-i18n="f_all_m">Todos</option>
+        <option value="h2h" data-i18n="m_h2h">Ganador del evento</option>
+        <option value="outright" data-i18n="m_outright">Outright</option>
+      </select>
+    </label>
+    <label><span data-i18n="f_result">Resultado</span>
+      <select id="f-result">
+        <option value="" data-i18n="f_all_r">Todas</option>
+        <option value="won" data-i18n="r_won">Ganadas</option>
+        <option value="lost" data-i18n="r_lost">Perdidas</option>
+        <option value="pending" data-i18n="r_pending">Pendientes</option>
+      </select>
+    </label>
+    <button type="button" class="btn ghost small" id="f-reset" data-i18n="f_reset">Limpiar filtros</button>
+  </form>
+
+  <div class="integrity" id="integrity" role="status">
+    <span class="dot" id="integrity-dot"></span>
+    <span id="integrity-text" data-i18n="integrity_loading">Comprobando la cadena de hashes…</span>
+  </div>
+
+  <div class="empty-panel" id="ledger-empty" hidden>
+    <h3 id="empty-title"></h3>
+    <p id="empty-body" class="muted"></p>
+    <button class="btn ghost small" id="empty-reset" type="button" hidden data-i18n="f_reset">Limpiar filtros</button>
+  </div>
+
+  <div class="ledger-table-wrap" id="ledger-table-wrap" hidden>
+    <table class="table ledger-table">
+      <caption class="sr-only" data-i18n="table_caption">Registro público de picks de ApuestaEdge</caption>
+      <thead>
+        <tr>
+          <th data-i18n="th_when">Fecha / hora</th>
+          <th data-i18n="th_league">Liga</th>
+          <th data-i18n="th_event">Evento</th>
+          <th data-i18n="th_market">Mercado</th>
+          <th data-i18n="th_selection">Selección</th>
+          <th data-i18n="th_odds">Cuota</th>
+          <th data-i18n="th_edge">Edge</th>
+          <th data-i18n="th_close">Cierre</th>
+          <th>CLV</th>
+          <th data-i18n="th_units">Unidades</th>
+          <th data-i18n="th_result">Resultado</th>
+          <th><span class="sr-only" data-i18n="th_copy">Copiar</span></th>
+        </tr>
+      </thead>
+      <tbody id="ledger-body"></tbody>
+    </table>
+  </div>
+
+  <div class="ledger-cards" id="ledger-cards"></div>
+
+  <div class="ledger-more">
+    <button class="btn ghost" id="load-more" type="button" hidden data-i18n="load_more">Cargar más</button>
+  </div>
+
+  <p class="footnote" data-i18n="table_note">Cada fila se escribió antes del inicio del evento y no se puede editar. El CSV incluye los hashes para que cualquiera pueda recalcular la cadena.</p>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p data-i18n="footer_disclaimer"><strong>+18 · Juego responsable.</strong> Los pronósticos deportivos implican riesgo. Los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados.</p>
+    <p class="muted" data-i18n="footer_copyright">ApuestaEdge © 2026 · Cuotas y resultados de eventos reales</p>
+  </div>
+</footer>
+
+<script src="/ledger.js"></script>
+</body>
+</html>

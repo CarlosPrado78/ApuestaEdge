@@ -115,6 +115,33 @@ def test_matches_endpoint(client):
     assert all(m["sport"] == "soccer" for m in body["matches"])
 
 
+def test_matches_endpoint_hides_edge_without_premium(client):
+    body = client.get("/api/matches").json()
+    assert body["edge_visible"] is False
+    offers = [o for m in body["matches"] for o in m["best_offers"].values()]
+    assert offers  # hay ofertas de cuotas...
+    assert all("edge" not in o for o in offers)  # ...pero sin el veredicto del modelo
+
+
+def test_matches_endpoint_shows_edge_to_premium(client):
+    client.post("/api/auth/register",
+                json={"email": "mm@test.com", "password": "secret123"})
+    token = client.post("/api/auth/login",
+                        json={"email": "mm@test.com",
+                              "password": "secret123"}).json()["token"]
+    from app import db
+    conn = db.connect()
+    try:
+        db.set_user_plan(conn, "mm@test.com", "premium")
+    finally:
+        conn.close()
+    body = client.get("/api/matches",
+                      headers={"Authorization": f"Bearer {token}"}).json()
+    assert body["edge_visible"] is True
+    offers = [o for m in body["matches"] for o in m["best_offers"].values()]
+    assert any("edge" in o for o in offers)
+
+
 def test_performance_endpoint(client):
     r = client.get("/api/performance")
     assert r.status_code == 200
@@ -146,3 +173,18 @@ def test_frontend_served(client):
     r = client.get("/")
     assert r.status_code == 200
     assert "ApuestaEdge" in r.text
+
+
+def test_public_ledger_page_is_served(client):
+    r = client.get("/picks")
+    assert r.status_code == 200
+    assert "ledger-table" in r.text and "/ledger.js" in r.text
+    assert "The Odds API" not in r.text
+
+
+def test_home_links_to_the_public_ledger(client):
+    body = client.get("/").text
+    assert 'href="/picks"' in body
+    # El copy público no nombra herramientas internas.
+    assert "The Odds API" not in body
+    assert "ODDS_API_KEY" not in body

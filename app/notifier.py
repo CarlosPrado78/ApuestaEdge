@@ -94,10 +94,13 @@ def format_digest(picks: list[dict], plan: str,
 
 
 # ------------------------------------------------------------- comandos
-def process_update(update: dict, conn=None) -> list[tuple[str, str]]:
+def process_update(update: dict, conn=None,
+                   matches_provider=None) -> list[tuple[str, str]]:
     """Traduce un update de Telegram en respuestas [(chat_id, texto)].
 
     Pura respecto a la red: los envíos los hace ``TelegramNotifier``.
+    ``matches_provider`` permite reutilizar la caché de partidos del
+    servidor en lugar de gastar créditos de la API en cada comando.
     """
     message = update.get("message") or {}
     chat_id = str((message.get("chat") or {}).get("id", ""))
@@ -136,6 +139,8 @@ def process_update(update: dict, conn=None) -> list[tuple[str, str]]:
 
         user = db.user_by_chat(conn, chat_id)
         plan = (user or {}).get("plan", "free")
+        not_linked = ("⚠️ Este chat no está vinculado. Usa "
+                      "/start &lt;codigo&gt; (lo encuentras en la web).")
 
         if text.startswith("/status"):
             if user:
@@ -143,11 +148,18 @@ def process_update(update: dict, conn=None) -> list[tuple[str, str]]:
                          f"👤 {html.escape(str(user.get('email', '')))}\n"
                          f"📦 Plan: <b>{str(plan).capitalize()}</b>\n"
                          "🔔 Alertas: activas")]
-            return [(chat_id, "⚠️ Este chat no está vinculado. Usa "
-                              "/start &lt;codigo&gt; (lo encuentras en la web).")]
+            return [(chat_id, not_linked)]
 
         if text.startswith("/mis_picks"):
-            result = service.build_recommendations(plan=plan, conn=conn)
+            # Los picks son de una cuenta: sin vincular no hay a quién
+            # aplicar plan, límites ni retraso del plan Free.
+            if not user:
+                return [(chat_id, not_linked)]
+            matches = source = None
+            if matches_provider is not None:
+                matches, source = matches_provider()
+            result = service.build_recommendations(
+                plan=plan, conn=conn, matches=matches, source=source)
             picks = [p for p in result["picks"]
                      if p["edge"] >= config.ALERT_MIN_EDGE]
             if not picks:
@@ -195,10 +207,17 @@ def _should_unlink(error: str) -> bool:
 
 
 class TelegramNotifier:
-    """Polling de ``getUpdates`` + resumen periódico de picks con valor."""
+    """Polling de ``getUpdates`` + resumen periódico de picks con valor.
 
-    def __init__(self) -> None:
+    ``matches_provider`` es la función del servidor que devuelve
+    ``(partidos, fuente)`` con su caché y su respaldo. Se usa UNA vez por
+    ciclo y por comando: antes cada suscriptor disparaba sus propias
+    llamadas a The Odds API y se quemaban créditos innecesarios.
+    """
+
+    def __init__(self, matches_provider=None) -> None:
         self.offset = 0
+        self.matches_provider = matches_provider
 
     # ------------------------------------------------------------ bot
     async def handle_updates(self, updates: list[dict],
@@ -206,7 +225,8 @@ class TelegramNotifier:
         for update in updates:
             self.offset = max(self.offset, int(update.get("update_id", 0)) + 1)
             try:
-                for chat_id, text in process_update(update):
+                for chat_id, text in process_update(
+                        update, matches_provider=self.matches_provider):
                     ok, err = await send_message(chat_id, text, client)
                     if not ok:
                         log.warning("Telegram alerta no enviada: %s", err)
@@ -247,6 +267,15 @@ class TelegramNotifier:
         close = client is None
         client = client or httpx.AsyncClient(timeout=config.ALERT_TIMEOUT)
         sent = 0
+        # Un solo parte de partidos por ciclo, compartido por todos los
+        # suscriptores (cada llamada a la API cuesta créditos).
+        matches = source = None
+        if self.matches_provider is not None:
+            try:
+                matches, source = self.matches_provider()
+            except Exception:  # noqa: BLE001 - sin datos no se alerta
+                log.exception("No se pudo obtener el parte de partidos")
+                matches, source = [], "unavailable"
         try:
             conn = db.connect()
             try:
@@ -255,7 +284,8 @@ class TelegramNotifier:
                 if not recipients and config.TELEGRAM_BROADCAST_CHAT:
                     recipients = [(config.TELEGRAM_BROADCAST_CHAT, "premium")]
                 for chat_id, plan in recipients:
-                    result = service.build_recommendations(plan=plan, conn=conn)
+                    result = service.build_recommendations(
+                        plan=plan, conn=conn, matches=matches, source=source)
                     picks = [p for p in result["picks"]
                              if p["edge"] >= config.ALERT_MIN_EDGE]
                     limit = config.ALERT_MAX_PICKS.get(plan, 2)
