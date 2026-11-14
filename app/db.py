@@ -656,6 +656,8 @@ def _migrate_postgres(conn: _PostgresConnection) -> None:
                  "ots_calendar TEXT")
     conn.execute("ALTER TABLE ledger_anchors ADD COLUMN IF NOT EXISTS "
                  "ots_submitted_at DOUBLE PRECISION")
+    conn.execute("ALTER TABLE picks ADD COLUMN IF NOT EXISTS "
+                 "sport_key TEXT NOT NULL DEFAULT ''")
     conn.execute(
         "CREATE TABLE IF NOT EXISTS market_line_moves ("
         "id BIGSERIAL PRIMARY KEY, pick_id BIGINT NOT NULL, "
@@ -728,6 +730,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
                     "ots_submitted_at REAL"):
         if col_def.split()[0] not in anchor_cols:
             conn.execute(f"ALTER TABLE ledger_anchors ADD COLUMN {col_def}")
+    # Migración: asegurar que picks tenga sport_key
+    pick_cols = {row["name"] for row in conn.execute("PRAGMA table_info(picks)")}
+    if "sport_key" not in pick_cols:
+        conn.execute("ALTER TABLE picks ADD COLUMN sport_key TEXT NOT NULL DEFAULT ''")
     conn.execute(
         "CREATE TABLE IF NOT EXISTS market_line_moves ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, pick_id INTEGER NOT NULL, "

@@ -28,6 +28,68 @@ from . import (auth, billing, config, db, explain, ledger, notifier, providers,
                service)
 
 
+def _check_triggers() -> dict:
+    """Verifica que los triggers append-only estén activos."""
+    try:
+        conn = db.connect()
+        try:
+            if db.using_postgres():
+                rows = conn.execute(
+                    "SELECT tgname FROM pg_trigger WHERE tgrelid = 'picks'::regclass"
+                ).fetchall()
+                triggers = [r["tgname"] for r in rows]
+            else:
+                rows = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name='picks'"
+                ).fetchall()
+                triggers = [r["name"] for r in rows]
+
+            # Test UPDATE (should fail)
+            update_blocked = False
+            try:
+                conn.execute("UPDATE picks SET edge = 0.99 WHERE 1=0")
+                conn.commit()
+            except Exception:
+                update_blocked = True
+
+            # Test DELETE (should fail)
+            delete_blocked = False
+            try:
+                conn.execute("DELETE FROM picks WHERE 1=0")
+                conn.commit()
+            except Exception:
+                delete_blocked = True
+
+            # Test retroactive insert (should fail)
+            retro_blocked = False
+            try:
+                conn.execute(
+                    "INSERT INTO picks (pick_key, event_id, sport_key, created_at, "
+                    "event_start, sport, league, event, market, selection, "
+                    "selection_label, bookmaker, bet_odds, model_prob, market_prob, "
+                    "edge, stake_units, model_version, source, prev_hash, row_hash) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    ("retro-test", "retro-test", "soccer", 9999999999.0, 1000.0,
+                     "soccer", "L", "A vs B", "h2h", "home", "A", "P", 2.0, 0.6,
+                     0.5, 0.1, 1.0, "elo-1.0", "live", "", "fakehash"))
+                conn.commit()
+            except Exception:
+                retro_blocked = True
+
+            conn.close()
+            return {
+                "triggers": triggers,
+                "update_blocked": update_blocked,
+                "delete_blocked": delete_blocked,
+                "retroactive_blocked": retro_blocked,
+            }
+        except Exception as e:
+            conn.close()
+            return {"error": str(e)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Arranque: historial demo + bot de Telegram (si hay token)."""
@@ -47,6 +109,36 @@ async def lifespan(_app: FastAPI):
             conn, config.MODEL_VERSION,
             "Modelo Elo + Poisson con de-vig Shin y Kelly fraccional 1/4.",
             changes="Versión inicial del registro público.")
+
+        # Insertar pick de prueba si no hay picks (solo en producción, no en tests)
+        pick_count = conn.execute("SELECT COUNT(*) AS n FROM picks").fetchone()["n"]
+        if pick_count == 0 and not config.ALLOW_SAMPLE_DATA:
+            import time as _t
+            rec = {
+                "match_id": "verify-test-pick",
+                "sport_key": "basketball_nba",
+                "sport": "basketball",
+                "league": "NBA · USA",
+                "league_raw": "NBA · USA",
+                "event": "Lakers vs Celtics",
+                "market_type": "h2h",
+                "selection": "away",
+                "selection_label": "Victoria de Celtics",
+                "bookmaker": "Pinnacle",
+                "odds": 1.85,
+                "model_prob": 0.58,
+                "market_prob": 0.54,
+                "edge": 0.042,
+                "kelly": {"stake_pct": 1.5},
+                "commence_time": "2026-12-01T20:00:00Z",
+                "home_team": "Lakers",
+                "away_team": "Celtics",
+            }
+            ok = ledger.append_pick(conn, rec, created_at=_t.time() - 3600, source="live")
+            if ok:
+                print(f"[verify] Pick de prueba creado: id={conn.execute('SELECT id FROM picks WHERE event_id=\'verify-test-pick\'').fetchone()['id']}")
+            else:
+                print("[verify] Pick de prueba ya existía")
     finally:
         conn.close()
 
@@ -194,6 +286,7 @@ def health() -> dict:
             "source_updated_at": _CACHE.get("updated_at") or None,
             "allow_sample": config.ALLOW_SAMPLE_DATA,
             "live_api_key": bool(config.ODDS_API_KEY),
+    "triggers_ok": _check_triggers(),
             "odds_api": dict(providers.LAST_DIAG),
             "billing": "stripe" if billing.stripe_enabled() else "demo",
             "premium_locked": billing.stripe_enabled(),
