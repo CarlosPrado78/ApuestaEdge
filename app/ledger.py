@@ -312,9 +312,15 @@ def summary(conn, *, league: str | None = None) -> dict:
 
 
 def by_league(conn) -> dict[str, dict]:
-    """Resumen por liga (para el dashboard). Ligas con muestra pequeña aparte."""
+    """Resumen por liga (para el dashboard). Ligas con muestra pequeña aparte.
+
+    Aparecen también las ligas con picks pendientes y 0 cerrados: ocultarlas
+    hasta el primer resultado daría una imagen incompleta del registro.
+    """
     settled = db.ledger_settled(conn)
-    leagues = sorted({r["league"] for r in settled})
+    published = db.ledger_rows(conn, "picks")
+    leagues = sorted({r["league"] for r in published}
+                     | {r["league"] for r in settled})
     counts = db.ledger_counts(conn)["picks_count"]
     out: dict[str, dict] = {}
     for league in leagues:
@@ -327,7 +333,7 @@ def by_league(conn) -> dict[str, dict]:
         clv = [float(r["clv_pct"]) for r in rows if r["clv_pct"] is not None]
         stats = bt.summarize(stakes, profits, results, odds, clv) if decided else {}
         out[league] = {
-            "picks": len(rows),
+            "picks": sum(1 for r in published if r["league"] == league),
             "sample": len(decided),
             "wins": sum(results),
             "losses": len(decided) - sum(results),
@@ -364,6 +370,46 @@ def verify(conn) -> dict:
             report["chains"][table] = {"ok": True, "rows": len(rows),
                                        "head": prev}
     return report
+
+
+def export_package(conn) -> dict:
+    """Paquete de verificación independiente (JSON).
+
+    Incluye las filas crudas de las tres cadenas, la especificación exacta
+    del hash y las anclas publicadas. Con esto cualquiera puede recalcular
+    la cadena en su máquina sin depender de este servidor.
+    """
+    tables: dict[str, list[dict]] = {}
+    for table in ("picks", "pick_closings", "pick_results"):
+        rows = db.ledger_rows(conn, table)
+        for row in rows:
+            # El canónico va incluido para que el navegador pueda recalcular
+            # el hash sin reimplementar el formato de números de Python. El
+            # verificador independiente lo reconstruye y lo compara.
+            row["canonical"] = _canonical(table, row)
+        tables[table] = rows
+    return {
+        "generated_at": time.time(),
+        "generated_at_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "model_version": config.MODEL_VERSION,
+        "algorithm": {
+            "canonical": (
+                "json.dumps(campos, sort_keys=True, separators=(',', ':'),"
+                " ensure_ascii=False); floats con repr de Python"),
+            "row_hash": "sha256(prev_hash + canonical) en UTF-8, hex minúsculas",
+            "tables": {
+                table: {
+                    "fields": list(_FIELDS[table][0]),
+                    "floats": sorted(_FIELDS[table][1]),
+                    "ints": [f for f in _FIELDS[table][0] if f == "pick_id"],
+                }
+                for table in tables
+            },
+        },
+        "anchors": db.ledger_anchor_list(conn, limit=365),
+        "server_check": verify(conn),
+        "tables": tables,
+    }
 
 
 def anchor(conn, *, day: str | None = None,

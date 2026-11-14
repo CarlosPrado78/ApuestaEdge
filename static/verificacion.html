@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificación del registro · ApuestaEdge</title>
+<meta name="description" content="Comprueba tú mismo que el registro de picks no se ha editado: tres cadenas de hashes SHA-256, ancla diaria y un verificador independiente que puedes ejecutar en tu máquina.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="ledger-page">
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="logo" href="/">⚡ Apuesta<span>Edge</span></a>
+    <nav class="links">
+      <a href="/" data-i18n="nav_home">Inicio</a>
+      <a href="/picks" data-i18n="nav_ledger">Registro de picks</a>
+      <a href="/ligas" data-i18n="nav_leagues">Ligas</a>
+      <a href="/modelo" data-i18n="nav_model">Modelo</a>
+      <a href="/verificacion" data-i18n="nav_verify">Verificación</a>
+      <a href="/#precios" data-i18n="nav_pricing">Precios</a>
+    </nav>
+    <div class="account">
+      <button id="lang-toggle" class="btn small ghost" type="button" title="Cambiar idioma / Change language">EN</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="ledger-hero">
+  <div class="wrap">
+    <p class="eyebrow" data-i18n="eyebrow">Verificación · registro append-only</p>
+    <h1 data-i18n="title">No tienes que creernos. Verifícalo.</h1>
+    <p class="lead" data-i18n="intro">Cada pick publicado queda encadenado al anterior con SHA-256. Si alguien edita, borra o reordena una fila, la cadena deja de cuadrar. Aquí ves el estado en vivo y puedes descargar el paquete completo para recalcularlo en tu máquina, sin depender de nosotros.</p>
+    <div class="ledger-actions">
+      <button class="btn primary" id="verify-now" type="button" data-i18n="btn_verify">Verificar ahora</button>
+      <a class="btn ghost" id="download-package" href="/api/ledger/export" download="apuestaedge-ledger.json" data-i18n="btn_package">Descargar paquete (JSON)</a>
+      <a class="btn ghost" href="/verificacion/verify_ledger.py" download data-i18n="btn_script">Descargar verificador (Python)</a>
+    </div>
+  </div>
+</section>
+
+<section class="wrap section ledger-section">
+  <div class="section-head">
+    <div>
+      <h2 data-i18n="state_title">Estado del registro</h2>
+      <p class="sub" id="state-sub" data-i18n="state_loading">Comprobando las cadenas…</p>
+    </div>
+  </div>
+
+  <div class="verify-grid" id="chain-cards">
+    <article class="chain-card" data-chain="picks">
+      <div class="chain-top"><span class="dot" data-dot></span><h3 data-i18n="chain_picks">Picks publicados</h3></div>
+      <p class="chain-num" data-rows>—</p>
+      <p class="chain-head"><span data-i18n="head_label">Cabeza</span> <code data-head>—</code></p>
+      <p class="chain-note" data-i18n="chain_picks_note">Lo que se publicó antes de cada evento.</p>
+    </article>
+    <article class="chain-card" data-chain="pick_closings">
+      <div class="chain-top"><span class="dot" data-dot></span><h3 data-i18n="chain_closings">Cierres y CLV</h3></div>
+      <p class="chain-num" data-rows>—</p>
+      <p class="chain-head"><span data-i18n="head_label">Cabeza</span> <code data-head>—</code></p>
+      <p class="chain-note" data-i18n="chain_closings_note">Cuota de cierre congelada y CLV calculado.</p>
+    </article>
+    <article class="chain-card" data-chain="pick_results">
+      <div class="chain-top"><span class="dot" data-dot></span><h3 data-i18n="chain_results">Resultados</h3></div>
+      <p class="chain-num" data-rows>—</p>
+      <p class="chain-head"><span data-i18n="head_label">Cabeza</span> <code data-head>—</code></p>
+      <p class="chain-note" data-i18n="chain_results_note">Asentado con el marcador real.</p>
+    </article>
+  </div>
+
+  <div class="integrity" id="anchor-panel" role="status">
+    <span class="dot" id="anchor-dot"></span>
+    <span id="anchor-text" data-i18n="anchor_loading">Buscando el ancla diaria…</span>
+  </div>
+
+  <div class="verify-result" id="verify-result" role="status" hidden></div>
+  <p class="footnote" data-i18n="browser_scope">La comprobación del navegador verifica el enlace entre filas, el hash de cada fila sobre su contenido canónico y el hash del ancla. El verificador de Python reconstruye además ese contenido canónico desde los campos crudos, para que no dependas de lo que declare esta página.</p>
+
+  <h2 class="mt" data-i18n="how_title">Verificación independiente en tu máquina</h2>
+  <p class="sub" data-i18n="how_sub">Tres pasos, sin instalar nada más que Python. El script solo usa la biblioteca estándar y no llama a nuestra API: lee el paquete que descargaste.</p>
+  <ol class="verify-steps">
+    <li>
+      <h3 data-i18n="step1_title">Descarga el paquete</h3>
+      <p data-i18n="step1_body">Contiene las filas crudas de las tres cadenas, la especificación del hash y todas las anclas publicadas.</p>
+      <a class="btn ghost small" href="/api/ledger/export" download="apuestaedge-ledger.json" data-i18n="btn_package">Descargar paquete (JSON)</a>
+    </li>
+    <li>
+      <h3 data-i18n="step2_title">Descarga el verificador</h3>
+      <p data-i18n="step2_body">Un archivo de Python legible, sin dependencias. Puedes revisarlo antes de ejecutarlo.</p>
+      <a class="btn ghost small" href="/verificacion/verify_ledger.py" download data-i18n="btn_script">Descargar verificador (Python)</a>
+    </li>
+    <li>
+      <h3 data-i18n="step3_title">Ejecútalo</h3>
+      <p data-i18n="step3_body">Te dirá fila por fila si la cadena cuadra o dónde se rompió.</p>
+      <pre class="code-block"><code id="cmd-example">python verify_ledger.py apuestaedge-ledger.json</code></pre>
+    </li>
+  </ol>
+
+  <div class="grid-2 mt">
+    <div class="panel">
+      <h3 data-i18n="guarantees_title">Qué garantiza</h3>
+      <ul class="check-list">
+        <li data-i18n="g1">Que ninguna fila publicada se editó, borró ni reordenó después.</li>
+        <li data-i18n="g2">Que la cuota de cierre y el resultado se añadieron como filas nuevas, no reescribiendo el pick.</li>
+        <li data-i18n="g3">Que el ancla diaria resume las tres cabezas en un único hash comprobable.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3 data-i18n="limits_title">Qué no garantiza</h3>
+      <ul class="check-list warn">
+        <li data-i18n="l1">Que el modelo acierte: la transparencia no elimina la varianza.</li>
+        <li data-i18n="l2">Habría que comparar el ancla con una copia externa (red social, archivo, testigo) para detectar una reescritura completa y coordinada. El anclaje externo está en el roadmap.</li>
+        <li data-i18n="l3">Que un resultado sea justo: se asienta con el marcador oficial de la fuente de datos.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="footnote"><a href="/picks" data-i18n="back_ledger">← Volver al registro completo de picks</a></p>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p data-i18n="footer_disclaimer"><strong>+18 · Juego responsable.</strong> Los pronósticos deportivos implican riesgo. Los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados.</p>
+    <p class="muted" data-i18n="footer_copyright">ApuestaEdge © 2026 · Cuotas y resultados de eventos reales</p>
+  </div>
+</footer>
+
+<script src="/verificacion.js"></script>
+</body>
+</html>

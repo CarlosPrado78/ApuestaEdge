@@ -239,10 +239,10 @@ compara con su CSV. Cada cambio de modelo: fila nueva en `model_versions` y nota
 | 1 | Tabla `picks` + `pick_results` append-only, con hash chain | Es el producto |
 | 2 | Eliminar el historial simulado de producción; seed solo para tests | Riesgo reputacional/legal |
 | 3 | Job de cierre: cuota de cierre + CLV + resultado automáticos | Sin esto el CLV es ficción |
-| 4 | `/picks`: tabla, 5 filtros, resumen con pérdidas en rojo, CSV, copiar pick | La prueba |
+| 4 | ✅ `/picks`: tabla, 5 filtros, resumen con pérdidas en rojo, CSV, copiar pick | La prueba |
 | 5 | `/` con 3 métricas reales del ledger + contador de pérdidas | La promesa |
-| 6 | `/modelo` (edge, Kelly 1/4, CLV, binomial, "pesos no públicos") + versiones | Credibilidad |
-| 7 | `/verificacion` con hash cabeza diario y verificador en navegador | Diferenciador barato |
+| 6 | ✅ `/modelo` (edge, Kelly 1/4, CLV, binomial, "pesos no públicos") + versiones | Credibilidad |
+| 7 | ✅ `/verificacion` con hash cabeza diario, verificador en navegador y paquete JSON independiente | Diferenciador barato |
 | 8 | Stripe $29 + trial 7 días sin tarjeta + Free 1 pick/día + histórico 7 días | Ingreso |
 | 9 | Alertas con reglas (liga, edge, cuota, mercado, tiempo) en Email + Telegram, pausar/reanudar | Diferenciación |
 | 10 | Bugfixes: edge filtrado en `/api/matches`, auth en `broadcast-test`, delay Free en alertas, caché en `send_digest`, `/mis_picks` con registro | Seguridad y coherencia |
@@ -252,7 +252,6 @@ compara con su CSV. Cada cambio de modelo: fila nueva en `model_versions` y nota
 ### Después del lanzamiento (P1, semanas 2–4)
 
 - Web Push (service worker + VAPID) como tercer canal.
-- `/ligas` con p-valor y "mejor liga" (n ≥ 30, si no, sin etiqueta).
 - `/pick/{id}` permalink público e inmutable (compartir en grupos = crecimiento).
 - Anclaje externo del hash (OpenTimestamps) y enlace a seguimiento independiente.
 - Historial de impacto por versión del modelo medido automáticamente.

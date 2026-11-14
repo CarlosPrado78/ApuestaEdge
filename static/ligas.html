@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rendimiento por liga · ApuestaEdge</title>
+<meta name="description" content="Rendimiento por liga del registro público: picks, acierto, ROI, CLV y p-valor binomial. La etiqueta de mejor liga exige al menos 30 picks cerrados y p < 0.05.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="ledger-page">
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="logo" href="/">⚡ Apuesta<span>Edge</span></a>
+    <nav class="links">
+      <a href="/" data-i18n="nav_home">Inicio</a>
+      <a href="/picks" data-i18n="nav_ledger">Registro de picks</a>
+      <a href="/ligas" data-i18n="nav_leagues">Ligas</a>
+      <a href="/modelo" data-i18n="nav_model">Modelo</a>
+      <a href="/verificacion" data-i18n="nav_verify">Verificación</a>
+      <a href="/#precios" data-i18n="nav_pricing">Precios</a>
+    </nav>
+    <div class="account">
+      <button id="lang-toggle" class="btn small ghost" type="button" title="Cambiar idioma / Change language">EN</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="ledger-hero">
+  <div class="wrap">
+    <p class="eyebrow" data-i18n="eyebrow">Rendimiento por liga</p>
+    <h1 data-i18n="title">Cada liga con su muestra. Sin cherry-picking.</h1>
+    <p class="lead" data-i18n="intro">Estas cifras salen del registro público, solo con picks ya cerrados y asentados con el marcador real. Una liga con pocos picks no se disfraza de buena racha: se marca como muestra insuficiente. La etiqueta de mejor liga exige al menos 30 picks cerrados y p &lt; 0.05.</p>
+    <div class="stat-strip" id="league-summary">
+      <div class="stat"><span class="num" id="s-leagues">—</span><label data-i18n="sum_leagues">Ligas con picks</label></div>
+      <div class="stat"><span class="num" id="s-picks">—</span><label data-i18n="sum_picks">Picks publicados</label></div>
+      <div class="stat"><span class="num" id="s-closed">—</span><label data-i18n="sum_closed">Picks cerrados</label></div>
+      <div class="stat"><span class="num" id="s-best">—</span><label data-i18n="sum_best">Mejor liga (n≥30 y p&lt;0.05)</label></div>
+    </div>
+    <p class="source-note" id="league-note" role="status"></p>
+  </div>
+</section>
+
+<section class="wrap section ledger-section">
+  <div class="section-head">
+    <div>
+      <h2 data-i18n="grid_title">Todas las ligas</h2>
+      <p class="sub" data-i18n="grid_sub">Ordenadas por número de picks cerrados. El p-valor es el test binomial de una cola contra el breakeven de la cuota media.</p>
+    </div>
+    <div class="ledger-actions">
+      <a class="btn ghost" href="/picks" data-i18n="open_ledger">Ver registro completo</a>
+    </div>
+  </div>
+
+  <div class="league-grid" id="league-grid">
+    <p class="muted" data-i18n="loading">Cargando ligas…</p>
+  </div>
+
+  <div class="empty-panel" id="league-empty" hidden>
+    <h3 data-i18n="empty_title">Todavía no hay picks cerrados por liga</h3>
+    <p class="muted" data-i18n="empty_body">El registro está abierto y solo publica eventos reales antes de su inicio. Cuando haya resultados, cada liga aparecerá aquí con su muestra exacta. Nada de ejemplos: 0 es 0.</p>
+    <a class="btn ghost small" href="/picks" data-i18n="open_ledger">Ver registro completo</a>
+  </div>
+
+  <p class="footnote" data-i18n="note">Una liga con p &lt; 0.05 es evidencia estadística, no una garantía: el resultado futuro sigue siendo incierto y el tamaño de muestra importa. Publicamos también las ligas con pérdidas.</p>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p data-i18n="footer_disclaimer"><strong>+18 · Juego responsable.</strong> Los pronósticos deportivos implican riesgo. Los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados.</p>
+    <p class="muted" data-i18n="footer_copyright">ApuestaEdge © 2026 · Cuotas y resultados de eventos reales</p>
+  </div>
+</footer>
+
+<script src="/ligas.js"></script>
+</body>
+</html>

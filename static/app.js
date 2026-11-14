@@ -3,7 +3,8 @@ const I18N = {
   es: {
     login: "Iniciar sesión", logout: "Salir", nav_picks: "Picks de hoy",
     nav_perf: "Rendimiento", nav_why: "Por qué funciona", nav_pricing: "Precios",
-    nav_ledger: "Registro completo",
+    nav_ledger: "Registro completo", nav_leagues: "Ligas",
+    nav_model: "Modelo", nav_verify: "Verificación",
     hero_eyebrow: "Registro público desde el 13 nov 2026",
     hero_title: "Publicamos <em>cada</em> pick, incluidas las pérdidas.",
     hero_lead: "Cada pick se publica antes del evento, se asienta con el marcador real y queda en un registro que no se puede editar. Sin resultados inventados: si todavía no hay picks cerrados, verás 0.",
@@ -190,7 +191,7 @@ const I18N = {
     loading_data: "Cargando datos…",
     premium_active: "✅ Premium activo",
     loading: "Cargando…",
-    no_picks: "Sin picks con valor ahora mismo. Esperar a que el mercado ofrezca ventaja es parte del método: no apostar también es una decisión estadística.",
+    no_picks: "Sin picks con valor ahora mismo. Esperar a que el mercado ofrezca ventaja es parte del método: no entrar también es una decisión estadística.",
     delayed_badge: "⏱ Premium vio este pick hace 2 h",
     locked_note: "Stake Kelly, cuándo entrar, confianza y backtest completos en el plan Premium.",
     locked_odds: "🔒 cuota y casa en Premium",
@@ -200,7 +201,8 @@ const I18N = {
   en: {
     login: "Sign in", logout: "Sign out", nav_picks: "Today's picks",
     nav_perf: "Performance", nav_why: "Why it works", nav_pricing: "Pricing",
-    nav_ledger: "Full ledger",
+    nav_ledger: "Full ledger", nav_leagues: "Leagues",
+    nav_model: "Model", nav_verify: "Verification",
     hero_eyebrow: "Public ledger since 13 Nov 2026",
     hero_title: "We publish <em>every</em> pick, including the losses.",
     hero_lead: "Every pick is published before the event, settles from the real score and stays in a ledger that cannot be edited. No invented results: if there are no settled picks yet, you will see 0.",

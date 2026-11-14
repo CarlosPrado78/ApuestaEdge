@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelo y metodología · ApuestaEdge</title>
+<meta name="description" content="Auditoría del modelo: edge, Kelly fraccional 1/4, fórmula de CLV y test binomial. La lógica es pública; los pesos no, y cada cambio queda versionado.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="ledger-page">
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="logo" href="/">⚡ Apuesta<span>Edge</span></a>
+    <nav class="links">
+      <a href="/" data-i18n="nav_home">Inicio</a>
+      <a href="/picks" data-i18n="nav_ledger">Registro de picks</a>
+      <a href="/ligas" data-i18n="nav_leagues">Ligas</a>
+      <a href="/modelo" data-i18n="nav_model">Modelo</a>
+      <a href="/verificacion" data-i18n="nav_verify">Verificación</a>
+      <a href="/#precios" data-i18n="nav_pricing">Precios</a>
+    </nav>
+    <div class="account">
+      <button id="lang-toggle" class="btn small ghost" type="button" title="Cambiar idioma / Change language">EN</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="ledger-hero">
+  <div class="wrap">
+    <p class="eyebrow" data-i18n="eyebrow">Auditoría del modelo</p>
+    <h1 data-i18n="title">La lógica es pública. Los pesos, no.</h1>
+    <p class="lead" data-i18n="intro">Puedes revisar cómo se calcula cada pick, qué se publica y qué se descarta. No publicamos los pesos internos del modelo para que no se puedan copiar ni optimizar contra ellos, pero cada cambio de versión queda registrado y cada pick queda en el registro público antes de empezar.</p>
+    <div class="ledger-actions">
+      <a class="btn primary" href="/picks" data-i18n="open_ledger">Ver registro completo</a>
+      <a class="btn ghost" href="/verificacion" data-i18n="open_verify">Comprobar el registro</a>
+    </div>
+  </div>
+</section>
+
+<section class="wrap section ledger-section">
+  <div class="section-head">
+    <div>
+      <h2 data-i18n="pipeline_title">Cómo se decide un pick</h2>
+      <p class="sub" data-i18n="pipeline_sub">Cuatro pasos, en este orden. Si algún paso no se cumple, no hay pick. No se publica «porque hay que publicar».</p>
+    </div>
+  </div>
+  <ol class="model-steps">
+    <li>
+      <span class="model-num">1</span>
+      <h3 data-i18n="p1_title">Probabilidad del modelo</h3>
+      <p data-i18n="p1_body">El modelo estima la probabilidad de cada resultado a partir del rendimiento previo de los equipos, el contexto del partido y la localía. Esa probabilidad es la entrada, no el resultado final.</p>
+    </li>
+    <li>
+      <span class="model-num">2</span>
+      <h3 data-i18n="p2_title">Probabilidad del mercado</h3>
+      <p data-i18n="p2_body">Se elimina el margen de las cuotas (de-vig) para convertir el precio en una probabilidad comparable. Sin ese ajuste, el margen de la casa se confundiría con una ventaja.</p>
+    </li>
+    <li>
+      <span class="model-num">3</span>
+      <h3 data-i18n="p3_title">Edge y filtro de publicación</h3>
+      <p data-i18n="p3_body">El edge es la diferencia entre ambas probabilidades. Solo se publica si supera un mínimo (3% por defecto) y si la cuota elegida es la mejor disponible entre las casas consultadas.</p>
+      <pre class="code-block"><code>edge = prob_modelo − prob_mercado
+publicar ⇔ edge ≥ 3%</code></pre>
+    </li>
+    <li>
+      <span class="model-num">4</span>
+      <h3 data-i18n="p4_title">Tamaño de la posición</h3>
+      <p data-i18n="p4_body">El stake sale del criterio de Kelly fraccional, no de una intuición. Se usa un cuarto del Kelly completo y un tope duro del 3% del bankroll por pick.</p>
+    </li>
+  </ol>
+
+  <div class="grid-2 mt">
+    <div class="panel">
+      <h3 data-i18n="kelly_title">Kelly fraccional 1/4</h3>
+      <p class="muted" data-i18n="kelly_body">El Kelly completo maximiza el crecimiento a largo plazo pero produce caídas muy violentas. Usamos un cuarto de esa fracción y un tope duro por pick.</p>
+      <pre class="code-block"><code>f* = (b·p − q) / b
+b = cuota − 1 · p = prob. modelo · q = 1 − p
+
+stake = min(f* · 0.25, 3% del bankroll)</code></pre>
+      <p class="muted small-note" data-i18n="kelly_note">Si el stake resultante es menor al 0.5% del bankroll, el pick se descarta: no merece el riesgo operativo.</p>
+    </div>
+    <div class="panel">
+      <h3 data-i18n="clv_title">CLV automático</h3>
+      <p class="muted" data-i18n="clv_body">El Closing Line Value compara la cuota a la que entramos con la cuota de cierre, congelada automáticamente antes de que empiece el evento. Mide si conseguimos mejor precio que el mercado final, con independencia de si el pick se gana o se pierde.</p>
+      <pre class="code-block"><code>CLV = (cuota_entrada / cuota_cierre − 1) × 100</code></pre>
+      <p class="muted small-note" data-i18n="clv_note">Ejemplo: entrar a 2.20 y cerrar a 2.00 da +10% de CLV. Un CLV medio positivo sostenido es mejor señal que una racha de aciertos.</p>
+    </div>
+  </div>
+
+  <div class="grid-2 mt">
+    <div class="panel">
+      <h3 data-i18n="binom_title">Test binomial</h3>
+      <p class="muted" data-i18n="binom_body">El p-valor responde a una pregunta concreta: si el modelo solo acertara al ritmo que exige la cuota media, ¿sería raro observar estos aciertos? Se calcula a una cola.</p>
+      <pre class="code-block"><code>p = P(X ≥ aciertos | n, p₀ = 1 / cuota_media)</code></pre>
+      <p class="muted small-note" data-i18n="binom_note">Solo llamamos «significativa» a una muestra con n ≥ 30 y p &lt; 0.05. Con menos datos, la etiqueta honesta es «muestra insuficiente».</p>
+    </div>
+    <div class="panel">
+      <h3 data-i18n="withhold_title">Qué no publicamos y por qué</h3>
+      <ul class="check-list warn">
+        <li data-i18n="w1">Los pesos y transformaciones internas del modelo: son la parte replicable y no queremos que se optimice el mercado contra ellos.</li>
+        <li data-i18n="w2">Los picks descartados por no superar el filtro: publicar todo lo que se estudió permitiría elegir a posteriori. Lo que sí se publica es cada pick aceptado, antes del evento.</li>
+        <li data-i18n="w3">Datos personales o de cuentas: el registro es público y anónimo.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="panel mt">
+    <h3 data-i18n="limits_title">Límites que asumimos</h3>
+    <ul class="check-list warn">
+      <li data-i18n="l1">El mercado es eficiente la mayor parte del tiempo: la mayoría de eventos no generan edge y no se publica nada.</li>
+      <li data-i18n="l2">Una muestra pequeña puede parecer buena o mala por pura varianza. Por eso no mostramos porcentajes con menos de 30 picks cerrados.</li>
+      <li data-i18n="l3">El CLV depende de la cuota de cierre de las casas consultadas; si esa referencia falla, la fila de cierre queda pendiente y se indica.</li>
+      <li data-i18n="l4">Nada de esto garantiza resultados futuros. Publicamos las pérdidas con el mismo detalle que las ganancias.</li>
+    </ul>
+  </div>
+
+  <div class="section-head mt">
+    <div>
+      <h2 data-i18n="versions_title">Historial de versiones</h2>
+      <p class="sub" data-i18n="versions_sub">Cada pick guarda la versión del modelo con la que se publicó. Un cambio de lógica se registra aquí antes de aplicarse.</p>
+    </div>
+  </div>
+  <div class="panel" id="versions-panel">
+    <p class="muted" data-i18n="versions_loading">Cargando versiones…</p>
+  </div>
+
+  <p class="footnote" data-i18n="note">Esta página describe la lógica, no promete resultados. El registro público y la página de verificación son la prueba de lo que realmente se publicó.</p>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p data-i18n="footer_disclaimer"><strong>+18 · Juego responsable.</strong> Los pronósticos deportivos implican riesgo. Los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico con fines informativos; no es asesoramiento financiero ni garantía de resultados.</p>
+    <p class="muted" data-i18n="footer_copyright">ApuestaEdge © 2026 · Cuotas y resultados de eventos reales</p>
+  </div>
+</footer>
+
+<script src="/modelo.js"></script>
+</body>
+</html>

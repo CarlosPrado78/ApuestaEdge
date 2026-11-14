@@ -6,7 +6,9 @@
 /* ---------------------------------------------------------------- i18n */
 const I18N = {
   es: {
-    nav_home: "Inicio", nav_ledger: "Registro de picks", nav_pricing: "Precios",
+    nav_home: "Inicio", nav_ledger: "Registro de picks",
+    nav_leagues: "Ligas", nav_model: "Modelo",
+    nav_verify: "Verificación", nav_pricing: "Precios",
     eyebrow: "Registro público · append-only",
     title: "Cada pick, incluido cada fallo.",
     intro: "Cada fila se escribe antes de que empiece el evento y no se puede editar ni borrar. Los resultados se asientan con el marcador real. Sin ejemplos, sin resultados inventados: si aún no hay picks cerrados, verás 0.",
@@ -55,7 +57,9 @@ const I18N = {
     footer_copyright: "ApuestaEdge © 2026 · Cuotas y resultados de eventos reales",
   },
   en: {
-    nav_home: "Home", nav_ledger: "Pick ledger", nav_pricing: "Pricing",
+    nav_home: "Home", nav_ledger: "Pick ledger",
+    nav_leagues: "Leagues", nav_model: "Model",
+    nav_verify: "Verification", nav_pricing: "Pricing",
     eyebrow: "Public ledger · append-only",
     title: "Every pick, including every miss.",
     intro: "Every row is written before the event starts and cannot be edited or deleted. Results settle from the real score. No samples, no invented outcomes: if there are no settled picks yet, you will see 0.",

@@ -308,3 +308,110 @@ def test_by_league_labels_small_samples_as_not_significant():
         assert card["significant"] is False  # n < 30: no se declara nada
     finally:
         conn.close()
+
+
+# --------------------------------------------------- paquete de verificación
+def _seed_three_chains(conn):
+    pick = _pick()
+    ledger.append_pick(conn, pick)
+    row = db.ledger_rows(conn, "picks")[0]
+    ledger.append("pick_closings", conn, {
+        "pick_id": int(row["id"]), "closing_odds": 1.95,
+        "closing_at": _after_event(), "clv_pct": ledger.clv_pct(2.0, 1.95)})
+    ledger.append("pick_results", conn, {
+        "pick_id": int(row["id"]), "result": "won",
+        "profit_units": 1.0, "settled_at": _after_event()})
+    return conn
+
+
+def test_export_package_is_verifiable_by_the_standalone_script(tmp_path):
+    import json
+    import subprocess
+    import sys
+
+    from app import config
+
+    conn = _conn()
+    try:
+        _seed_three_chains(conn)
+        package = ledger.export_package(conn)
+    finally:
+        conn.close()
+
+    assert package["server_check"]["ok"] is True
+    assert set(package["tables"]) == {"picks", "pick_closings", "pick_results"}
+    for table, rows in package["tables"].items():
+        assert rows and all(r.get("canonical") for r in rows)
+        spec = package["algorithm"]["tables"][table]
+        assert set(spec["fields"]) <= set(rows[0])
+        assert spec["ints"] == (["pick_id"] if table != "picks" else [])
+
+    path = tmp_path / "ledger.json"
+    path.write_text(json.dumps(package), encoding="utf-8")
+    script = config.BASE_DIR / "static" / "verify_ledger.py"
+    ok = subprocess.run([sys.executable, str(script), str(path)],
+                        capture_output=True, text=True)
+    assert ok.returncode == 0, ok.stdout + ok.stderr
+    assert "registro íntegro" in ok.stdout
+
+    # Una fila editada en el paquete debe hacer fallar al verificador.
+    package["tables"]["picks"][0]["bet_odds"] = 9.99
+    tampered = tmp_path / "ledger_tampered.json"
+    tampered.write_text(json.dumps(package), encoding="utf-8")
+    bad = subprocess.run([sys.executable, str(script), str(tampered)],
+                         capture_output=True, text=True)
+    assert bad.returncode == 1
+    assert "NO cuadra" in bad.stdout
+
+
+def test_verification_page_and_package_endpoint(client):
+    conn = _conn()
+    try:
+        _seed_three_chains(conn)
+    finally:
+        conn.close()
+    page = client.get("/verificacion")
+    assert page.status_code == 200
+    assert "/verificacion.js" in page.text
+    assert "The Odds API" not in page.text
+    script = client.get("/verificacion/verify_ledger.py")
+    assert script.status_code == 200
+    assert "hashlib" in script.text  # se puede leer antes de ejecutarlo
+    package = client.get("/api/ledger/export").json()
+    assert package["server_check"]["ok"] is True
+    assert len(package["tables"]["picks"]) == 1
+
+
+# --------------------------------------------------- ligas y modelo
+def test_leagues_endpoint_separates_small_samples(client):
+    conn = _conn()
+    try:
+        for i in range(2):
+            ledger.append_pick(conn, _pick(match_id=f"lg-{i}",
+                                           league="Liga Pequeña"))
+    finally:
+        conn.close()
+    body = client.get("/api/ledger/leagues").json()
+    league = body["leagues"]["Liga Pequeña"]
+    assert league["sample"] == 0
+    assert league["significant"] is False
+    assert body["total_picks"] == 2
+
+
+def test_league_page_and_model_page_are_public(client):
+    for path in ("/ligas", "/modelo"):
+        page = client.get(path)
+        assert page.status_code == 200
+        assert 'class="nav"' in page.text
+        assert "The Odds API" not in page.text
+        assert "ODDS_API_KEY" not in page.text
+    assert "/ligas.js" in client.get("/ligas").text
+    assert "/modelo.js" in client.get("/modelo").text
+
+
+def test_model_page_explains_the_auditable_logic(client):
+    page = client.get("/modelo").text
+    assert "Kelly" in page and "CLV" in page and "binomial" in page.lower()
+    versions = client.get("/api/ledger/versions").json()
+    assert versions["current"]
+    assert isinstance(versions["versions"], list)

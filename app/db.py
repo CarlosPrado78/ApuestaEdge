@@ -1011,6 +1011,14 @@ def ledger_anchor_latest(conn) -> dict | None:
     return dict(row) if row else None
 
 
+def ledger_anchor_list(conn, limit: int = 30) -> list[dict]:
+    """Anclas publicadas, la más reciente primero."""
+    rows = conn.execute(
+        "SELECT * FROM ledger_anchors ORDER BY day DESC LIMIT ?",
+        (int(limit),)).fetchall()
+    return [dict(row) for row in rows]
+
+
 def ledger_anchor_on(conn, day: str) -> dict | None:
     row = conn.execute("SELECT * FROM ledger_anchors WHERE day=?",
                        (day,)).fetchone()

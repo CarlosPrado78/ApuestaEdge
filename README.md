@@ -68,6 +68,18 @@ incluye aviso de juego responsable (+18) y explícitamente dice lo que el modelo
   (ROI, acierto, CLV, pérdidas) y export CSV. Con menos de 30 picks cerrados se
   muestra «muestra insuficiente (n=X)» en lugar de porcentajes que parezcan una
   promesa. Detalle técnico abajo.
+- **Rendimiento por liga (`/ligas`)**: cada liga con su muestra exacta,
+  acierto, ROI, CLV y p-valor binomial. La etiqueta de «mejor liga» solo
+  aparece con n ≥ 30 picks cerrados y p < 0.05; el resto se marca como
+  muestra insuficiente o sin significancia.
+- **Auditoría del modelo (`/modelo`)**: edge, Kelly fraccional 1/4, fórmula
+  del CLV y test binomial explicados con sus límites. Los pesos internos no
+  se publican; cada cambio queda en el historial de versiones que se anota en
+  cada pick.
+- **Verificación (`/verificacion`)**: estado de las tres cadenas, ancla diaria,
+  comprobación en el navegador con Web Crypto y un verificador independiente
+  de Python (solo biblioteca estándar) que recalcula la cadena desde el
+  paquete JSON, sin confiar en el servidor.
 
 ## Instalación
 
@@ -398,7 +410,7 @@ apuesta_edge/
   docs/              # arquitectura de producto y decisiones editoriales
   data/              # ratings, cuotas demo, historial, SQLite
   scripts/generate_demo_history.py
-  tests/             # 150 tests (motor, servicio, API, ledger, auth, cobros, alertas y 9 deportes)
+  tests/             # 155 tests (motor, servicio, API, ledger, auth, cobros, alertas y 9 deportes)
 ```
 
 ## Tests

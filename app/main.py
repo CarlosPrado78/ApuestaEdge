@@ -1023,6 +1023,16 @@ def ledger_verify() -> dict:
         conn.close()
 
 
+@app.get("/api/ledger/export")
+def ledger_export() -> dict:
+    """Paquete JSON con las filas crudas y las anclas para verificar offline."""
+    conn = db.connect()
+    try:
+        return ledger.export_package(conn)
+    finally:
+        conn.close()
+
+
 @app.get("/api/ledger/leagues")
 def ledger_leagues() -> dict:
     conn = db.connect()
@@ -1065,6 +1075,35 @@ def picks_page() -> FileResponse:
     """Registro completo de picks (tabla, filtros y CSV)."""
     return FileResponse(config.BASE_DIR / "static" / "picks.html",
                         media_type="text/html")
+
+
+@app.get("/verificacion", include_in_schema=False)
+def verification_page() -> FileResponse:
+    """Cómo comprobar que el registro no se ha tocado."""
+    return FileResponse(config.BASE_DIR / "static" / "verificacion.html",
+                        media_type="text/html")
+
+
+@app.get("/ligas", include_in_schema=False)
+def leagues_page() -> FileResponse:
+    """Rendimiento por liga con muestra explícita y p-valor."""
+    return FileResponse(config.BASE_DIR / "static" / "ligas.html",
+                        media_type="text/html")
+
+
+@app.get("/modelo", include_in_schema=False)
+def model_page() -> FileResponse:
+    """Auditoría del modelo y historial de versiones."""
+    return FileResponse(config.BASE_DIR / "static" / "modelo.html",
+                        media_type="text/html")
+
+
+@app.get("/verificacion/verify_ledger.py", include_in_schema=False)
+def verification_script() -> FileResponse:
+    """Verificador independiente (solo biblioteca estándar de Python)."""
+    return FileResponse(config.BASE_DIR / "static" / "verify_ledger.py",
+                        media_type="text/x-python",
+                        filename="verify_ledger.py")
 
 
 # Estático al final: las rutas /api/* tienen prioridad.
