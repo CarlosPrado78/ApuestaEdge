@@ -300,7 +300,9 @@ em{color:var(--brand);font-style:normal}
 
 /* --------------------------------------------------------- alertas */
 .stat .stat-label{display:block;font-size:.76rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
-.stat .stat-value{display:block;font-size:1.5rem;font-weight:800;color:var(--brand);margin:2px 0}
+.stat .stat-value{display:block;font-size:1.5rem;font-weight:800;color:var(--text);margin:2px 0}
+.stat .stat-value.pos{color:var(--brand)}
+.stat .stat-value.neg{color:var(--danger)}
 .stat .stat-sub{display:block;font-size:.76rem;color:#6f7d97}
 .alert-auth-form{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
 .alert-auth-form input{background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:9px 12px;font-size:.88rem;min-width:210px}
@@ -325,6 +327,14 @@ em{color:var(--brand);font-style:normal}
 .rule-tags{display:flex;flex-wrap:wrap;gap:6px}
 .rule-tags .chip{padding:3px 9px;font-size:.74rem;cursor:default}
 .rule-actions{display:flex;gap:8px;justify-content:flex-end}
+
+/* ----------------------------------------------------- permalink /pick/{id} */
+.pick-dl{display:grid;gap:9px;margin-top:10px}
+.pick-dl-row{display:flex;justify-content:space-between;gap:14px;border-bottom:1px solid var(--line);padding-bottom:7px;font-size:.88rem}
+.pick-dl-row dt{color:var(--muted)}
+.pick-dl-row dd{margin:0;color:var(--text);font-weight:600;text-align:right}
+.hash-stack{display:grid;gap:12px;margin-top:12px}
+.hash-stage{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;display:grid;gap:5px}
 
 @media (max-width:760px){
   .ledger-table-wrap{display:none}

@@ -301,7 +301,7 @@ function desktopRow(r) {
       ${esc(fmtTs(r.event_start))}
     </td>
     <td data-label="${label("th_league")}">${esc(r.league)}</td>
-    <td data-label="${label("th_event")}" class="cell-event">${esc(r.event)}</td>
+    <td data-label="${label("th_event")}" class="cell-event"><a href="/pick/${r.id}">${esc(r.event)} ↗</a></td>
     <td data-label="${label("th_market")}">${esc(marketLabel(r))}</td>
     <td data-label="${label("th_selection")}">${esc(r.selection_label)}</td>
     <td data-label="${label("th_odds")}"><b>${num(r.bet_odds)}</b></td>
@@ -321,7 +321,7 @@ function mobileCard(r) {
       <span class="lc-league">${esc(r.league)}</span>
       ${resultBadge(r)}
     </div>
-    <p class="lc-event">${esc(r.event)}</p>
+    <p class="lc-event"><a href="/pick/${r.id}">${esc(r.event)} ↗</a></p>
     <p class="lc-sel">${esc(r.selection_label)}</p>
     <div class="lc-grid">
       <div><label>${esc(t("th_odds"))}</label><b>${num(r.bet_odds)}</b></div>

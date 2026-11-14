@@ -412,6 +412,70 @@ def export_package(conn) -> dict:
     }
 
 
+OTS_HEADER = (
+    b"\x00OpenTimestamps\x00\x00Proof\x00"
+    b"\xbf\x89\xe2\xe8\x84\xe8\x92\x94\x01\x08"
+)
+OTS_DEFAULT_CALENDAR = "https://a.pool.opentimestamps.org"
+
+
+def build_ots_proof(head_hash: str, calendar_body: bytes = b"") -> bytes:
+    """Construye un archivo .ots (cabecera + digest SHA-256 + operaciones)."""
+    digest = bytes.fromhex(str(head_hash).strip())
+    if len(digest) != 32:
+        raise ValueError("head_hash debe ser SHA-256 hex de 64 caracteres")
+    return OTS_HEADER + digest + (calendar_body or b"")
+
+
+def stamp_anchor(conn, day: str, head_hash: str, *,
+                 calendar_url: str | None = None,
+                 http_post=None,
+                 now: float | None = None) -> dict | None:
+    """Sella el ``head_hash`` diario en un calendario OpenTimestamps.
+
+    Si el calendario externo responde, guarda las operaciones devueltas en el
+    comprobante ``.ots``. Si no hay red (o en entorno local sin salida),
+    conserva la cabecera ``.ots`` con el digest SHA-256 para que siempre se
+    pueda verificar o actualizar después con ``ots upgrade``.
+    """
+    import os
+    cal = (calendar_url
+           or os.environ.get("OTS_CALENDAR_URL", "").strip()
+           or OTS_DEFAULT_CALENDAR).rstrip("/")
+    digest = bytes.fromhex(str(head_hash).strip())
+    calendar_body = b""
+    calendar_label = f"local-sha256 ({cal})"
+    should_call_remote = (
+        http_post is not None
+        or os.environ.get("OTS_ONLINE", "").strip() in ("1", "true", "yes")
+        or bool(config.ODDS_API_KEY)
+    )
+    if should_call_remote:
+        try:
+            if http_post is not None:
+                resp = http_post(f"{cal}/digest", digest)
+                status = getattr(resp, "status_code", 200)
+                content = getattr(resp, "content", b"")
+            else:
+                import httpx
+                with httpx.Client(timeout=4.0) as client:
+                    r = client.post(
+                        f"{cal}/digest", content=digest,
+                        headers={"Accept": "application/vnd.opentimestamps.v1",
+                                 "Content-Type": "application/x-www-form-urlencoded"})
+                    status, content = r.status_code, r.content
+            if status == 200 and content:
+                calendar_body = bytes(content)
+                calendar_label = cal
+        except Exception:  # noqa: BLE001 - nunca bloquea el ancla diaria
+            pass
+
+    proof_hex = build_ots_proof(head_hash, calendar_body).hex()
+    return db.ledger_anchor_set_ots(
+        conn, day, ots_proof=proof_hex,
+        ots_calendar=calendar_label, ots_submitted_at=now)
+
+
 def anchor(conn, *, day: str | None = None,
            now: float | None = None, save: bool = True) -> dict:
     """Ancla diaria: un hash que resume las tres cabezas del registro."""
@@ -434,7 +498,86 @@ def anchor(conn, *, day: str | None = None,
     }
     if save:
         db.ledger_anchor_save(conn, payload)
+        saved = db.ledger_anchor_on(conn, day) or payload
+        if not saved.get("ots_proof"):
+            saved = stamp_anchor(conn, day, saved["head_hash"], now=now) or saved
+        return saved
     return payload
+
+
+def pick_detail(conn, pick_id: int) -> dict | None:
+    """Detalle verificable de un pick con sus cadenas canónicas SHA-256."""
+    row = db.ledger_pick_by_id(conn, pick_id)
+    if not row:
+        return None
+    pick_canon = _canonical("picks", row)
+    closing_canon = (
+        _canonical("pick_closings", {
+            "pick_id": int(row["id"]),
+            "closing_odds": row["closing_odds"],
+            "closing_at": row["closing_at"],
+            "clv_pct": row["clv_pct"],
+        })
+        if row.get("closing_odds") is not None and row.get("closing_at") is not None
+        else None
+    )
+    result_canon = (
+        _canonical("pick_results", {
+            "pick_id": int(row["id"]),
+            "result": row["result"],
+            "profit_units": row["profit_units"],
+            "settled_at": row["settled_at"],
+        })
+        if row.get("result") is not None and row.get("settled_at") is not None
+        else None
+    )
+    out = dict(row)
+    out["pick_canonical"] = pick_canon
+    out["closing_canonical"] = closing_canon
+    out["result_canonical"] = result_canon
+    return out
+
+
+def versions_with_impact(conn) -> list[dict]:
+    """Versiones del modelo con su impacto medido en el registro público."""
+    versions = db.model_versions_list(conn)
+    published = db.ledger_rows(conn, "picks")
+    settled = db.ledger_settled(conn)
+    known = {v["version"] for v in versions}
+    for r in published:
+        mv = str(r.get("model_version") or "")
+        if mv and mv not in known:
+            versions.append({
+                "version": mv,
+                "released_at": float(r.get("created_at") or 0.0),
+                "summary": "Versión registrada en picks publicados.",
+                "changes": None,
+            })
+            known.add(mv)
+
+    for v in versions:
+        ver = v["version"]
+        pub_rows = [r for r in published if r.get("model_version") == ver]
+        set_rows = [r for r in settled if r.get("model_version") == ver]
+        decided = [r for r in set_rows if r.get("result") in ("won", "lost")]
+        stakes = [float(r["stake_units"]) for r in decided]
+        profits = [float(r["profit_units"]) for r in decided]
+        results = [1 if r["result"] == "won" else 0 for r in decided]
+        odds = [float(r["bet_odds"]) for r in decided]
+        clv = [float(r["clv_pct"]) for r in set_rows if r.get("clv_pct") is not None]
+        stats = bt.summarize(stakes, profits, results, odds, clv) if decided else {}
+        v["measured_impact"] = {
+            "picks": len(pub_rows),
+            "sample": len(decided),
+            "wins": sum(results),
+            "losses": len(decided) - sum(results),
+            "roi_pct": round(stats.get("roi_pct", 0.0), 2),
+            "hit_rate_pct": round(stats.get("hit_rate_pct", 0.0), 2),
+            "avg_clv_pct": round(stats.get("avg_clv_pct", 0.0), 3),
+            "clv_sample": len(clv),
+            "binomial_p_value": round(stats.get("binomial_p_value", 1.0), 6),
+        }
+    return versions
 
 
 def _iso_ts(value: Any) -> float | None:

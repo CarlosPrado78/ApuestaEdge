@@ -32,7 +32,11 @@ const I18N = {
     f_leagues: "Ligas (vacío = todas las ligas)",
     f_channels: "Canales de entrega",
     ch_email: "Email (e historial web)",
+    ch_push: "Web Push (navegador)",
     ch_telegram: "Telegram instantáneo",
+    btn_enable_push: "Activar Web Push en este navegador",
+    push_ready: "Web Push activo en este navegador ({n} dispositivo(s)).",
+    push_off: "Web Push desactivado en tu cuenta.",
     tg_hint: "Para recibir en Telegram, vincula tu cuenta con el código de la portada.",
     tg_linked_ok: "Telegram vinculado y listo para entregar tus reglas.",
     btn_save: "Guardar regla",
@@ -92,7 +96,11 @@ const I18N = {
     f_leagues: "Leagues (empty = all leagues)",
     f_channels: "Delivery channels",
     ch_email: "Email (& web history)",
+    ch_push: "Web Push (browser)",
     ch_telegram: "Instant Telegram",
+    btn_enable_push: "Enable Web Push in this browser",
+    push_ready: "Web Push active in this browser ({n} device(s)).",
+    push_off: "Web Push disabled on your account.",
     tg_hint: "To receive on Telegram, link your account using the code on the home page.",
     tg_linked_ok: "Telegram linked and ready to deliver your rules.",
     btn_save: "Save rule",
@@ -196,6 +204,11 @@ function renderSummary() {
   if (tgHint) {
     tgHint.textContent = ch.telegram_linked ? t("tg_linked_ok") : t("tg_hint");
   }
+  const pushHint = $("#push-hint");
+  if (pushHint) {
+    pushHint.textContent = ch.push_subscribed
+      ? fill("push_ready", { n: ch.push_count || 1 }) : "";
+  }
 }
 
 function renderRules() {
@@ -216,6 +229,7 @@ function renderRules() {
       ? fill("up_to_min", { m: r.max_minutes_to_start }) : t("any_time");
     const channels = [
       r.channel_email ? "Email" : null,
+      r.channel_push ? "Web Push" : null,
       r.channel_telegram ? "Telegram" : null,
     ].filter(Boolean).join(" + ");
 
@@ -332,6 +346,7 @@ async function handleCreateRule(ev) {
     markets: market ? [market] : [],
     max_minutes_to_start: maxMinsRaw ? Number(maxMinsRaw) : null,
     channel_email: $("#r-ch-email").checked,
+    channel_push: $("#r-ch-push").checked,
     channel_telegram: $("#r-ch-telegram").checked,
   };
   try {
@@ -347,6 +362,33 @@ async function handleCreateRule(ev) {
     await load();
   } catch (e) {
     fb.textContent = e.message;
+  }
+}
+
+async function handleEnablePush() {
+  const hint = $("#push-hint");
+  hint.textContent = t("loading");
+  try {
+    let endpoint = `browser://${window.location.host}/sw.js`;
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      if ("Notification" in window && Notification.permission === "default") {
+        try { await Notification.requestPermission(); } catch { /* ignore */ }
+      }
+      if (reg && reg.scope) endpoint = `${reg.scope}#webpush`;
+    }
+    const resp = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ endpoint, p256dh: "browser-sw", auth: "sw-v1" }),
+    });
+    const body = await resp.json();
+    if (!resp.ok) throw new Error(body.detail || `HTTP ${resp.status}`);
+    $("#r-ch-push").checked = true;
+    hint.textContent = fill("push_ready", { n: body.push_count || 1 });
+    await load();
+  } catch (e) {
+    hint.textContent = e.message;
   }
 }
 
@@ -424,6 +466,8 @@ function bind() {
   $("#rule-form").addEventListener("submit", handleCreateRule);
   $("#rules-list").addEventListener("click", handleRuleAction);
   $("#btn-evaluate").addEventListener("click", handleEvaluate);
+  const pushBtn = $("#btn-enable-push");
+  if (pushBtn) pushBtn.addEventListener("click", handleEnablePush);
 }
 
 async function init() {

@@ -166,7 +166,10 @@ CREATE TABLE IF NOT EXISTS ledger_anchors (
     results_head TEXT NOT NULL,
     results_count INTEGER NOT NULL,
     head_hash TEXT NOT NULL,
-    published_at REAL NOT NULL
+    published_at REAL NOT NULL,
+    ots_proof TEXT,
+    ots_calendar TEXT,
+    ots_submitted_at REAL
 );
 
 CREATE TABLE IF NOT EXISTS model_versions (
@@ -188,11 +191,24 @@ CREATE TABLE IF NOT EXISTS alert_rules (
     max_minutes_to_start INTEGER,
     channel_email INTEGER NOT NULL DEFAULT 1,
     channel_telegram INTEGER NOT NULL DEFAULT 0,
+    channel_push INTEGER NOT NULL DEFAULT 0,
     enabled INTEGER NOT NULL DEFAULT 1,
     created_at REAL NOT NULL,
     updated_at REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_alert_rules_email ON alert_rules(email);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    endpoint TEXT UNIQUE NOT NULL,
+    p256dh TEXT NOT NULL DEFAULT '',
+    auth TEXT NOT NULL DEFAULT '',
+    user_agent TEXT NOT NULL DEFAULT '',
+    created_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_email
+    ON push_subscriptions(email);
 
 CREATE TABLE IF NOT EXISTS alert_deliveries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -336,7 +352,10 @@ CREATE TABLE IF NOT EXISTS ledger_anchors (
     results_head TEXT NOT NULL,
     results_count INTEGER NOT NULL,
     head_hash TEXT NOT NULL,
-    published_at DOUBLE PRECISION NOT NULL
+    published_at DOUBLE PRECISION NOT NULL,
+    ots_proof TEXT,
+    ots_calendar TEXT,
+    ots_submitted_at DOUBLE PRECISION
 );
 
 CREATE TABLE IF NOT EXISTS model_versions (
@@ -358,11 +377,24 @@ CREATE TABLE IF NOT EXISTS alert_rules (
     max_minutes_to_start INTEGER,
     channel_email INTEGER NOT NULL DEFAULT 1,
     channel_telegram INTEGER NOT NULL DEFAULT 0,
+    channel_push INTEGER NOT NULL DEFAULT 0,
     enabled INTEGER NOT NULL DEFAULT 1,
     created_at DOUBLE PRECISION NOT NULL,
     updated_at DOUBLE PRECISION NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_alert_rules_email ON alert_rules(email);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id BIGSERIAL PRIMARY KEY,
+    email TEXT NOT NULL,
+    endpoint TEXT UNIQUE NOT NULL,
+    p256dh TEXT NOT NULL DEFAULT '',
+    auth TEXT NOT NULL DEFAULT '',
+    user_agent TEXT NOT NULL DEFAULT '',
+    created_at DOUBLE PRECISION NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_email
+    ON push_subscriptions(email);
 
 CREATE TABLE IF NOT EXISTS alert_deliveries (
     id BIGSERIAL PRIMARY KEY,
@@ -512,6 +544,14 @@ def _migrate_postgres(conn: _PostgresConnection) -> None:
     """Migración idempotente de PostgreSQL (ADD COLUMN IF NOT EXISTS)."""
     for column in _PG_USER_COLUMNS:
         conn.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {column}")
+    conn.execute("ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS "
+                 "channel_push INTEGER DEFAULT 0")
+    conn.execute("ALTER TABLE ledger_anchors ADD COLUMN IF NOT EXISTS "
+                 "ots_proof TEXT")
+    conn.execute("ALTER TABLE ledger_anchors ADD COLUMN IF NOT EXISTS "
+                 "ots_calendar TEXT")
+    conn.execute("ALTER TABLE ledger_anchors ADD COLUMN IF NOT EXISTS "
+                 "ots_submitted_at DOUBLE PRECISION")
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_link_code "
                  "ON users(link_code)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_users_tg_chat "
@@ -525,6 +565,17 @@ def _migrate(conn: sqlite3.Connection) -> None:
         name = column.split()[0]
         if name not in existing:
             conn.execute(f"ALTER TABLE users ADD COLUMN {column}")
+    rule_cols = {
+        row["name"] for row in conn.execute("PRAGMA table_info(alert_rules)")}
+    if "channel_push" not in rule_cols:
+        conn.execute(
+            "ALTER TABLE alert_rules ADD COLUMN channel_push INTEGER DEFAULT 0")
+    anchor_cols = {
+        row["name"] for row in conn.execute("PRAGMA table_info(ledger_anchors)")}
+    for col_def in ("ots_proof TEXT", "ots_calendar TEXT",
+                    "ots_submitted_at REAL"):
+        if col_def.split()[0] not in anchor_cols:
+            conn.execute(f"ALTER TABLE ledger_anchors ADD COLUMN {col_def}")
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_link_code "
                  "ON users(link_code)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_users_tg_chat "
@@ -1105,6 +1156,35 @@ def ledger_anchor_on(conn, day: str) -> dict | None:
     return dict(row) if row else None
 
 
+def ledger_anchor_set_ots(conn, day: str, *, ots_proof: str,
+                          ots_calendar: str,
+                          ots_submitted_at: float | None = None) -> dict | None:
+    """Guarda el recibo externo OpenTimestamps del ancla diaria."""
+    ts = float(ots_submitted_at or time.time())
+    conn.execute(
+        "UPDATE ledger_anchors SET ots_proof=?, ots_calendar=?, "
+        "ots_submitted_at=? WHERE day=?",
+        (str(ots_proof), str(ots_calendar), ts, str(day)))
+    conn.commit()
+    return ledger_anchor_on(conn, day)
+
+
+def ledger_pick_by_id(conn, pick_id: int) -> dict | None:
+    """Un pick del registro con su cierre, resultado y hashes de las 3 cadenas."""
+    row = conn.execute(
+        "SELECT p.*, "
+        "c.closing_odds, c.closing_at, c.clv_pct, "
+        "c.prev_hash AS closing_prev_hash, c.row_hash AS closing_row_hash, "
+        "r.result, r.profit_units, r.settled_at, "
+        "r.prev_hash AS result_prev_hash, r.row_hash AS result_row_hash "
+        "FROM picks p "
+        "LEFT JOIN pick_closings c ON c.pick_id = p.id "
+        "LEFT JOIN pick_results r ON r.pick_id = p.id "
+        "WHERE p.id = ?",
+        (int(pick_id),)).fetchone()
+    return dict(row) if row else None
+
+
 def model_versions_list(conn) -> list[dict]:
     rows = conn.execute(
         "SELECT * FROM model_versions ORDER BY released_at DESC").fetchall()
@@ -1171,6 +1251,7 @@ def _format_rule(row) -> dict:
                                  else None),
         "channel_email": bool(d.get("channel_email")),
         "channel_telegram": bool(d.get("channel_telegram")),
+        "channel_push": bool(d.get("channel_push")),
         "enabled": bool(d.get("enabled")),
         "created_at": float(d["created_at"]),
         "updated_at": float(d["updated_at"]),
@@ -1212,20 +1293,21 @@ def alert_rule_create(conn, email: str, *, name: str,
                       max_minutes_to_start: int | None = None,
                       channel_email: bool = True,
                       channel_telegram: bool = False,
+                      channel_push: bool = False,
                       enabled: bool = True) -> dict:
     email = _normalize_email(email)
     now = time.time()
     conn.execute(
         "INSERT INTO alert_rules "
         "(email, name, leagues, edge_min, odds_min, odds_max, markets, "
-        "max_minutes_to_start, channel_email, channel_telegram, enabled, "
-        "created_at, updated_at) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "max_minutes_to_start, channel_email, channel_telegram, channel_push, "
+        "enabled, created_at, updated_at) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (email, name.strip(), _pack_list(leagues), float(edge_min),
          float(odds_min), float(odds_max), _pack_list(markets),
          int(max_minutes_to_start) if max_minutes_to_start is not None else None,
          1 if channel_email else 0, 1 if channel_telegram else 0,
-         1 if enabled else 0, now, now))
+         1 if channel_push else 0, 1 if enabled else 0, now, now))
     conn.commit()
     row = conn.execute(
         "SELECT * FROM alert_rules WHERE email=? ORDER BY id DESC LIMIT 1",
@@ -1299,4 +1381,48 @@ def alert_deliveries_for_user(conn, email: str, limit: int = 50) -> list[dict]:
         "SELECT * FROM alert_deliveries WHERE email=? "
         "ORDER BY sent_at DESC, id DESC LIMIT ?",
         (email, int(limit))).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ------------------------------------------------ suscripciones Web Push
+def push_subscribe(conn, email: str, *, endpoint: str,
+                   p256dh: str = "", auth: str = "",
+                   user_agent: str = "") -> dict:
+    email = _normalize_email(email)
+    endpoint = str(endpoint).strip()
+    now = time.time()
+    conn.execute(
+        "INSERT INTO push_subscriptions "
+        "(email, endpoint, p256dh, auth, user_agent, created_at) "
+        "VALUES (?,?,?,?,?,?) "
+        "ON CONFLICT(endpoint) DO UPDATE SET "
+        "email = excluded.email, p256dh = excluded.p256dh, "
+        "auth = excluded.auth, user_agent = excluded.user_agent",
+        (email, endpoint, str(p256dh or ""), str(auth or ""),
+         str(user_agent or "")[:200], now))
+    conn.commit()
+    row = conn.execute(
+        "SELECT * FROM push_subscriptions WHERE endpoint=?",
+        (endpoint,)).fetchone()
+    return dict(row) if row else {}
+
+
+def push_unsubscribe(conn, email: str, endpoint: str | None = None) -> int:
+    email = _normalize_email(email)
+    if endpoint:
+        cur = conn.execute(
+            "DELETE FROM push_subscriptions WHERE email=? AND endpoint=?",
+            (email, str(endpoint).strip()))
+    else:
+        cur = conn.execute(
+            "DELETE FROM push_subscriptions WHERE email=?", (email,))
+    conn.commit()
+    return cur.rowcount or 0
+
+
+def push_subscriptions_for_user(conn, email: str) -> list[dict]:
+    email = _normalize_email(email)
+    rows = conn.execute(
+        "SELECT * FROM push_subscriptions WHERE email=? ORDER BY id DESC",
+        (email,)).fetchall()
     return [dict(r) for r in rows]

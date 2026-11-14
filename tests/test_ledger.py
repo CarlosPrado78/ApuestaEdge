@@ -455,3 +455,102 @@ def test_free_history_is_limited_to_seven_days(client):
                       headers={"Authorization": f"Bearer {token}"}).json()
     assert full["history_limited"] is False and full["history_days"] is None
     assert full["total"] == 2
+
+
+# ------------------------------------ P1: permalink, SEO, OTS y versiones
+def test_pick_permalink_and_detail_api(client):
+    conn = _conn()
+    try:
+        ledger.append_pick(conn, _pick(match_id="perm-1", odds=2.20),
+                           created_at=1000.0)
+        ledger.append("pick_closings", conn, {
+            "pick_id": 1, "closing_odds": 2.00,
+            "closing_at": 1500.0, "clv_pct": 10.0,
+        })
+        ledger.append("pick_results", conn, {
+            "pick_id": 1, "result": "won",
+            "profit_units": 1.2, "settled_at": 5000.0,
+        })
+    finally:
+        conn.close()
+
+    detail = client.get("/api/ledger/picks/1")
+    assert detail.status_code == 200
+    body = detail.json()
+    assert body["id"] == 1
+    assert body["pick_canonical"] and body["closing_canonical"] and body["result_canonical"]
+    assert body["row_hash"] and body["closing_row_hash"] and body["result_row_hash"]
+
+    page = client.get("/pick/1")
+    assert page.status_code == 200
+    assert 'property="og:title"' in page.text
+    assert 'rel="canonical"' in page.text
+    assert "application/ld+json" in page.text
+    assert "window.__PICK_DATA__" in page.text
+    assert body["row_hash"] in page.text
+    assert client.get("/pick/99999").status_code == 404
+
+
+def test_sitemap_xml_and_robots_txt_include_public_pages_and_picks(client):
+    conn = _conn()
+    try:
+        ledger.append_pick(conn, _pick(match_id="seo-1", odds=2.10))
+    finally:
+        conn.close()
+
+    robots = client.get("/robots.txt")
+    assert robots.status_code == 200
+    assert "Sitemap:" in robots.text and "/sitemap.xml" in robots.text
+
+    sitemap = client.get("/sitemap.xml")
+    assert sitemap.status_code == 200
+    for path in ("/picks", "/ligas", "/modelo", "/verificacion", "/alertas", "/pick/1"):
+        assert f"{path}</loc>" in sitemap.text
+
+
+def test_anchor_generates_opentimestamps_ots_proof(client):
+    conn = _conn()
+    try:
+        ledger.append_pick(conn, _pick(match_id="ots-1", odds=2.05))
+        anc = ledger.anchor(conn, day="2026-11-14", now=2000.0)
+        assert anc["ots_proof"].startswith(ledger.OTS_HEADER.hex())
+
+        class _FakeResp:
+            status_code = 200
+            content = b"\xf0\x04test"
+
+        stamped = ledger.stamp_anchor(
+            conn, "2026-11-14", anc["head_hash"],
+            calendar_url="https://a.pool.opentimestamps.org",
+            http_post=lambda url, digest: _FakeResp(),
+            now=2005.0,
+        )
+        assert stamped["ots_calendar"] == "https://a.pool.opentimestamps.org"
+    finally:
+        conn.close()
+
+    ots = client.get("/api/ledger/anchors/2026-11-14.ots")
+    assert ots.status_code == 200
+    assert ots.headers["content-type"].startswith("application/vnd.opentimestamps.v1")
+    assert ots.content.startswith(ledger.OTS_HEADER)
+    assert ots.content.endswith(b"\xf0\x04test")
+
+
+def test_versions_endpoint_includes_measured_impact(client):
+    conn = _conn()
+    try:
+        ledger.append_pick(conn, _pick(match_id="imp-1", odds=2.00),
+                           created_at=1000.0)
+        ledger.append("pick_results", conn, {
+            "pick_id": 1, "result": "won",
+            "profit_units": 1.0, "settled_at": 3000.0,
+        })
+    finally:
+        conn.close()
+
+    body = client.get("/api/ledger/versions").json()
+    current = next(v for v in body["versions"] if v["version"] == body["current"])
+    imp = current["measured_impact"]
+    assert imp["picks"] == 1
+    assert imp["sample"] == 1
+    assert imp["wins"] == 1 and imp["losses"] == 0

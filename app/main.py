@@ -920,6 +920,13 @@ class AlertRuleIn(BaseModel):
     max_minutes_to_start: int | None = Field(default=None, ge=5, le=10080)
     channel_email: bool = True
     channel_telegram: bool = False
+    channel_push: bool = False
+
+
+class PushSubscribeIn(BaseModel):
+    endpoint: str = Field(min_length=6, max_length=1024)
+    p256dh: str = Field(default="", max_length=256)
+    auth: str = Field(default="", max_length=256)
 
 
 class AlertRuleToggleIn(BaseModel):
@@ -958,11 +965,14 @@ def alert_rules_list(request: Request) -> dict:
                     "email_smtp": config.email_enabled(),
                     "telegram_configured": config.telegram_enabled(),
                     "telegram_linked": False,
+                    "push_subscribed": False,
+                    "push_count": 0,
                 },
             }
         plan = str(user.get("plan") or "free")
         rules = db.alert_rules_for_user(conn, user["email"])
         deliveries = db.alert_deliveries_for_user(conn, user["email"], limit=40)
+        push_subs = db.push_subscriptions_for_user(conn, user["email"])
         for d in deliveries:
             d["bookmaker_url"] = notifier.bookmaker_url(d.get("bookmaker"))
         return {
@@ -980,8 +990,45 @@ def alert_rules_list(request: Request) -> dict:
                 "email_smtp": config.email_enabled(),
                 "telegram_configured": config.telegram_enabled(),
                 "telegram_linked": bool(user.get("telegram_chat_id")),
+                "push_subscribed": bool(push_subs),
+                "push_count": len(push_subs),
             },
         }
+    finally:
+        conn.close()
+
+
+@app.post("/api/push/subscribe")
+def push_subscribe_endpoint(payload: PushSubscribeIn,
+                            request: Request) -> dict:
+    user = auth.user_from_request(request)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Inicia sesión para activar notificaciones en el navegador.")
+    ua = request.headers.get("user-agent", "")
+    conn = db.connect()
+    try:
+        saved = db.push_subscribe(
+            conn, user["email"], endpoint=payload.endpoint,
+            p256dh=payload.p256dh, auth=payload.auth, user_agent=ua)
+        subs = db.push_subscriptions_for_user(conn, user["email"])
+        return {"ok": True, "subscription": saved, "push_count": len(subs)}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/push/subscribe")
+def push_unsubscribe_endpoint(request: Request,
+                              endpoint: str | None = None) -> dict:
+    user = auth.user_from_request(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Inicia sesión.")
+    conn = db.connect()
+    try:
+        removed = db.push_unsubscribe(conn, user["email"], endpoint=endpoint)
+        subs = db.push_subscriptions_for_user(conn, user["email"])
+        return {"ok": True, "removed": removed, "push_count": len(subs)}
     finally:
         conn.close()
 
@@ -997,10 +1044,10 @@ async def alert_rule_create(payload: AlertRuleIn, request: Request) -> dict:
         raise HTTPException(
             status_code=422,
             detail="La cuota mínima no puede superar a la cuota máxima.")
-    if not (payload.channel_email or payload.channel_telegram):
+    if not (payload.channel_email or payload.channel_telegram or payload.channel_push):
         raise HTTPException(
             status_code=422,
-            detail="Selecciona al menos un canal (Email o Telegram).")
+            detail="Selecciona al menos un canal (Email, Telegram o Web Push).")
     valid_markets = {"h2h", "outright"}
     markets = [m for m in payload.markets if m in valid_markets]
     plan = str(user.get("plan") or "free")
@@ -1028,6 +1075,7 @@ async def alert_rule_create(payload: AlertRuleIn, request: Request) -> dict:
             max_minutes_to_start=payload.max_minutes_to_start,
             channel_email=payload.channel_email,
             channel_telegram=payload.channel_telegram,
+            channel_push=payload.channel_push,
             enabled=True,
         )
         matches, source = _get_matches()
@@ -1133,6 +1181,7 @@ def _pick_public(row: dict) -> dict:
         "profit_units": (round(float(row["profit_units"]), 3)
                          if row.get("profit_units") is not None else None),
         "settled_at": row.get("settled_at"),
+        "model_version": row.get("model_version") or config.MODEL_VERSION,
         "prev_hash": row["prev_hash"],
         "row_hash": row["row_hash"],
     }
@@ -1266,7 +1315,54 @@ def ledger_versions() -> dict:
     conn = db.connect()
     try:
         return {"current": config.MODEL_VERSION,
-                "versions": db.model_versions_list(conn)}
+                "versions": ledger.versions_with_impact(conn)}
+    finally:
+        conn.close()
+
+
+@app.get("/api/ledger/picks/{pick_id}")
+def ledger_pick_detail(pick_id: int) -> dict:
+    """Detalle completo y verificable de un pick del registro público."""
+    conn = db.connect()
+    try:
+        raw = ledger.pick_detail(conn, pick_id)
+        if not raw:
+            raise HTTPException(status_code=404, detail="Pick no encontrado.")
+        pub = _pick_public(raw)
+        pub["closing_at"] = raw.get("closing_at")
+        pub["closing_prev_hash"] = raw.get("closing_prev_hash")
+        pub["closing_row_hash"] = raw.get("closing_row_hash")
+        pub["result_prev_hash"] = raw.get("result_prev_hash")
+        pub["result_row_hash"] = raw.get("result_row_hash")
+        pub["pick_canonical"] = raw.get("pick_canonical")
+        pub["closing_canonical"] = raw.get("closing_canonical")
+        pub["result_canonical"] = raw.get("result_canonical")
+        pub["bookmaker_url"] = notifier.bookmaker_url(raw.get("bookmaker"))
+        return pub
+    finally:
+        conn.close()
+
+
+@app.get("/api/ledger/anchors/{day}.ots")
+def ledger_anchor_ots(day: str):
+    """Comprobante binario OpenTimestamps (.ots) del ancla diaria."""
+    from fastapi.responses import Response
+    conn = db.connect()
+    try:
+        anc = db.ledger_anchor_on(conn, day)
+        if not anc:
+            raise HTTPException(status_code=404, detail="Ancla no encontrada.")
+        if not anc.get("ots_proof"):
+            anc = ledger.stamp_anchor(conn, day, anc["head_hash"]) or anc
+        raw_bytes = bytes.fromhex(str(anc.get("ots_proof") or ""))
+        return Response(
+            content=raw_bytes,
+            media_type="application/vnd.opentimestamps.v1",
+            headers={
+                "Content-Disposition": f'attachment; filename="apuestaedge-{day}.ots"',
+                "X-OTS-Calendar": str(anc.get("ots_calendar") or ""),
+            },
+        )
     finally:
         conn.close()
 
@@ -1320,6 +1416,117 @@ def alerts_page() -> FileResponse:
     """Reglas configurables de alertas (liga, edge, cuota, mercado, tiempo)."""
     return FileResponse(config.BASE_DIR / "static" / "alertas.html",
                         media_type="text/html")
+
+
+@app.get("/pick/{pick_id}", include_in_schema=False)
+def pick_permalink_page(pick_id: int, request: Request):
+    """Permalink público e inmutable de un pick con metadatos OpenGraph/SEO."""
+    import html as _html
+    from fastapi.responses import HTMLResponse
+    conn = db.connect()
+    try:
+        raw = ledger.pick_detail(conn, pick_id)
+    finally:
+        conn.close()
+    if not raw:
+        raise HTTPException(status_code=404, detail="Pick no encontrado.")
+    pub = _pick_public(raw)
+    pub["closing_at"] = raw.get("closing_at")
+    pub["closing_prev_hash"] = raw.get("closing_prev_hash")
+    pub["closing_row_hash"] = raw.get("closing_row_hash")
+    pub["result_prev_hash"] = raw.get("result_prev_hash")
+    pub["result_row_hash"] = raw.get("result_row_hash")
+    pub["pick_canonical"] = raw.get("pick_canonical")
+    pub["closing_canonical"] = raw.get("closing_canonical")
+    pub["result_canonical"] = raw.get("result_canonical")
+    pub["bookmaker_url"] = notifier.bookmaker_url(raw.get("bookmaker"))
+
+    origin = auth.origin_of(request)
+    url = f"{origin}/pick/{pick_id}"
+    res_label = {
+        "won": "Ganada", "lost": "Perdida",
+        "push": "Nula (push)", "void": "Anulada", "pending": "Pendiente",
+    }.get(pub["result"], "Pendiente")
+    title = (f"Pick #{pick_id} · {pub['event']} — {pub['selection_label']} "
+             f"@ {pub['bet_odds']:.2f} ({pub['edge_pct']:+.1f}%) · ApuestaEdge")
+    desc = (f"{pub['league']} · {pub['event']} · {pub['selection_label']} "
+            f"a cuota {pub['bet_odds']:.2f} ({pub['bookmaker']}). "
+            f"Edge +{pub['edge_pct']:.1f}% · Estado: {res_label} · "
+            f"SHA-256 {pub['row_hash'][:16]}…")
+
+    template_path = config.BASE_DIR / "static" / "pick.html"
+    tpl = template_path.read_text(encoding="utf-8")
+    json_ld = json.dumps({
+        "@context": "https://schema.org",
+        "@type": "Report",
+        "name": title,
+        "description": desc,
+        "url": url,
+        "identifier": f"sha256:{pub['row_hash']}",
+    }, ensure_ascii=False)
+    embedded = json.dumps(pub, ensure_ascii=False).replace("</", "<\\/")
+    rendered = (
+        tpl.replace("__PICK_TITLE__", _html.escape(title))
+           .replace("__PICK_DESC__", _html.escape(desc))
+           .replace("__PICK_URL__", _html.escape(url))
+           .replace("__PICK_ID__", str(pick_id))
+           .replace("__PICK_EVENT__", _html.escape(str(pub["event"])))
+           .replace("__PICK_LEAGUE__", _html.escape(str(pub["league"])))
+           .replace("__PICK_SELECTION__", _html.escape(str(pub["selection_label"])))
+           .replace("__PICK_ODDS__", f"{pub['bet_odds']:.2f}")
+           .replace("__PICK_EDGE__", f"+{pub['edge_pct']:.1f}%")
+           .replace("__PICK_RESULT__", _html.escape(res_label))
+           .replace("__PICK_HASH__", _html.escape(str(pub["row_hash"])))
+           .replace("__PICK_JSON_LD__", json_ld)
+           .replace("__PICK_DATA_JSON__", embedded)
+    )
+    return HTMLResponse(content=rendered, status_code=200)
+
+
+@app.get("/sw.js", include_in_schema=False)
+def service_worker_file() -> FileResponse:
+    """Service Worker en la raíz para notificaciones Web Push."""
+    return FileResponse(config.BASE_DIR / "static" / "sw.js",
+                        media_type="application/javascript")
+
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots_txt(request: Request):
+    from fastapi.responses import PlainTextResponse
+    origin = auth.origin_of(request)
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /api/auth/\n"
+        "Disallow: /api/billing/\n"
+        f"Sitemap: {origin}/sitemap.xml\n"
+    )
+    return PlainTextResponse(content=body)
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap_xml(request: Request):
+    import html as _html
+    from fastapi.responses import Response
+    origin = auth.origin_of(request)
+    static_paths = ("/", "/picks", "/ligas", "/modelo", "/verificacion", "/alertas")
+    conn = db.connect()
+    try:
+        picks = db.ledger_rows(conn, "picks")
+    finally:
+        conn.close()
+    urls = [f"  <url><loc>{_html.escape(origin + p)}</loc></url>"
+            for p in static_paths]
+    for row in picks[-500:]:
+        loc = _html.escape(f"{origin}/pick/{int(row['id'])}")
+        urls.append(f"  <url><loc>{loc}</loc></url>")
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(urls)
+        + "\n</urlset>\n"
+    )
+    return Response(content=xml, media_type="application/xml")
 
 
 @app.get("/verificacion/verify_ledger.py", include_in_schema=False)

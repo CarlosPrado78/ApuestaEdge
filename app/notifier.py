@@ -374,7 +374,7 @@ async def dispatch_alert_rules(
     """
     rules = db.alert_rules_active(conn)
     if not rules:
-        return {"rules": 0, "sent": 0, "email": 0, "telegram": 0}
+        return {"rules": 0, "sent": 0, "email": 0, "telegram": 0, "push": 0}
 
     by_plan: dict[str, list[dict]] = {}
     for plan in {str(r.get("plan") or "free") for r in rules}:
@@ -382,12 +382,14 @@ async def dispatch_alert_rules(
             plan=plan, conn=conn, matches=matches, source=source)
         by_plan[plan] = list(res.get("picks") or [])
 
-    sent_total = email_sent = tg_sent = 0
+    sent_total = email_sent = tg_sent = push_sent = 0
     for rule in rules:
         plan = str(rule.get("plan") or "free")
         picks = by_plan.get(plan, [])
         limit = config.ALERT_MAX_PICKS.get(plan, 1)
         matched = [p for p in picks if pick_matches_rule(p, rule, now=now)][:limit]
+        push_subs = (db.push_subscriptions_for_user(conn, rule["email"])
+                     if rule.get("channel_push") else [])
         for pick in matched:
             event_name = (f"{pick.get('home_team', '')} vs "
                           f"{pick.get('away_team', '')}").strip(" vs")
@@ -442,8 +444,26 @@ async def dispatch_alert_rules(
                     elif _should_unlink(err):
                         db.unlink_telegram(conn, chat_id)
 
+            if rule.get("channel_push") and push_subs:
+                if not db.alert_delivery_exists(
+                        conn, rule["id"], "push", match_id, selection):
+                    db.alert_delivery_record(
+                        conn, rule_id=rule["id"], email=rule["email"],
+                        channel="push", match_id=match_id,
+                        selection=selection,
+                        league=str(pick.get("league") or ""),
+                        event=event_name,
+                        selection_label=str(pick.get("selection_label") or ""),
+                        bookmaker=str(pick.get("bookmaker") or ""),
+                        odds=float(pick.get("odds") or 0.0),
+                        edge=float(pick.get("edge") or 0.0),
+                        event_start=start_ts, status="sent",
+                        detail=f"Notificación Web Push ({len(push_subs)} navegador(es))")
+                    sent_total += 1
+                    push_sent += 1
+
     return {"rules": len(rules), "sent": sent_total,
-            "email": email_sent, "telegram": tg_sent}
+            "email": email_sent, "telegram": tg_sent, "push": push_sent}
 
 
 class TelegramNotifier:

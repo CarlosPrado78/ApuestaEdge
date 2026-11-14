@@ -414,7 +414,7 @@ apuesta_edge/
   docs/              # arquitectura de producto y decisiones editoriales
   data/              # ratings, cuotas demo, historial, SQLite
   scripts/generate_demo_history.py
-  tests/             # 163 tests (motor, servicio, API, ledger, auth, cobros, alertas y 9 deportes)
+  tests/             # 168 tests (motor, servicio, API, ledger, auth, cobros, alertas y 9 deportes)
 ```
 
 ## Tests

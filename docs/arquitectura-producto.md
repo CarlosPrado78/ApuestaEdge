@@ -251,12 +251,11 @@ compara con su CSV. Cada cambio de modelo: fila nueva en `model_versions` y nota
 
 ### Después del lanzamiento (P1, semanas 2–4)
 
-- Web Push (service worker + VAPID) como tercer canal.
-- `/pick/{id}` permalink público e inmutable (compartir en grupos = crecimiento).
-- Anclaje externo del hash (OpenTimestamps) y enlace a seguimiento independiente.
-- Historial de impacto por versión del modelo medido automáticamente.
-- Email transaccional con dominio propio (SPF/DKIM) y baja en 1 clic.
-- SEO: páginas públicas renderizadas en servidor, `sitemap.xml`, datos estructurados.
+- ✅ Web Push (`/sw.js` Service Worker + suscripciones en BD) como tercer canal en `/alertas`.
+- ✅ `/pick/{id}` permalink público e inmutable con verificación SHA-256 en navegador y OpenGraph.
+- ✅ Anclaje externo del hash diario (OpenTimestamps `.ots` descargable en `/api/ledger/anchors/{day}.ots`).
+- ✅ Historial de impacto por versión del modelo medido automáticamente en `/api/ledger/versions` y `/modelo`.
+- ✅ SEO: `/pick/{id}` renderizado en servidor, `sitemap.xml`, `robots.txt`, OpenGraph y JSON-LD.
 
 ### Explícitamente fuera del MVP
 

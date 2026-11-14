@@ -181,10 +181,13 @@ function renderAnchor() {
     return;
   }
   const anchor = anchors[0];
+  const otsLabel = state.lang === "en"
+    ? "Download .ots proof (OpenTimestamps)"
+    : "Descargar prueba .ots (OpenTimestamps)";
   text.innerHTML = esc(fill("anchor_line", {
     day: anchor.day, hash: short(anchor.head_hash) + "…",
     rows: Number(anchor.picks_count || 0),
-  }));
+  })) + ` · <a href="/api/ledger/anchors/${encodeURIComponent(anchor.day)}.ots">${esc(otsLabel)} ↗</a>`;
   dot.classList.add("ok");
   panel.hidden = false;
 }

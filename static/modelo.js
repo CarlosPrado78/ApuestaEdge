@@ -135,6 +135,21 @@ function renderVersions() {
   }
   panel.innerHTML = versions.map((v) => {
     const inUse = v.version === current;
+    const imp = v.measured_impact || {};
+    const sample = Number(imp.sample || 0);
+    const picks = Number(imp.picks || 0);
+    let impactHtml = "";
+    if (v.measured_impact) {
+      const sampleTxt = state.lang === "en"
+        ? `${picks} published · ${sample} settled`
+        : `${picks} publicados · ${sample} cerrados`;
+      const metricTxt = sample >= 30
+        ? `ROI ${Number(imp.roi_pct).toFixed(1)}% · CLV ${Number(imp.avg_clv_pct).toFixed(2)}%`
+        : (state.lang === "en"
+            ? `insufficient sample (n = ${sample})`
+            : `muestra insuficiente (n = ${sample})`);
+      impactHtml = `<p class="version-changes"><b>${esc(state.lang === "en" ? "Measured impact" : "Impacto medido")}:</b> ${esc(sampleTxt)} · ${esc(metricTxt)}</p>`;
+    }
     return `<article class="version-row">
       <div class="version-head">
         <h3>${esc(v.version)}</h3>
@@ -143,6 +158,7 @@ function renderVersions() {
       </div>
       <p class="muted">${esc(v.summary || "")}</p>
       ${v.changes ? `<p class="version-changes"><b>${esc(t("version_changes"))}:</b> ${esc(v.changes)}</p>` : ""}
+      ${impactHtml}
     </article>`;
   }).join("");
 }

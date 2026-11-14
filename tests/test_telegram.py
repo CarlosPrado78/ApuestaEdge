@@ -382,3 +382,49 @@ def test_alerts_page_is_public_and_clean(client):
     assert "sin código de afiliado" in page.text
     assert "The Odds API" not in page.text
     assert "ODDS_API_KEY" not in page.text
+
+
+def test_web_push_subscription_and_rule_delivery(client, monkeypatch):
+    sw = client.get("/sw.js")
+    assert sw.status_code == 200 and "showNotification" in sw.text
+
+    email = "push_user@test.com"
+    client.post("/api/auth/register",
+                json={"email": email, "password": "secret123"})
+    token = client.post("/api/auth/login",
+                        json={"email": email, "password": "secret123"}).json()["token"]
+
+    sub = client.post("/api/push/subscribe", headers=_auth(token), json={
+        "endpoint": "https://push.example.com/sub/123",
+        "p256dh": "k1",
+        "auth": "a1",
+    })
+    assert sub.status_code == 200 and sub.json()["push_count"] == 1
+
+    pick = _sample_pick("free")
+    pick["selection"] = "home"
+    pick["market"] = "h2h"
+    pick["edge"] = 0.075
+    monkeypatch.setattr(notifier.service, "build_recommendations",
+                        lambda **kw: {"picks": [pick]})
+
+    rule = client.post("/api/alerts/rules", headers=_auth(token), json={
+        "name": "Solo Web Push",
+        "leagues": ["Premier League · Inglaterra"],
+        "edge_min": 0.06,
+        "odds_min": 1.80,
+        "odds_max": 3.20,
+        "markets": ["h2h"],
+        "channel_email": False,
+        "channel_telegram": False,
+        "channel_push": True,
+    })
+    assert rule.status_code == 200
+    assert rule.json()["dispatched"]["push"] == 1
+
+    # Dedupe en segunda evaluación
+    ev2 = client.post("/api/alerts/evaluate", headers=_auth(token))
+    assert ev2.status_code == 200 and ev2.json()["dispatched"]["push"] == 0
+
+    unsub = client.delete("/api/push/subscribe", headers=_auth(token))
+    assert unsub.status_code == 200 and unsub.json()["push_count"] == 0

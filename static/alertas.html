@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Alertas configurables · ApuestaEdge</title>
 <meta name="description" content="Configura reglas de alertas por liga, edge mínimo, rango de cuota, mercado y tiempo hasta el inicio. Recíbelas por Email y Telegram, y pausa o reanuda cuando quieras.">
+<link rel="canonical" href="https://apuestaedge.onrender.com/alertas">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ApuestaEdge">
+<meta property="og:title" content="Alertas configurables · ApuestaEdge">
+<meta property="og:description" content="Configura reglas de alertas por liga, edge mínimo, rango de cuota, mercado y tiempo hasta el inicio. Recíbelas por Email y Telegram, y pausa o reanuda cuando quieras.">
+<meta property="og:url" content="https://apuestaedge.onrender.com/alertas">
+<meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="ledger-page">
@@ -46,7 +53,7 @@
       </div>
       <div class="stat">
         <span class="stat-label" data-i18n="sum_channels">Canales</span>
-        <span class="stat-value" id="a-channels">Email · Telegram</span>
+        <span class="stat-value" id="a-channels">Email · Push · Telegram</span>
         <span class="stat-sub" id="a-channels-sub">—</span>
       </div>
       <div class="stat">
@@ -132,9 +139,17 @@
               <span data-i18n="ch_email">Email (e historial web)</span>
             </label>
             <label class="check-inline">
+              <input type="checkbox" id="r-ch-push">
+              <span data-i18n="ch_push">Web Push (navegador)</span>
+            </label>
+            <label class="check-inline">
               <input type="checkbox" id="r-ch-telegram">
               <span data-i18n="ch_telegram">Telegram instantáneo</span>
             </label>
+          </div>
+          <div class="ledger-actions" style="margin-top:8px">
+            <button class="btn small ghost" type="button" id="btn-enable-push" data-i18n="btn_enable_push">Activar Web Push en este navegador</button>
+            <span class="small-note muted" id="push-hint"></span>
           </div>
           <p class="small-note muted" id="telegram-hint" data-i18n="tg_hint">Para recibir en Telegram, vincula tu cuenta con el código de la portada.</p>
         </fieldset>
