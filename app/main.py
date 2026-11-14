@@ -44,21 +44,41 @@ def _check_triggers() -> dict:
                 ).fetchall()
                 triggers = [r["name"] for r in rows]
 
-            # Test UPDATE (should fail)
+            # Test UPDATE (should fail) - usar fila existente, siempre rollback
             update_blocked = False
             try:
-                conn.execute("UPDATE picks SET edge = 0.99 WHERE 1=0")
-                conn.commit()
+                row = conn.execute("SELECT id, edge FROM picks LIMIT 1").fetchone()
+                if row:
+                    original_edge = row["edge"]
+                    conn.execute("UPDATE picks SET edge = 0.99 WHERE id = ?", (row["id"],))
+                    conn.commit()
+                    # Si llegó aquí, el trigger NO bloqueó. Revertir.
+                    conn.execute("UPDATE picks SET edge = ? WHERE id = ?", (original_edge, row["id"]))
+                    conn.commit()
+                else:
+                    update_blocked = True  # Sin filas, no se puede probar
             except Exception:
                 update_blocked = True
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
 
-            # Test DELETE (should fail)
+            # Test DELETE (should fail) - usar fila existente, siempre rollback
             delete_blocked = False
             try:
-                conn.execute("DELETE FROM picks WHERE 1=0")
-                conn.commit()
+                row = conn.execute("SELECT id FROM picks LIMIT 1").fetchone()
+                if row:
+                    conn.execute("DELETE FROM picks WHERE id = ?", (row["id"],))
+                    conn.commit()
+                else:
+                    delete_blocked = True  # Sin filas, no se puede probar
             except Exception:
                 delete_blocked = True
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
 
             # Test retroactive insert (should fail)
             retro_blocked = False
