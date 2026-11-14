@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Líneas de cierre · ApuestaEdge</title>
+<meta name="description" content="Snapshot diario de las líneas de cierre usadas para calcular el CLV. Fuente declarada: Pinnacle.">
+<link rel="canonical" href="https://apuestaedge.onrender.com/closing-lines">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ApuestaEdge">
+<meta property="og:title" content="Líneas de cierre · ApuestaEdge">
+<meta property="og:description" content="Snapshot diario de las líneas de cierre usadas para el CLV.">
+<meta property="og:url" content="https://apuestaedge.onrender.com/closing-lines">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="ledger-page">
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="logo" href="/">⚡ Apuesta<span>Edge</span></a>
+    <nav class="links">
+      <a href="/" data-i18n="nav_home">Inicio</a>
+      <a href="/picks" data-i18n="nav_ledger">Registro</a>
+      <a href="/ligas" data-i18n="nav_leagues">Ligas</a>
+      <a href="/modelo" data-i18n="nav_model">Modelo</a>
+      <a href="/verificacion" data-i18n="nav_verify">Verificación</a>
+      <a href="/alertas" data-i18n="nav_alerts">Alertas</a>
+      <a href="/impacto" data-i18n="nav_impact">Impacto</a>
+      <a href="/riesgo" data-i18n="nav_risk">Riesgo</a>
+      <a href="/equipo" data-i18n="nav_team">Equipo</a>
+      <a href="/#precios" data-i18n="nav_pricing">Precios</a>
+    </nav>
+    <div class="account">
+      <button id="lang-toggle" class="btn small ghost" type="button" title="Cambiar idioma / Change language">EN</button>
+    </div>
+  </div>
+</header>
+<main>
+<section class="ledger-hero">
+  <div class="wrap">
+    <p class="eyebrow">Fuente de línea de cierre</p>
+    <h1>Snapshot diario de líneas de cierre.</h1>
+    <p class="lead">CLV calculado contra la línea de cierre de <strong id="cl-source">Pinnacle</strong>. Cada fila muestra cuota de entrada → cuota de cierre → CLV. Datos públicos, verificables sin la base de datos de la app.</p>
+  </div>
+</section>
+<section class="wrap section ledger-section">
+  <div class="panel">
+    <div class="table-wrap">
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th>Fecha</th><th>Liga</th><th>Evento</th><th>Selección</th>
+            <th>Cuota entrada</th><th>Cuota cierre</th><th>CLV</th>
+          </tr>
+        </thead>
+        <tbody id="closing-body"></tbody>
+      </table>
+    </div>
+    <p class="muted" id="closing-empty">Cargando snapshot…</p>
+  </div>
+</section>
+</main>
+<footer class="footer">
+  <div class="wrap">
+    <p data-i18n="footer_disclaimer"><strong>+18 · Uso responsable. No prometemos ganancias.</strong> Los pronósticos deportivos implican riesgo y los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico independiente con fines informativos; no es un operador de juego, no acepta fondos ni custodia dinero (aviso aplicable en México y demás jurisdicciones).</p>
+    <p class="muted" data-i18n="footer_copyright">ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Prado · Auditoría pública en /verificacion</p>
+  </div>
+</footer>
+<script>
+"use strict";
+async function load() {
+  const [src, pkg] = await Promise.all([
+    fetch("/api/ledger/closing-source").then(r => r.json()),
+    fetch("/api/ledger/export").then(r => r.json()),
+  ]);
+  document.getElementById("cl-source").textContent = src.source || "Pinnacle";
+  const rows = [];
+  for (const t of (pkg.tables || {}).picks || []) {
+    const closing = (pkg.tables.pick_closings || []).find(c => c.pick_id === t.id);
+    if (closing) {
+      rows.push({ ...t, closing });
+    }
+  }
+  const body = document.getElementById("closing-body");
+  const empty = document.getElementById("closing-empty");
+  if (!rows.length) { empty.textContent = "Sin líneas de cierre registradas todavía."; return; }
+  empty.hidden = true;
+  body.innerHTML = rows.map(r => `
+    <tr>
+      <td>${new Date(r.event_start * 1000).toISOString().slice(0,10)}</td>
+      <td>${r.league}</td>
+      <td>${r.event}</td>
+      <td>${r.selection_label}</td>
+      <td>${Number(r.bet_odds).toFixed(2)}</td>
+      <td>${Number(r.closing.closing_odds).toFixed(2)}</td>
+      <td>${r.closing.clv_pct > 0 ? "+" : ""}${Number(r.closing.clv_pct).toFixed(2)}%</td>
+    </tr>
+  `).join("");
+}
+load().catch(e => { document.getElementById("closing-empty").textContent = e.message; });
+</script>
+</body>
+</html>

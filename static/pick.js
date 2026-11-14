@@ -21,6 +21,7 @@ const I18N = {
     card_hashes: "Prueba criptográfica (SHA-256)",
     hash_explainer: "Cada etapa (publicación, cierre de cuota y resultado) escribe una fila independiente enlazada con el hash anterior.",
     row_hash_label: "Hash de publicación:",
+    verify_hash_label: "Hash de verificación (timestamp ISO + evento + mercado + cuota + edge + stake):",
     dt_league: "Liga", dt_event: "Evento", dt_market: "Mercado",
     dt_selection: "Selección", dt_book: "Casa (sin afiliado)",
     dt_stake: "Stake Kelly 1/4", dt_published: "Publicado (UTC)",
@@ -64,6 +65,7 @@ const I18N = {
     card_hashes: "Cryptographic proof (SHA-256)",
     hash_explainer: "Each stage (pick publication, closing odds and settled result) writes an independent row linked to the previous hash.",
     row_hash_label: "Publication hash:",
+    verify_hash_label: "Verification hash (ISO timestamp + event + market + odds + edge + stake):",
     dt_league: "League", dt_event: "Event", dt_market: "Market",
     dt_selection: "Selection", dt_book: "Bookmaker (no affiliate)",
     dt_stake: "1/4 Kelly stake", dt_published: "Published (UTC)",
@@ -199,6 +201,9 @@ function render() {
       canon: p.result_canonical,
     });
   }
+  const vh = $("#p-verify-hash");
+  if (vh) vh.textContent = p.verification_hash || "—";
+
   $("#p-hashes").innerHTML = stages.map((s) => `
     <div class="hash-stage">
       <strong>${esc(s.title)}</strong>

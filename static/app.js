@@ -185,6 +185,7 @@ const I18N = {
     caps_title: "Límite de suscriptores por estrategia",
     caps_sub: "Limitamos el plan Premium a un número fijo de suscriptores por liga/mercado porque si demasiados usuarios siguen el mismo pick, la línea se mueve y el edge real se erosiona. Cuando se llena, abrimos lista de espera.",
     caps_empty: "Sin contadores configurados todavía. Se inicializan con el primer pick publicado por liga.",
+    waitlist_btn: "Unirme a lista de espera",
     creating: "Crear cuenta",
     already_have_account: "¿Ya tienes cuenta? Usa Iniciar sesión arriba a la derecha.",
     telegram_title: "📣 Alertas por Telegram",
@@ -386,6 +387,7 @@ const I18N = {
     caps_title: "Subscriber cap per strategy",
     caps_sub: "We limit the Premium plan to a fixed number of subscribers per league/market because if too many users follow the same pick, the line moves and the real edge erodes. When it fills, we open a waitlist.",
     caps_empty: "No counters configured yet. They are initialized with the first pick published per league.",
+    waitlist_btn: "Join waitlist",
     creating: "Create account",
     already_have_account: "Already have an account? Use Sign in at the top right.",
     telegram_title: "📣 Telegram alerts",
@@ -975,9 +977,13 @@ async function loadCaps() {
     box.innerHTML = caps.map((c) => {
       const pct = c.cap ? Math.min(100, (c.occupied / c.cap) * 100) : 0;
       const full = c.cap && c.occupied >= c.cap;
+      const waitBtn = full
+        ? `<button class="btn small ghost" type="button" data-waitlist="${esc(c.league)}">${esc(t('waitlist_btn'))}</button>`
+        : '';
       return `<div class="cap-row">
         <div class="cap-head"><strong>${esc(c.league)}</strong><span>${c.occupied} / ${c.cap} ${full ? '· lista de espera' : '· disponibles'}</span></div>
         <div class="league-progress"><div class="league-progress-bar" style="width:${pct.toFixed(1)}%"></div></div>
+        ${waitBtn}
       </div>`;
     }).join('');
   } catch { /* ignora */ }

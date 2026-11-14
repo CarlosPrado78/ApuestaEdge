@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import hashlib
 import json
 import os
 import secrets
@@ -1184,6 +1185,16 @@ def _pick_public(row: dict) -> dict:
         "model_version": row.get("model_version") or config.MODEL_VERSION,
         "prev_hash": row["prev_hash"],
         "row_hash": row["row_hash"],
+        "verification_hash": hashlib.sha256(
+            (__import__("datetime").datetime.fromtimestamp(
+                float(row.get("created_at") or 0), __import__("datetime").timezone.utc
+            ).strftime("%Y-%m-%dT%H:%M:%SZ") +
+            str(row.get("event", "")) +
+            str(row.get("market", "")) +
+            str(row.get("bet_odds", "")) +
+            str(row.get("edge", "")) +
+            str(row.get("stake_units", "")))
+            .encode("utf-8")).hexdigest(),
     }
 
 
@@ -1589,6 +1600,32 @@ def sitemap_xml(request: Request):
         + "\n</urlset>\n"
     )
     return Response(content=xml, media_type="application/xml")
+
+
+@app.get("/verify/{pick_id}", include_in_schema=False)
+def verify_pick_page(pick_id: int, request: Request):
+    """Página de verificación criptográfica de un pick (alias de /pick/{id})."""
+    return pick_permalink_page(pick_id, request)
+
+
+@app.get("/closing-lines", include_in_schema=False)
+def closing_lines_page() -> FileResponse:
+    """Snapshot diario de las líneas de cierre usadas para el CLV."""
+    return FileResponse(config.BASE_DIR / "static" / "closing-lines.html",
+                        media_type="text/html")
+
+
+@app.get("/modelo/changelog", include_in_schema=False)
+def model_changelog_page() -> FileResponse:
+    """Changelog público del modelo (formato de changelog)."""
+    return FileResponse(config.BASE_DIR / "static" / "changelog.html",
+                        media_type="text/html")
+
+
+@app.get("/api/montecarlo", include_in_schema=False)
+def montecarlo_endpoint() -> dict:
+    """Alias público para la simulación Monte Carlo."""
+    return ledger.monte_carlo_risk()
 
 
 @app.get("/verificacion/verify_ledger.py", include_in_schema=False)

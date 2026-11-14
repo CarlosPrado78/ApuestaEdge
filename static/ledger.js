@@ -337,7 +337,7 @@ function mobileCard(r) {
         <dt>${esc(t("th_close"))}</dt><dd>${r.closing_odds === null || r.closing_odds === undefined ? esc(t("closing_pending")) : num(r.closing_odds)}</dd>
         <dt>${esc(t("profit"))}</dt><dd>${profitCell(r) || "—"}</dd>
         <dt>${esc(t("published"))}</dt><dd>${esc(fmtTs(r.created_at))}</dd>
-        <dt>${esc(t("row_hash"))}</dt><dd class="hash">${esc(String(r.row_hash || "").slice(0, 16))}…</dd>
+        <dt>${esc(t("row_hash"))}</dt><dd class="hash">${esc(String(r.row_hash || "").slice(0, 8))}…${esc(String(r.row_hash || "").slice(-4))}</dd>
       </dl>
     </details>
     <button class="btn ghost small copy-btn" type="button" data-copy="${r.id}">${esc(t("copy_pick"))}</button>
