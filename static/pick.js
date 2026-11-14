@@ -46,7 +46,7 @@ const I18N = {
     discuss_pick: "Discutir este pick",
     direct_no_aff: "enlace directo, sin afiliado",
     footer_disclaimer: "<strong>+18 · Uso responsable. No prometemos ganancias.</strong> Los pronósticos deportivos implican riesgo y los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico independiente con fines informativos; no es un operador de juego, no acepta fondos ni custodia dinero (aviso aplicable en México y demás jurisdicciones).",
-    footer_copyright: "ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Prado · Auditoría pública en /verificacion",
+    footer_copyright: "ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Dakem · Auditoría pública en /verificacion",
   },
   en: {
     nav_home: "Home", nav_ledger: "Ledger",
@@ -92,7 +92,7 @@ const I18N = {
     discuss_pick: "Discuss this pick",
     direct_no_aff: "direct link, no affiliate",
     footer_disclaimer: "<strong>18+ · Responsible use. We do not promise profits.</strong> Sports forecasting involves risk and past data does not guarantee future results. This site provides independent statistical analysis for informational purposes only; it is not a gaming operator, does not accept wagers and does not custody funds (notice applicable in Mexico and other jurisdictions).",
-    footer_copyright: "ApuestaEdge © 2026 · Built and maintained by Carlos Prado · Public audit at /verificacion",
+    footer_copyright: "ApuestaEdge © 2026 · Built and maintained by Carlos Dakem · Public audit at /verificacion",
   },
 };
 

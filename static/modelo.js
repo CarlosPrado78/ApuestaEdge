@@ -49,7 +49,7 @@ const I18N = {
     version_summary: "Resumen",
     note: "Esta página describe la lógica, no promete resultados. El registro público y la página de verificación son la prueba de lo que realmente se publicó.",
     footer_disclaimer: "<strong>+18 · Uso responsable. No prometemos ganancias.</strong> Los pronósticos deportivos implican riesgo y los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico independiente con fines informativos; no es un operador de juego, no acepta fondos ni custodia dinero (aviso aplicable en México y demás jurisdicciones).",
-    footer_copyright: "ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Prado · Auditoría pública en /verificacion",
+    footer_copyright: "ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Dakem · Auditoría pública en /verificacion",
   },
   en: {
     nav_home: "Home", nav_ledger: "Ledger",
@@ -98,7 +98,7 @@ const I18N = {
     version_summary: "Summary",
     note: "This page describes the logic, it does not promise results. The public ledger and the verification page are the proof of what was actually published.",
     footer_disclaimer: "<strong>18+ · Responsible use. We do not promise profits.</strong> Sports forecasting involves risk and past data does not guarantee future results. This site provides independent statistical analysis for informational purposes only; it is not a gaming operator, does not accept wagers and does not custody funds (notice applicable in Mexico and other jurisdictions).",
-    footer_copyright: "ApuestaEdge © 2026 · Built and maintained by Carlos Prado · Public audit at /verificacion",
+    footer_copyright: "ApuestaEdge © 2026 · Built and maintained by Carlos Dakem · Public audit at /verificacion",
   },
 };
 

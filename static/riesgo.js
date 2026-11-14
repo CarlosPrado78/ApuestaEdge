@@ -19,7 +19,7 @@ const I18N = {
     e3: "Percentil 90: en 9 de cada 10 trayectorias el bankroll termina por debajo de este valor. Es el mejor caso razonable.",
     e4: "Drawdown mediano: la peor caída típica desde un máximo local, medida en porcentaje del bankroll.",
     footer_disclaimer: "<strong>+18 · Uso responsable. No prometemos ganancias.</strong> Los pronósticos deportivos implican riesgo y los datos históricos no garantizan resultados futuros. Este sitio ofrece análisis estadístico independiente con fines informativos; no es un operador de juego, no acepta fondos ni custodia dinero (aviso aplicable en México y demás jurisdicciones).",
-    footer_copyright: "ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Prado · Auditoría pública en /verificacion",
+    footer_copyright: "ApuestaEdge © 2026 · Desarrollado y mantenido por Carlos Dakem · Auditoría pública en /verificacion",
   },
   en: {
     nav_home: "Home", nav_ledger: "Ledger", nav_leagues: "Leagues",
@@ -40,7 +40,7 @@ const I18N = {
     e3: "Percentile 90: in 9 of 10 trajectories the bankroll ends below this value. It is the reasonable best case.",
     e4: "Median drawdown: the typical worst drop from a local maximum, measured as a percentage of bankroll.",
     footer_disclaimer: "<strong>18+ · Responsible use. We do not promise profits.</strong> Sports forecasting involves risk and past data does not guarantee future results. This site provides independent statistical analysis for informational purposes only; it is not a gaming operator, does not accept wagers and does not custody funds (notice applicable in Mexico and other jurisdictions).",
-    footer_copyright: "ApuestaEdge © 2026 · Built and maintained by Carlos Prado · Public audit at /verificacion",
+    footer_copyright: "ApuestaEdge © 2026 · Built and maintained by Carlos Dakem · Public audit at /verificacion",
   },
 };
 const state = { lang: localStorage.getItem("ae_lang") || "es", data: null };
