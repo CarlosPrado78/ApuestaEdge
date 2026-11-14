@@ -79,6 +79,15 @@
   </div>
 </section>
 
+<section id="impacto" class="section band">
+  <div class="wrap">
+    <h2 data-i18n="impact_title">Atributo irreplicable: ¿el anuncio erosiona el edge?</h2>
+    <p class="sub" data-i18n="impact_sub">Cada pick publicado se mide: cuota en el momento de publicación y cuota 5, 15 y 30 minutos después. El movimiento de línea atribuible al anuncio se publica por liga y global. Si el anuncio moviera la línea, el edge real se erosionaría y tú lo verías antes de pagar.</p>
+    <div class="metrics" id="impact-metrics"><p class="muted">Cargando métrica de impacto…</p></div>
+    <p class="footnote"><a href="/impacto" data-i18n="impact_link">Ver la página completa "Impacto de mercado" con la metodología →</a></p>
+  </div>
+</section>
+
 <main>
 <section id="picks" class="wrap section">
   <div class="section-head">
@@ -109,6 +118,10 @@
 <section id="rendimiento" class="section band">
   <div class="wrap">
     <h2 data-i18n="perf_title">Rendimiento auditable</h2>
+    <div class="closing-source-badge" style="margin-bottom:12px">
+      <span class="badge info">ℹ</span>
+      <span data-i18n="f2_copy">CLV calculado contra la línea de cierre de Pinnacle (configurable).</span>
+    </div>
     <p class="sub" data-i18n="perf_sub">Métricas calculadas solo sobre picks ya cerrados del registro público. Publicamos lo bueno y lo malo: sin resultados verificables no hay confianza posible.</p>
     <div class="metrics" id="metrics"><p class="muted">Cargando métricas…</p></div>
     <div class="grid-2">
@@ -122,19 +135,53 @@
           <thead><tr><th data-i18n="th_league">Liga</th><th data-i18n="th_picks">Picks</th><th data-i18n="th_hit">Acierto</th><th>ROI</th><th>CLV</th><th>p</th></tr></thead>
           <tbody></tbody>
         </table>
-        <p class="footnote" data-i18n="perf_footnote">p &lt; 0.05 → la ventaja es estadísticamente significativa al 95%. Con menos de 30 picks cerrados por liga no se reporta p-valor.</p>
+        <p class="footnote" data-i18n="perf_footnote">p &lt; 0.05 → la ventaja es estadísticamente significativa al 95%. Con menos de 30 picks cerrados por liga no se reporta p-valor. <span class="demo-badge" style="margin-left:8px">Demo</span></p>
       </div>
     </div>
     <p class="footnote"><a href="/picks" data-i18n="perf_link">Ver el registro completo, pick por pick, con filtros y CSV →</a></p>
   </div>
 </section>
 
-<section id="impacto" class="section band">
+<section id="edge-realizado" class="wrap section">
+  <h2 data-i18n="f5_title">Edge realizado vs. edge publicado</h2>
+  <p class="sub" data-i18n="f5_note">Demo: datos de ejemplo. Verde = realizado mayor. Rojo = realizado menor.</p>
+  <div class="table-wrap">
+    <table class="ledger-table">
+      <thead>
+        <tr><th>Pick</th><th>Edge publicado</th><th>Edge al cierre</th><th>Diferencia</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Lakers vs Celtics</td><td>+4.2%</td><td>+3.1%</td><td class="neg">-1.1%</td></tr>
+        <tr><td>Real Madrid vs Barcelona</td><td>+5.8%</td><td>+6.2%</td><td class="pos">+0.4%</td></tr>
+        <tr><td>Chiefs vs Eagles</td><td>+3.5%</td><td>+2.9%</td><td class="neg">-0.6%</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="montecarlo" class="section band">
   <div class="wrap">
-    <h2 data-i18n="impact_title">Atributo irreplicable: ¿el anuncio erosiona el edge?</h2>
-    <p class="sub" data-i18n="impact_sub">Cada pick publicado se mide: cuota en el momento de publicación y cuota 5, 15 y 30 minutos después. El movimiento de línea atribuible al anuncio se publica por liga y global. Si el anuncio moviera la línea, el edge real se erosionaría y tú lo verías antes de pagar.</p>
-    <div class="metrics" id="impact-metrics"><p class="muted">Cargando métrica de impacto…</p></div>
-    <p class="footnote"><a href="/impacto" data-i18n="impact_link">Ver la página completa "Impacto de mercado" con la metodología →</a></p>
+    <h2 data-i18n="f6_title">Riesgo de la estrategia — Simulación Monte Carlo</h2>
+    <span class="demo-badge" style="margin-bottom:12px;display:inline-block">Demo</span>
+    <p class="sub" data-i18n="f6_copy">Si nos hubieras seguido durante 500 picks con bankroll de 100 unidades y Kelly 1/4, en el 10% de los escenarios peores habrías terminado con 4.14 unidades; en el escenario mediano, con 8.51; en el 10% mejor, con 17.80.</p>
+    <div class="mc-cards">
+      <div class="mc-card">
+        <span class="mc-label" data-i18n="f6_p10">Peor 10%</span>
+        <span class="mc-value">4.14</span>
+        <span class="mc-sub">unidades</span>
+      </div>
+      <div class="mc-card">
+        <span class="mc-label" data-i18n="f6_p50">Mediana</span>
+        <span class="mc-value">8.51</span>
+        <span class="mc-sub">unidades</span>
+      </div>
+      <div class="mc-card">
+        <span class="mc-label" data-i18n="f6_p90">Mejor 10%</span>
+        <span class="mc-value">17.80</span>
+        <span class="mc-sub">unidades</span>
+      </div>
+    </div>
+    <p class="small-note muted" data-i18n="f6_note">Demo: simulación con datos de ejemplo.</p>
   </div>
 </section>
 
@@ -165,6 +212,23 @@
     <div class="panel ok">
       <h3 data-i18n="benefit6_title">📈 Track record público y auditable</h3>
       <p data-i18n="benefit6_desc">Publicamos ROI, CLV, drawdown y test estadístico de cada deporte — lo bueno y lo malo. Sin resultados verificables no hay confianza.</p>
+    </div>
+  </div>
+
+  <div class="panel mt" id="equipo-home">
+    <h3 data-i18n="f7_title">Quién está detrás</h3>
+    <div class="team-mock">
+      <div class="team-avatar">CP</div>
+      <div>
+        <h4>Carlos Prado</h4>
+        <p class="muted" data-i18n="f7_role">Desarrollador y responsable del modelo</p>
+        <p class="muted" data-i18n="f7_bio">Construye ApuestaEdge porque está cansado de pronósticos sin prueba. El código, el registro y la metodología son públicos y auditables.</p>
+        <div class="team-links">
+          <a class="btn small ghost" href="https://github.com/CarlosPrado78" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a class="btn small ghost" href="https://twitter.com" target="_blank" rel="noopener noreferrer">Twitter</a>
+          <a class="btn small ghost" href="https://linkedin.com" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -210,6 +274,28 @@
       <h3 data-i18n="telegram_title">📣 Alertas por Telegram</h3>
       <div id="tg-body" class="muted" data-i18n="checking">Comprobando estado…</div>
     </div>
+  </div>
+</section>
+
+<section id="changelog" class="wrap section">
+  <h2 data-i18n="f8_title">Historial del modelo</h2>
+  <div class="panel">
+    <div class="changelog-entry">
+      <span class="changelog-date">13 nov 2026</span>
+      <span class="changelog-version">v0.1</span>
+      <p class="changelog-desc" data-i18n="f8_entry">Lanzamiento del esqueleto visual. Modelo inicial con edge ≥ 3% y Kelly 1/4.</p>
+    </div>
+    <p class="small-note muted" data-i18n="f8_note">Demo: changelog de ejemplo.</p>
+  </div>
+  <p class="footnote"><a href="/modelo/changelog" data-i18n="changelog_link">Ver historial completo de cambios del modelo →</a></p>
+</section>
+
+<section id="comunidad" class="section band">
+  <div class="wrap" style="text-align:center">
+    <h2 data-i18n="f9_title">Comunidad</h2>
+    <p class="sub" style="margin:0 auto 16px" data-i18n="f9_copy">Únete a la comunidad en Telegram. Discute picks, reporta errores y propone mejoras.</p>
+    <a class="btn primary" href="https://t.me/apuestaedge" target="_blank" rel="noopener noreferrer" data-i18n="f9_cta">Unirse a la comunidad (Telegram)</a>
+    <p class="small-note muted" data-i18n="f9_note">En construcción: el grupo se abrirá en el lanzamiento.</p>
   </div>
 </section>
 
@@ -263,6 +349,7 @@
       <div class="foso-header">
         <span class="foso-num">3</span>
         <h3 data-i18n="f3_title">Umbral de significancia estadística N≥200</h3>
+        <span class="demo-badge">Demo</span>
       </div>
       <div class="foso-card">
         <p class="muted" data-i18n="f3_copy">El test de significancia estadística se activa cuando la liga acumula 200 picks cerrados. Antes de eso publicamos conteo y CLV, pero no afirmamos significancia.</p>
@@ -281,6 +368,7 @@
           <div class="league-progress"><div class="league-progress-bar" style="width:2.5%"></div></div>
           <span class="progress-text">5/200 picks</span>
         </div>
+        <p class="small-note muted" data-i18n="f3_note">Demo: conteos de ejemplo. Los datos reales se actualizarán cuando el registro tenga picks cerrados.</p>
       </div>
     </div>
 
@@ -333,7 +421,7 @@
         <span class="demo-badge">Demo</span>
       </div>
       <div class="foso-card">
-        <p class="muted" data-i18n="f6_copy">Si nos hubieras seguido durante 500 picks con bankroll de 100 unidades y Kelly 1/4, en el 10% de los escenarios peores habrías terminado con X unidades; en el escenario mediano, con Y; en el 10% mejor, con Z.</p>
+        <p class="muted" data-i18n="f6_copy">Si nos hubieras seguido durante 500 picks con bankroll de 100 unidades y Kelly 1/4, en el 10% de los escenarios peores habrías terminado con 4.14 unidades; en el escenario mediano, con 8.51; en el 10% mejor, con 17.80.</p>
         <div class="mc-cards">
           <div class="mc-card">
             <span class="mc-label" data-i18n="f6_p10">Peor 10%</span>
