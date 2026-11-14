@@ -180,9 +180,9 @@ function render() {
   const stages = [
     {
       title: t("chain_pick"),
-      prev: p.prev_hash || "(genesis)",
-      row: p.row_hash,
-      canon: p.pick_canonical,
+      prev: "(genesis)",
+      row: p.verification_hash || p.row_hash,
+      canon: p.verification_canonical || p.pick_canonical,
     },
   ];
   if (p.closing_row_hash) {
@@ -203,6 +203,9 @@ function render() {
   }
   const vh = $("#p-verify-hash");
   if (vh) vh.textContent = p.verification_hash || "—";
+
+  const rowHashEl = $("#p-row-hash");
+  if (rowHashEl) rowHashEl.textContent = p.verification_hash || p.row_hash || "—";
 
   $("#p-hashes").innerHTML = stages.map((s) => `
     <div class="hash-stage">
@@ -230,6 +233,16 @@ async function verifyPickHashes() {
     return;
   }
   const p = state.pick;
+  // Verificar el hash de verificación (6 campos) contra el string canónico
+  if (p.verification_canonical && p.verification_hash) {
+    const computed = await sha256Hex(String(p.verification_canonical));
+    if (computed !== p.verification_hash) {
+      box.classList.add("bad");
+      box.textContent = t("verify_bad");
+      return;
+    }
+  }
+  // También verificar la cadena interna (row_hash) como prueba adicional
   const checks = [
     [p.prev_hash || "", p.pick_canonical, p.row_hash],
   ];

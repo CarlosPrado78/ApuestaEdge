@@ -1195,6 +1195,15 @@ def _pick_public(row: dict) -> dict:
             str(row.get("edge", "")) +
             str(row.get("stake_units", "")))
             .encode("utf-8")).hexdigest(),
+        "verification_canonical": (
+            __import__("datetime").datetime.fromtimestamp(
+                float(row.get("created_at") or 0), __import__("datetime").timezone.utc
+            ).strftime("%Y-%m-%dT%H:%M:%SZ") +
+            str(row.get("event", "")) +
+            str(row.get("market", "")) +
+            str(row.get("bet_odds", "")) +
+            str(row.get("edge", "")) +
+            str(row.get("stake_units", ""))),
     }
 
 
@@ -1403,8 +1412,8 @@ def pick_verify_endpoint(pick_id: int) -> dict:
         if not raw:
             raise HTTPException(status_code=404, detail="Pick no encontrado.")
         pub = _pick_public(raw)
-        pub["string_canonico"] = raw.get("pick_canonical")
-        pub["hash_esperado"] = raw.get("row_hash")
+        pub["string_canonico"] = raw.get("verification_canonical") or pub.get("verification_canonical")
+        pub["hash_esperado"] = raw.get("verification_hash") or pub.get("verification_hash")
         pub["recibo_ots"] = None
         anc = db.ledger_anchor_latest(conn)
         if anc:
@@ -1572,7 +1581,7 @@ def pick_permalink_page(pick_id: int, request: Request):
     desc = (f"{pub['league']} · {pub['event']} · {pub['selection_label']} "
             f"a cuota {pub['bet_odds']:.2f} ({pub['bookmaker']}). "
             f"Edge +{pub['edge_pct']:.1f}% · Estado: {res_label} · "
-            f"SHA-256 {pub['row_hash'][:16]}…")
+            f"SHA-256 {(pub.get('verification_hash') or pub['row_hash'])[:16]}…")
 
     template_path = config.BASE_DIR / "static" / "pick.html"
     tpl = template_path.read_text(encoding="utf-8")
@@ -1582,7 +1591,7 @@ def pick_permalink_page(pick_id: int, request: Request):
         "name": title,
         "description": desc,
         "url": url,
-        "identifier": f"sha256:{pub['row_hash']}",
+        "identifier": f"sha256:{pub.get('verification_hash') or pub['row_hash']}",
     }, ensure_ascii=False)
     embedded = json.dumps(pub, ensure_ascii=False).replace("</", "<\\/")
     rendered = (
@@ -1596,7 +1605,7 @@ def pick_permalink_page(pick_id: int, request: Request):
            .replace("__PICK_ODDS__", f"{pub['bet_odds']:.2f}")
            .replace("__PICK_EDGE__", f"+{pub['edge_pct']:.1f}%")
            .replace("__PICK_RESULT__", _html.escape(res_label))
-           .replace("__PICK_HASH__", _html.escape(str(pub["row_hash"])))
+           .replace("__PICK_HASH__", _html.escape(str(pub.get("verification_hash") or pub["row_hash"])))
            .replace("__PICK_JSON_LD__", json_ld)
            .replace("__PICK_DATA_JSON__", embedded)
     )

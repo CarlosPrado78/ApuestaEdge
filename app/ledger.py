@@ -658,6 +658,13 @@ def pick_detail(conn, pick_id: int) -> dict | None:
     out["pick_canonical"] = pick_canon
     out["closing_canonical"] = closing_canon
     out["result_canonical"] = result_canon
+    # verification_canonical: 6-field string for verification_hash
+    import datetime as _dt
+    ts_iso = _dt.datetime.fromtimestamp(
+        float(row["created_at"]), _dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    out["verification_canonical"] = (
+        ts_iso + str(row["event"]) + str(row["market"]) +
+        str(row["bet_odds"]) + str(row["edge"]) + str(row["stake_units"]))
     return out
 
 

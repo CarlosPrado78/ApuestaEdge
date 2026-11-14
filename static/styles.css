@@ -335,6 +335,9 @@ em{color:var(--brand);font-style:normal}
 .chain-head{font-size:.76rem;color:var(--muted);margin-top:2px}
 .chain-head code{color:#9db6ff;font-size:.74rem}
 .chain-note{font-size:.76rem;color:#6f7d97;margin-top:8px}
+.ots-status{display:inline-block;border-radius:999px;padding:2px 8px;font-size:.72rem;font-weight:700}
+.ots-status.pending{border:1px solid var(--warn);background:rgba(255,180,84,.1);color:var(--warn)}
+.ots-status.ok{border:1px solid var(--brand);background:rgba(56,224,123,.1);color:var(--brand)}
 .verify-result{border-radius:10px;padding:14px 16px;font-size:.88rem;margin:6px 0 10px;border:1px solid var(--line);background:var(--panel)}
 .verify-result.ok{border-color:rgba(56,224,123,.45);background:rgba(56,224,123,.07);color:#c9f5d9}
 .verify-result.bad{border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08);color:#ffd0d0}

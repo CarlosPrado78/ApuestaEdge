@@ -261,13 +261,20 @@ function renderAnchor() {
     return;
   }
   const anchor = anchors[0];
-  const otsLabel = state.lang === "en"
-    ? "Download .ots proof (OpenTimestamps)"
-    : "Descargar prueba .ots (OpenTimestamps)";
+  const otsCal = String(anchor.ots_calendar || "");
+  const isLocal = otsCal.startsWith("local-sha256");
+  const otsLabel = isLocal
+    ? (state.lang === "en"
+        ? "Local anchor (pending Bitcoin confirmation)"
+        : "Anclaje local (pendiente de confirmación en Bitcoin)")
+    : (state.lang === "en"
+        ? "Download .ots proof (OpenTimestamps)"
+        : "Descargar prueba .ots (OpenTimestamps)");
   text.innerHTML = esc(fill("anchor_line", {
     day: anchor.day, hash: short(anchor.head_hash) + "…",
     rows: Number(anchor.picks_count || 0),
-  })) + ` · <a href="/api/ledger/anchors/${encodeURIComponent(anchor.day)}.ots">${esc(otsLabel)} ↗</a>`;
+  })) + ` · <span class="ots-status ${isLocal ? "pending" : "ok"}">${esc(otsLabel)}</span>` +
+    (isLocal ? "" : ` · <a href="/api/ledger/anchors/${encodeURIComponent(anchor.day)}.ots">${esc(state.lang === "en" ? "Download .ots ↗" : "Descargar .ots ↗")}</a>`);
   dot.classList.add("ok");
   panel.hidden = false;
 }
