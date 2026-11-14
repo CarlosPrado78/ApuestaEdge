@@ -1000,14 +1000,22 @@ async function loadPerformance() {
     const rows = leagues.map(([league, row]) => {
       const ok = row.sample >= 30;
       const star = league === best ? ' <span class="badge edge" title="mejor liga">★</span>' : "";
+      const progress = Math.min(100, (row.sample / 200) * 100).toFixed(1);
       return `<tr><td>${esc(league)}${star}</td><td>${row.picks}</td>
+        <td><div class="league-progress"><div class="league-progress-bar" style="width:${progress}%"></div></div><span class="progress-text">${row.sample}/200</span></td>
         <td>${ok ? num(row.hit_rate_pct, 1) + "%" : "—"}</td>
         <td class="${ok ? (row.roi_pct >= 0 ? "pos" : "neg") : ""}">${ok ? spct(row.roi_pct) : "—"}</td>
         <td class="${ok ? (row.avg_clv_pct >= 0 ? "pos" : "neg") : ""}">${ok ? spct(row.avg_clv_pct) : "—"}</td>
         <td>${ok ? num(row.binomial_p_value, 3) : "—"}</td></tr>`;
     }).join("");
-    $("#sport-table tbody").innerHTML = rows ||
-      `<tr><td colspan="6">${t("equity_empty")}</td></tr>`;
+    if (rows) {
+      $("#sport-table tbody").innerHTML = rows;
+    } else {
+      $("#sport-table tbody").innerHTML = `
+        <tr class="demo-row"><td>Fútbol</td><td>12</td><td><div class="league-progress"><div class="league-progress-bar" style="width:6%"></div></div><span class="progress-text">12/200</span></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr class="demo-row"><td>Baloncesto</td><td>8</td><td><div class="league-progress"><div class="league-progress-bar" style="width:4%"></div></div><span class="progress-text">8/200</span></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr class="demo-row"><td>Tenis</td><td>5</td><td><div class="league-progress"><div class="league-progress-bar" style="width:2.5%"></div></div><span class="progress-text">5/200</span></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>`;
+    }
   } catch { /* la sección queda con su mensaje de carga */ }
 }
 

@@ -16,6 +16,7 @@ import json
 import os
 import secrets
 import time
+from functools import lru_cache
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -1330,9 +1331,20 @@ def ledger_leagues() -> dict:
         conn.close()
 
 
+_leagues_progress_cache: dict = {"ts": 0.0, "value": None}
+_LEAGUES_PROGRESS_TTL = 300  # 5 minutos
+
+
 @app.get("/api/leagues/progress")
 def leagues_progress() -> dict:
-    """Progreso por liga hacia N≥200 picks cerrados (para verificación)."""
+    """Progreso por liga hacia N≥200 picks cerrados (para verificación).
+
+    Cacheado por 5 minutos para evitar cálculos innecesarios.
+    """
+    now = time.time()
+    if (_leagues_progress_cache["value"] is not None
+            and now - _leagues_progress_cache["ts"] < _LEAGUES_PROGRESS_TTL):
+        return _leagues_progress_cache["value"]
     conn = db.connect()
     try:
         data = ledger.by_league(conn)
@@ -1347,7 +1359,10 @@ def leagues_progress() -> dict:
                             if sample >= config.SIGNIFICANCE_MIN_SAMPLE else None),
                 "significativo": bool(info.get("significant", False)),
             }
-        return {"min_sample": config.SIGNIFICANCE_MIN_SAMPLE, "leagues": out}
+        result = {"min_sample": config.SIGNIFICANCE_MIN_SAMPLE, "leagues": out}
+        _leagues_progress_cache["ts"] = now
+        _leagues_progress_cache["value"] = result
+        return result
     finally:
         conn.close()
 

@@ -1,5 +1,6 @@
 """El registro público es append-only y verificable: estas pruebas lo exigen."""
 
+import sqlite3
 import time
 
 import pytest
@@ -42,28 +43,33 @@ def test_append_and_verify_chain():
         conn.close()
 
 
-def test_editing_a_published_pick_breaks_the_chain():
+def test_editing_a_published_pick_is_blocked_by_append_only_trigger():
     conn = _conn()
     try:
         ledger.append_pick(conn, _pick())
-        conn.execute("UPDATE picks SET edge = 0.99 WHERE pick_key = 'evt-1'")
-        conn.commit()
+        # El trigger de BD bloquea el UPDATE (append-only real, no solo hash chain).
+        import sqlite3
+        with pytest.raises(sqlite3.IntegrityError, match="append-only"):
+            conn.execute("UPDATE picks SET edge = 0.99 WHERE pick_key = 'evt-1'")
+            conn.commit()
+        # La cadena sigue intacta porque la modificación fue bloqueada.
         report = ledger.verify(conn)
-        assert report["ok"] is False
-        assert report["chains"]["picks"]["ok"] is False
-        assert "editada" in report["chains"]["picks"]["reason"]
+        assert report["ok"] is True
     finally:
         conn.close()
 
 
-def test_deleting_a_published_pick_breaks_the_chain():
+def test_deleting_a_published_pick_is_blocked_by_append_only_trigger():
     conn = _conn()
     try:
         ledger.append_pick(conn, _pick(match_id="evt-a"))
         ledger.append_pick(conn, _pick(match_id="evt-b"))
-        conn.execute("DELETE FROM picks WHERE pick_key = 'evt-a'")
-        conn.commit()
-        assert ledger.verify(conn)["ok"] is False
+        import sqlite3
+        with pytest.raises(sqlite3.IntegrityError, match="append-only"):
+            conn.execute("DELETE FROM picks WHERE pick_key = 'evt-a'")
+            conn.commit()
+        # La cadena sigue intacta porque el borrado fue bloqueado.
+        assert ledger.verify(conn)["ok"] is True
     finally:
         conn.close()
 

@@ -260,6 +260,44 @@ CREATE TABLE IF NOT EXISTS alert_deliveries (
 );
 CREATE INDEX IF NOT EXISTS idx_alert_deliveries_email
     ON alert_deliveries(email, sent_at DESC);
+
+-- Triggers append-only: ni siquiera el administrador puede editar o borrar
+-- filas de picks, pick_closings ni pick_results. Solo INSERT permitido.
+CREATE TRIGGER IF NOT EXISTS picks_no_update
+BEFORE UPDATE ON picks
+BEGIN
+    SELECT RAISE(ABORT, 'picks is append-only: UPDATE not allowed');
+END;
+
+CREATE TRIGGER IF NOT EXISTS picks_no_delete
+BEFORE DELETE ON picks
+BEGIN
+    SELECT RAISE(ABORT, 'picks is append-only: DELETE not allowed');
+END;
+
+CREATE TRIGGER IF NOT EXISTS pick_closings_no_update
+BEFORE UPDATE ON pick_closings
+BEGIN
+    SELECT RAISE(ABORT, 'pick_closings is append-only: UPDATE not allowed');
+END;
+
+CREATE TRIGGER IF NOT EXISTS pick_closings_no_delete
+BEFORE DELETE ON pick_closings
+BEGIN
+    SELECT RAISE(ABORT, 'pick_closings is append-only: DELETE not allowed');
+END;
+
+CREATE TRIGGER IF NOT EXISTS pick_results_no_update
+BEFORE UPDATE ON pick_results
+BEGIN
+    SELECT RAISE(ABORT, 'pick_results is append-only: UPDATE not allowed');
+END;
+
+CREATE TRIGGER IF NOT EXISTS pick_results_no_delete
+BEFORE DELETE ON pick_results
+BEGIN
+    SELECT RAISE(ABORT, 'pick_results is append-only: DELETE not allowed');
+END;
 """
 
 # Equivalente para PostgreSQL (mismas tablas y columnas).
@@ -630,6 +668,22 @@ def _migrate_postgres(conn: _PostgresConnection) -> None:
                  "ON users(link_code)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_users_tg_chat "
                  "ON users(telegram_chat_id)")
+    # Append-only triggers
+    conn.execute("""CREATE OR REPLACE FUNCTION prevent_modify_append_only()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            RAISE EXCEPTION 'Table % is append-only: % not allowed', TG_TABLE_NAME, TG_OP;
+        END;
+        $$ LANGUAGE plpgsql;""")
+    for table in ("picks", "pick_closings", "pick_results"):
+        for op in ("update", "delete"):
+            trig_name = f"{table}_no_{op}"
+            conn.execute(f"""DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = '{trig_name}') THEN
+                    CREATE TRIGGER {trig_name} BEFORE {op.upper()} ON {table}
+                        FOR EACH ROW EXECUTE FUNCTION prevent_modify_append_only();
+                END IF;
+            END $$;""")
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
@@ -668,6 +722,18 @@ def _migrate(conn: sqlite3.Connection) -> None:
                  "ON users(link_code)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_users_tg_chat "
                  "ON users(telegram_chat_id)")
+    # Append-only triggers
+    for table in ("picks", "pick_closings", "pick_results"):
+        conn.execute(f"""CREATE TRIGGER IF NOT EXISTS {table}_no_update
+            BEFORE UPDATE ON {table}
+            BEGIN
+                SELECT RAISE(ABORT, '{table} is append-only: UPDATE not allowed');
+            END;""")
+        conn.execute(f"""CREATE TRIGGER IF NOT EXISTS {table}_no_delete
+            BEFORE DELETE ON {table}
+            BEGIN
+                SELECT RAISE(ABORT, '{table} is append-only: DELETE not allowed');
+            END;""")
     conn.commit()
 
 
