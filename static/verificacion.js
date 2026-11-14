@@ -261,15 +261,11 @@ function renderAnchor() {
     return;
   }
   const anchor = anchors[0];
-  const otsCal = String(anchor.ots_calendar || "");
-  const isLocal = otsCal.startsWith("local-sha256");
-  const otsLabel = isLocal
-    ? (state.lang === "en"
-        ? "Local anchor (pending Bitcoin confirmation)"
-        : "Anclaje local (pendiente de confirmación en Bitcoin)")
-    : (state.lang === "en"
-        ? "Download .ots proof (OpenTimestamps)"
-        : "Descargar prueba .ots (OpenTimestamps)");
+  // El recibo OTS se obtuvo del calendario, pero no podemos confirmar
+  // anclaje en Bitcoin sin parsear el proof. Etiqueta honesta: pendiente.
+  const otsLabel = state.lang === "en"
+    ? "Pending Bitcoin confirmation"
+    : "Pendiente de confirmación en Bitcoin";
   text.innerHTML = esc(fill("anchor_line", {
     day: anchor.day, hash: short(anchor.head_hash) + "…",
     rows: Number(anchor.picks_count || 0),
