@@ -256,6 +256,8 @@ compara con su CSV. Cada cambio de modelo: fila nueva en `model_versions` y nota
 - ✅ Anclaje externo del hash diario (OpenTimestamps `.ots` descargable en `/api/ledger/anchors/{day}.ots`).
 - ✅ Historial de impacto por versión del modelo medido automáticamente en `/api/ledger/versions` y `/modelo`.
 - ✅ SEO: `/pick/{id}` renderizado en servidor, `sitemap.xml`, `robots.txt`, OpenGraph y JSON-LD.
+- ✅ Atributos del foso competitivo: CLV declarado, impacto de mercado, edge realizado/publicado,
+  Monte Carlo público, N≥200, equipo, changelog, comunidad y cap de suscriptores.
 
 ### Explícitamente fuera del MVP
 
