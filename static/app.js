@@ -1394,4 +1394,24 @@ async function init() {
   await handleStripeReturn();
 }
 
+/* Registro directo: /?registro (o /?register) abre el diálogo ya en modo
+   "Crear una" — la URL que se comparte en la invitación a testers, sin
+   los tres clics del flujo normal (Entrar → Crear una). Se consume el
+   parámetro: refrescar no reabre el diálogo. Si ya hay token de sesión
+   no se abre, porque esa cuenta ya está dada de alta. */
+function openRegisterFromUrl() {
+  const params = new URLSearchParams(location.search);
+  if (!params.has("registro") && !params.has("register")) return;
+  params.delete("registro");
+  params.delete("register");
+  const qs = params.toString();
+  history.replaceState(null, "",
+    location.pathname + (qs ? `?${qs}` : "") + location.hash);
+  if (localStorage.getItem("ae_token")) return;
+  loginMode = "register";
+  updateLoginDialogText();
+  openLogin();
+}
+
+openRegisterFromUrl();
 init();
