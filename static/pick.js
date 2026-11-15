@@ -41,6 +41,12 @@ const I18N = {
     verify_ok: "✓ Verificado en tu navegador: los hashes SHA-256 de este pick coinciden exactamente con sus cadenas canónicas.",
     verify_bad: "✗ Alerta: el hash recalculado no coincide con el registrado.",
     verify_nocrypto: "Web Crypto no está disponible en este contexto; usa verify_ledger.py en /verificacion.",
+    manual_label: "¿Tienes un hash de otra fuente? Pégalo aquí y compruébalo contra este pick:",
+    manual_placeholder: "64 caracteres hexadecimales (0-9, a-f)",
+    manual_btn: "Comprobar hash pegado",
+    manual_ok: "✓ Coincide: el hash pegado es idéntico al hash de verificación registrado de este pick.",
+    manual_bad: "✗ No coincide: el hash pegado no corresponde a este pick.",
+    manual_invalid: "✗ Formato no válido: pega un hash SHA-256 de 64 caracteres hexadecimales.",
     copied_link: "Enlace copiado",
     copied_details: "Detalles copiados",
     discuss_pick: "Discutir este pick",
@@ -87,6 +93,12 @@ const I18N = {
     verify_ok: "✓ Verified in your browser: the SHA-256 hashes of this pick match its canonical strings.",
     verify_bad: "✗ Warning: recomputed hash does not match the recorded hash.",
     verify_nocrypto: "Web Crypto is unavailable in this context; use verify_ledger.py on /verificacion.",
+    manual_label: "Have a hash from another source? Paste it here and check it against this pick:",
+    manual_placeholder: "64 hexadecimal characters (0-9, a-f)",
+    manual_btn: "Check pasted hash",
+    manual_ok: "✓ Match: the pasted hash is identical to this pick's registered verification hash.",
+    manual_bad: "✗ Does not match: the pasted hash does not correspond to this pick.",
+    manual_invalid: "✗ Invalid format: paste a 64-character hexadecimal SHA-256 hash.",
     copied_link: "Link copied",
     copied_details: "Details copied",
     discuss_pick: "Discuss this pick",
@@ -271,14 +283,61 @@ async function verifyPickHashes() {
   reportVerification(true);
 }
 
+/* Comprobación manual: el usuario pega un hash (por ejemplo, el que vio en
+   otra superficie o en la API) y lo compara con el de este pick. El hash
+   registrado primero se valida contra su string canónico recalculado aquí,
+   y solo entonces se compara lo pegado: un hash incorrecto → "No coincide". */
+async function verifyManualHash() {
+  const box = $("#manual-verify-box");
+  const input = $("#manual-hash-input");
+  box.hidden = false;
+  box.className = "verify-result";
+  const pasted = String(input.value || "").trim().toLowerCase().replace(/^0x/, "");
+  if (!/^[0-9a-f]{64}$/.test(pasted)) {
+    box.classList.add("bad");
+    box.textContent = t("manual_invalid");
+    return;
+  }
+  if (!window.crypto || !window.crypto.subtle) {
+    box.textContent = t("verify_nocrypto");
+    return;
+  }
+  const p = state.pick;
+  if (!p || !p.verification_hash) {
+    box.classList.add("bad");
+    box.textContent = t("manual_bad");
+    return;
+  }
+  // 1) El hash registrado debe ser el de su canónico (recalculado aquí).
+  if (p.verification_canonical) {
+    const computed = await sha256Hex(String(p.verification_canonical));
+    if (computed !== p.verification_hash) {
+      box.classList.add("bad");
+      box.textContent = t("verify_bad");
+      reportVerification(false, "manual");
+      return;
+    }
+  }
+  // 2) Comparar lo pegado con el registrado.
+  if (pasted === String(p.verification_hash).toLowerCase()) {
+    box.classList.add("ok");
+    box.textContent = t("manual_ok");
+    reportVerification(true, "manual");
+  } else {
+    box.classList.add("bad");
+    box.textContent = t("manual_bad");
+    reportVerification(false, "manual");
+  }
+}
+
 /* Avisa al servidor de que se completó una verificación en este navegador
    (solo métrica de uso; la prueba criptográfica ocurre en cliente). */
-function reportVerification(ok) {
+function reportVerification(ok, scope) {
   try {
     fetch("/api/verify/report", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ok, scope: "pick" }),
+      body: JSON.stringify({ ok, scope: scope || "pick" }),
       keepalive: true,
     }).catch(() => { /* métrica best-effort */ });
   } catch { /* sin red: no interrumpe la verificación */ }
@@ -298,6 +357,11 @@ function applyLang(lang) {
   });
   const btn = $("#lang-toggle");
   if (btn) btn.textContent = lang === "es" ? "EN" : "ES";
+  // Placeholders (data-i18n-placeholder) — mismo mecanismo que data-i18n.
+  $$("[data-i18n-placeholder]").forEach((el) => {
+    const val = t(el.getAttribute("data-i18n-placeholder"));
+    if (val) el.setAttribute("placeholder", val);
+  });
   render();
 }
 
@@ -306,6 +370,10 @@ function bind() {
     applyLang(state.lang === "es" ? "en" : "es");
   });
   $("#btn-verify-pick").addEventListener("click", verifyPickHashes);
+  $("#btn-manual-verify").addEventListener("click", verifyManualHash);
+  $("#manual-hash-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") verifyManualHash();
+  });
   $("#btn-copy-link").addEventListener("click", async () => {
     const url = window.location.href;
     if (navigator.clipboard) await navigator.clipboard.writeText(url);

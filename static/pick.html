@@ -52,6 +52,16 @@
     </div>
     <div class="verify-result" id="pick-verify-box" hidden></div>
 
+    <div class="manual-verify">
+      <label class="muted" for="manual-hash-input" data-i18n="manual_label">¿Tienes un hash de otra fuente? Pégalo aquí y compruébalo contra este pick:</label>
+      <div class="manual-row">
+        <input type="text" id="manual-hash-input" maxlength="64" spellcheck="false" autocomplete="off"
+               placeholder="64 caracteres hexadecimales (0-9, a-f)" data-i18n-placeholder="manual_placeholder">
+        <button class="btn ghost" type="button" id="btn-manual-verify" data-i18n="manual_btn">Comprobar hash pegado</button>
+      </div>
+      <div class="verify-result" id="manual-verify-box" hidden></div>
+    </div>
+
     <div class="stat-strip">
       <div class="stat">
         <span class="stat-label" data-i18n="lbl_odds">Cuota de entrada</span>
