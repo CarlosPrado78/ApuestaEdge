@@ -300,6 +300,21 @@ def _resolve_plan(request: Request, requested: str) -> str:
     return "premium"  # modo demo (sin claves Stripe)
 
 
+def _telegram_env_status() -> dict:
+    """Estado de configuración de Telegram — SOLO booleanos.
+
+    Nunca expone el token ni el chat_id: únicamente si están definidos y
+    no vacíos. Si las variables no existen, los tres campos son False.
+    (No confundir con ``_telegram_status(request)``: esa es la vista de
+    alertas por usuario; esta es la de variables de entorno para /health.)
+    """
+    token_set = bool(config.TELEGRAM_BOT_TOKEN)
+    chat_id_set = bool(config.TELEGRAM_BROADCAST_CHAT)
+    return {"configured": token_set and chat_id_set,
+            "chat_id_set": chat_id_set,
+            "token_set": token_set}
+
+
 @app.get("/api/health")
 def health() -> dict:
     matches, source = _get_matches()
@@ -323,6 +338,7 @@ def health() -> dict:
             "beta": beta,
             "picks_cerrados": int(picks_cerrados),
             "verificaciones_hash": verificaciones,
+            "telegram": _telegram_env_status(),
             "odds_api": dict(providers.LAST_DIAG),
             "billing": "stripe" if billing.stripe_enabled() else "demo",
             "premium_locked": billing.stripe_enabled(),
@@ -1048,6 +1064,43 @@ async def telegram_broadcast_test(request: Request) -> dict:
     if not ok:
         raise HTTPException(status_code=502, detail=f"Telegram: {err}")
     return {"ok": True, "chat_id": config.TELEGRAM_BROADCAST_CHAT}
+
+
+@app.post("/api/admin/telegram-test", include_in_schema=False)
+async def admin_telegram_test(request: Request):
+    """Test de envío a Telegram (solo admin; oculta de la documentación).
+
+    Autenticación por ``X-Admin-Token`` = ``ADMIN_TOKEN``. Respuestas:
+    401 sin/mal token · 400 si Telegram no está configurado · 200 con el
+    ``message_id`` si Telegram acepta · 502 si Telegram rechaza (timeout
+    de 10 s). Ni el token ni el chat_id aparecen en la respuesta ni en
+    los logs: solo booleanos y el error saneado de la API.
+    """
+    provided = request.headers.get("x-admin-token", "").strip()
+    token = config.ADMIN_TOKEN
+    # Sin ADMIN_TOKEN configurado el endpoint está cerrado para todos.
+    if not token or not provided or not secrets.compare_digest(provided, token):
+        return JSONResponse(status_code=401,
+                            content={"error": "unauthorized"})
+    status = _telegram_env_status()
+    if not status["configured"]:
+        return JSONResponse(status_code=400, content={
+            "error": "telegram_not_configured", "telegram": status})
+    now = dt.datetime.now(dt.timezone.utc)
+    sent_at = now.isoformat()
+    message_id, err = await notifier.send_message_with_id(
+        config.TELEGRAM_BROADCAST_CHAT,
+        f"Test de ApuestaEdge desde Render — {sent_at}",
+        timeout=10.0)
+    if message_id is None:
+        # Defensa en profundidad: aunque el error viniera sin sanear,
+        # jamás se devuelve el token ni el chat_id en claro.
+        err = str(err).replace(config.TELEGRAM_BOT_TOKEN, "***")
+        if config.TELEGRAM_BROADCAST_CHAT:
+            err = err.replace(config.TELEGRAM_BROADCAST_CHAT, "***")
+        return JSONResponse(status_code=502,
+                            content={"ok": False, "error": err})
+    return {"ok": True, "message_id": message_id, "sent_at": sent_at}
 
 
 # --------------------------------------------------- reglas de alertas (/alertas)

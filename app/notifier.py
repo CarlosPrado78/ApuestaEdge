@@ -237,6 +237,47 @@ async def send_message(chat_id: str, text: str,
             await client.aclose()
 
 
+async def send_message_with_id(chat_id: str, text: str, *,
+                               timeout: float = 10.0) -> tuple[int | None, str]:
+    """Envía un mensaje y devuelve ``(message_id, error)``.
+
+    Igual que :func:`send_message` pero conserva el ``message_id`` que
+    responde Telegram (lo necesita el test de envío de producción). El
+    error se sanea: jamás puede contener el token ni el chat_id, porque
+    la URL de la API de Telegram lleva el token dentro.
+    """
+    token = config.TELEGRAM_BOT_TOKEN
+    if not token:
+        return None, "TELEGRAM_BOT_TOKEN no configurado"
+
+    def scrub(msg: str) -> str:
+        out = str(msg).replace(token, "***")
+        if chat_id:
+            out = out.replace(str(chat_id), "***")
+        return out
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(api_url("sendMessage"), json={
+                "chat_id": chat_id, "text": text,
+                "disable_web_page_preview": True})
+    except httpx.HTTPError as exc:
+        return None, scrub(str(exc))
+    try:
+        data = resp.json()
+    except ValueError:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    if resp.status_code == 200 and data.get("ok"):
+        try:
+            return int(data["result"]["message_id"]), ""
+        except (KeyError, TypeError, ValueError):
+            return None, "respuesta de Telegram sin message_id"
+    desc = data.get("description")
+    return None, scrub(str(desc or f"HTTP {resp.status_code}"))
+
+
 def _should_unlink(error: str) -> bool:
     lowered = error.lower()
     return any(s in lowered for s in
